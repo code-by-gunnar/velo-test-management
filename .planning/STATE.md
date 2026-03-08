@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 1 — Foundation
-current_plan: 05 (plan 04 complete)
+current_plan: 06 (plan 05 complete)
 status: In progress
-last_updated: "2026-03-08T22:15:00Z"
+last_updated: "2026-03-08T22:26:00Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # State: Velo
@@ -35,12 +35,12 @@ progress:
 ## Current Position
 
 **Current phase:** 1 — Foundation
-**Current plan:** 05 (plan 04 complete)
+**Current plan:** 06 (plan 05 complete)
 **Status:** In progress
 
 **Progress:**
-```
-Phase 1 [███████   ] 67%  Foundation (4/? plans complete)
+[████████░░] 83%
+Phase 1 [████████░░] 83%  Foundation (5/6 plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -48,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 10/18 requirements delivered (INFRA-01–05, AUTH-01–05)
+**Overall:** 15/18 requirements delivered (INFRA-01–06, AUTH-01–05, WORK-01–03)
 
 ---
 
@@ -56,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | In progress (plans 01-04 done) |
+| 1. Foundation | 18 | TBD | In progress (plans 01-05 done) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -91,6 +91,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | @auth/core@0.41.0 pinned directly in apps/web | pnpm resolves to v0.34.3 (latest stable) but next-auth@beta.30 needs v0.41.0 — TypeScript module augmentation must point to the same version |
 | Auth.js credential verification delegated to Fastify | All bcrypt logic and DB queries in one place (apps/api); Auth.js authorize() is a thin HTTP client |
 | postgres.js TransactionSql cast to Sql for template tags | TypeScript Omit<> does not preserve call signatures; cast (tx as unknown as Sql) is required workaround |
+| WorkspaceSql brands postgres.Sql (not TransactionSql) | TransactionSql Omit<> strips call signatures — brand on Sql, cast tx as unknown as WorkspaceSql inside withWorkspace |
+| RLS migration manually authored in drizzle journal | drizzle-kit cannot generate ENABLE/FORCE ROW LEVEL SECURITY or CREATE POLICY DDL |
+| Session plugin forwards Auth.js cookie to WEB_URL/api/auth/session | Avoids reimplementing JWE decryption with jose in Fastify; stays in sync with Auth.js internals |
+| Free tier limits enforced at API layer (not DB constraints) | 1 project max returns 403 TIER_LIMIT_EXCEEDED; easier to tune per-plan without migrations |
 
 ### Architecture Patterns Locked In
 
@@ -102,7 +106,9 @@ Phase 6 [          ] 0%   Team and Access Control
 - SSE per-run-id subscribes to Valkey channel; stateless from API server
 - Workspace membership cached in Valkey (60s TTL)
 - BullMQ for async ingestion, Jira sync, webhook fanout (Queue/Worker use URL-based connection options — not iovalkey instances — to satisfy BullMQ ioredis type requirements)
-- SET LOCAL (not SET) for RLS transaction-scoped workspace context
+- SET LOCAL (not SET) for RLS transaction-scoped workspace context — withWorkspace() wrapper enforces this on every tenant query
+- All tenant-scoped routes use withWorkspace(id, fn) — bare sql only for non-tenant queries (workspaces slug uniqueness, membership verification)
+- RLS workspace_isolation policy: current_setting('app.workspace_id', true)::uuid — missing_ok=true fails closed (no rows if SET LOCAL not called)
 - Programmatic migrate() runs on every Fastify startup (idempotent, safe in CI)
 - Separate single-connection migration client from app pool client (max: 10)
 - Auth.js v5 JWT session: `session.user.{ id, workspace_id, workspace_slug, role }` — all protected pages and API requests use this shape
@@ -113,7 +119,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | ID | Pitfall | Prevention |
 |----|---------|------------|
-| C2 | Multi-tenancy isolation breaks silently | RLS setup in Phase 1; integration test in Phase 2 |
+| C2 | Multi-tenancy isolation breaks silently | RESOLVED — RLS policies active on all 8 tenant tables; withWorkspace wrapper enforced at compile time via WorkspaceSql brand |
 | C3 | SSE connections dropped by Railway proxy | Test SSE on Railway URL week 1 of Phase 3; 20s heartbeats |
 | C4 | JUnit XML schema variation breaks parser | Build fixture library before writing parser |
 | C5 | Auth.js v5 JWT custom fields silently lost | RESOLVED — integration test in CI verifies AUTH-05 |
@@ -146,11 +152,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** Completed 01-04 (Auth.js v5 + OTP) — Credentials provider, JWT callback chain, OTP email verification, password reset, 5 auth pages, 5+6 tests.
+**Last session:** Completed 01-05 (Multi-tenancy + Workspace Scaffold)
 
-**To resume work:** Run `/gsd:execute-phase 1` starting from plan 05.
+**To resume work:** Run `/gsd:execute-phase 1` starting from plan 06.
 
-**Context summary:** Phase 1 plans 01-04 complete. Auth fully implemented: sign-up → OTP → sign-in → session → sign-out → password reset. JWT carries workspace_id/role (AUTH-05 verified). session.user shape locked in for all future phases. Integration tests for auth routes require CI PostgreSQL. Resend requires real API key for email delivery. Next: plan 05 (likely workspace onboarding or remaining foundation items).
+**Context summary:** Phase 1 plans 01-05 complete. Multi-tenancy: WorkspaceSql branded type enforces tenant query safety at compile time; withWorkspace() wraps all tenant queries with SET LOCAL; RLS policies (FORCE) on all 8 tenant tables. Workspace/project CRUD API complete with Free tier limit enforcement. session.plugin.ts decodes Auth.js cookies for Fastify routes. 15/18 Phase 1 requirements delivered. Next: plan 06 (final Phase 1 plan — likely design system, CI, or remaining INFRA requirements).
 
 ---
 
