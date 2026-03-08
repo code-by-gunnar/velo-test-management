@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @velo/web build",
+  "outputDirectory": "apps/web/.next",
+  "devCommand": "pnpm --filter @velo/web dev"
+}
