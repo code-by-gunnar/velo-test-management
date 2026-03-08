@@ -10,7 +10,7 @@
 - [x] **INFRA-01**: Repository is set up with CI/CD pipeline running on GitHub Actions (lint, type-check, test on every PR)
 - [x] **INFRA-02**: Application deploys to Railway automatically from main branch merge
 - [x] **INFRA-03**: PostgreSQL 16 database is provisioned on Railway with drizzle-kit migration system in place
-- [ ] **INFRA-04**: Valkey instance is provisioned and connected (session store, pub/sub, BullMQ)
+- [x] **INFRA-04**: Valkey instance is provisioned and connected (session store, pub/sub, BullMQ)
 - [x] **INFRA-05**: Multi-tenancy isolation enforced at application layer (workspace_id on every tenant-scoped row, TypeScript compile-time enforcement)
 - [ ] **INFRA-06**: PostgreSQL RLS enabled on all tenant-scoped tables as defense-in-depth layer using SET LOCAL (transaction-scoped)
 
@@ -150,7 +150,7 @@
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Pending |
 | INFRA-06 | Phase 1 | Pending |
 | AUTH-01 | Phase 1 | Pending |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 1 — Foundation
-current_plan: "03 (plan 02 complete)"
+current_plan: 04 (plan 03 complete)
 status: In progress
-last_updated: "2026-03-08T21:38:19Z"
+last_updated: "2026-03-08T22:05:00Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
-  percent: 33
+  completed_plans: 3
+  percent: 50
 ---
 
 # State: Velo
@@ -35,12 +35,12 @@ progress:
 ## Current Position
 
 **Current phase:** 1 — Foundation
-**Current plan:** 03 (plan 02 complete)
+**Current plan:** 04 (plan 03 complete)
 **Status:** In progress
 
 **Progress:**
 ```
-Phase 1 [████      ] 33%  Foundation (2/? plans complete)
+Phase 1 [█████     ] 50%  Foundation (3/? plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -48,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 4/18 requirements delivered (INFRA-01, INFRA-02, INFRA-03, INFRA-05)
+**Overall:** 5/18 requirements delivered (INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05)
 
 ---
 
@@ -56,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | In progress (plans 01-02 done) |
+| 1. Foundation | 18 | TBD | In progress (plans 01-03 done) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -86,6 +86,8 @@ Phase 6 [          ] 0%   Team and Access Control
 | uuidv7 npm package for UUID v7 PKs | PostgreSQL 16 lacks native uuidv7() (added in PG 18+); app-layer generation required |
 | Migration files committed to git (not gitignored) | Enables deterministic CI and Railway deploy; removed erroneous drizzle/ entry from .gitignore |
 | Phase 2/3 tables defined in Plan 2 schema | Avoids mid-phase migrations during sample data seeding in Plan 6 |
+| URL-based BullMQ connection options (not iovalkey instance) | BullMQ uses ioredis types internally; iovalkey instance causes TS2322 type mismatch that cannot be resolved without unsafe casts |
+| Relative imports throughout (not @/ aliases) | tsconfig uses NodeNext resolution without paths; aliases require both tsconfig paths and vitest resolve.alias to work |
 
 ### Architecture Patterns Locked In
 
@@ -96,7 +98,7 @@ Phase 6 [          ] 0%   Team and Access Control
 - Recursive CTE for suite tree queries
 - SSE per-run-id subscribes to Valkey channel; stateless from API server
 - Workspace membership cached in Valkey (60s TTL)
-- BullMQ for async ingestion, Jira sync, webhook fanout
+- BullMQ for async ingestion, Jira sync, webhook fanout (Queue/Worker use URL-based connection options — not iovalkey instances — to satisfy BullMQ ioredis type requirements)
 - SET LOCAL (not SET) for RLS transaction-scoped workspace context
 - Programmatic migrate() runs on every Fastify startup (idempotent, safe in CI)
 - Separate single-connection migration client from app pool client (max: 10)
@@ -138,11 +140,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** Completed 01-02 (Database Schema + Migrations) — full entity schema (12 tables, 5 enums), Drizzle SQL migration generated, programmatic migrator wired into Fastify startup, runtime postgres.js client created.
+**Last session:** Completed 01-03 (Valkey + BullMQ) — iovalkey client, BullMQ email queue/worker, Fastify plugin, health endpoint Valkey ping, integration tests.
 
-**To resume work:** Run `/gsd:execute-phase 1` starting from plan 03.
+**To resume work:** Run `/gsd:execute-phase 1` starting from plan 04.
 
-**Context summary:** Phase 1 plans 01-02 complete. pnpm monorepo scaffold bootable with lint/typecheck/test passing. Full PostgreSQL schema defined for all Phase 1-3 entities. Migration file at apps/api/drizzle/0000_wandering_blue_shield.sql committed to git. Migrator runs automatically on Fastify startup. Railway setup still required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 03 (Auth).
+**Context summary:** Phase 1 plans 01-03 complete. iovalkey connected to Valkey via URL-based BullMQ connection options. Email queue and worker stub ready; Resend integration deferred to Plan 4. Health endpoint pings Valkey and reports services.valkey. Integration tests in CI pass against valkey/valkey:7. Railway setup still required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 04 (Auth.js v5).
 
 ---
 
