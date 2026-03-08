@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-typecheck:
+    name: Lint and Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: velo
+          POSTGRES_PASSWORD: velo
+          POSTGRES_DB: velo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      valkey:
+        image: valkey/valkey:7
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create non-superuser app role for RLS tests
+        # The 'velo' user created by POSTGRES_USER is a superuser and bypasses RLS.
+        # The RLS isolation test (Plan 5) requires a non-superuser role to be meaningful.
+        # Create 'velo_app' with limited privileges — this is the role used for RLS tests.
+        run: |
+          psql postgresql://velo:velo@localhost:5432/velo_test -c "
+            CREATE ROLE velo_app LOGIN PASSWORD 'velo_app';
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO velo_app;
+            GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO velo_app;
+            ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO velo_app;
+          "
+
+      - name: Run tests
+        run: pnpm run test
+        env:
+          DATABASE_URL: postgresql://velo:velo@localhost:5432/velo_test
+          DATABASE_URL_APP: postgresql://velo_app:velo_app@localhost:5432/velo_test
+          VALKEY_URL: redis://localhost:6379
+          NODE_ENV: test
