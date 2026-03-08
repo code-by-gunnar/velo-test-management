@@ -1,5 +1,5 @@
 import { Queue } from "bullmq"
-import { valkey } from "../lib/valkey.js"
+import { getBullMQConnectionOptions } from "../lib/valkey.js"
 
 export interface EmailJobData {
   to: string
@@ -13,7 +13,7 @@ export interface EmailJobData {
  * Processed by emailWorker in email.worker.ts.
  */
 export const emailQueue = new Queue<EmailJobData>("email", {
-  connection: valkey,
+  connection: getBullMQConnectionOptions(),
   defaultJobOptions: {
     attempts: 3,
     backoff: {

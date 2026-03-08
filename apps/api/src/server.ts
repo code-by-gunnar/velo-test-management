@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet"
 import { migrate } from "drizzle-orm/postgres-js/migrator"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
+import valkeyPlugin from "./plugins/valkey.plugin.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -32,9 +33,18 @@ await fastify.register(cors, {
 })
 
 await fastify.register(helmet)
+await fastify.register(valkeyPlugin)
 
 fastify.get("/health", async () => {
-  return { status: "ok", timestamp: new Date().toISOString() }
+  // Ping Valkey — returns "PONG" if healthy
+  const valkeyPing = await fastify.valkey.ping().catch(() => "ERROR")
+  return {
+    status: valkeyPing === "PONG" ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    services: {
+      valkey: valkeyPing === "PONG" ? "ok" : "error",
+    },
+  }
 })
 
 const port = parseInt(process.env.PORT ?? "3001")
