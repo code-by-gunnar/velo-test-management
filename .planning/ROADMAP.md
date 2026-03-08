@@ -23,7 +23,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/6 | In Progress | - |
+| 1. Foundation | 3/6 | In Progress | - |
 | 2. Test Cases | 0/? | Not started | - |
 | 3. Test Runs and Dashboard | 0/? | Not started | - |
 | 4. CI Ingestion | 0/? | Not started | - |
@@ -217,4 +217,4 @@
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-08 after initial creation*
+*Last updated: 2026-03-08 after plan 03 (Valkey + BullMQ)*
