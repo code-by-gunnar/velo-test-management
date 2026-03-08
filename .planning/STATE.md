@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 1 — Foundation
+current_plan: "02 (plan 01 complete)"
+status: In progress
+last_updated: "2026-03-08T21:29:00Z"
+progress:
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
+---
+
 # State: Velo
 
 **Project:** Velo QA Test Management Platform
@@ -19,12 +35,12 @@
 ## Current Position
 
 **Current phase:** 1 — Foundation
-**Current plan:** None (planning not yet started)
-**Status:** Not started
+**Current plan:** 02 (plan 01 complete)
+**Status:** In progress
 
 **Progress:**
 ```
-Phase 1 [          ] 0%   Foundation
+Phase 1 [██        ] 17%  Foundation (1/? plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -32,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 0/48 requirements delivered
+**Overall:** 2/18 requirements delivered (INFRA-01, INFRA-02)
 
 ---
 
@@ -40,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | Not started |
+| 1. Foundation | 18 | TBD | In progress (plan 01 done) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -63,6 +79,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | SSE (not WebSocket) for real-time | Use case is server-to-client only; SSE simpler, proxy-compatible |
 | Normalized test_case_steps table (not JSONB steps[]) | Enables step-level CI mapping, search, attachments |
 | App-layer + RLS defense-in-depth multi-tenancy | Neither alone is sufficient; both layers required |
+| eslint-config-next v16 flat config via direct import (not FlatCompat) | FlatCompat causes circular JSON serialization error in ESLint 9 config validator |
+| vitest passWithNoTests=true on all apps | CI must pass before any test files are written in later plans |
+| jsdom explicit devDependency in apps/web | pnpm strict isolation requires it listed; vitest jsdom environment does not auto-install it |
 
 ### Architecture Patterns Locked In
 
@@ -113,9 +132,11 @@ None.
 
 ## Session Continuity
 
-**To resume work:** Run `/gsd:plan-phase 1` to generate the Phase 1 execution plan.
+**Last session:** Completed 01-01 (Monorepo + CI/CD) — pnpm monorepo scaffold with Next.js 16, Fastify 5, GitHub Actions CI.
 
-**Context summary:** Roadmap created. 48 v1 requirements mapped across 6 phases. Phase 1 (Foundation) is next — sequential infrastructure, auth, design system, and workspace scaffold. Phases 2-6 are parallelisable once Phase 1 is stable. All architecture decisions are locked in (see decisions table above). Critical pitfalls are documented; the most dangerous are C2 (multi-tenancy) and C5 (Auth.js JWT fields) — both must be tested in Phase 1 before any feature work begins.
+**To resume work:** Run `/gsd:execute-phase 1` starting from plan 02.
+
+**Context summary:** Phase 1 plan 01 complete. pnpm monorepo scaffold (apps/web, apps/api, packages/types) is bootable with lint/typecheck/test passing. GitHub Actions CI defined with PostgreSQL 16 + Valkey 7. Railway manual setup required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 02 (PostgreSQL schema + Drizzle migrations).
 
 ---
 
