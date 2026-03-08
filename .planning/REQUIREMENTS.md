@@ -12,7 +12,7 @@
 - [x] **INFRA-03**: PostgreSQL 16 database is provisioned on Railway with drizzle-kit migration system in place
 - [x] **INFRA-04**: Valkey instance is provisioned and connected (session store, pub/sub, BullMQ)
 - [x] **INFRA-05**: Multi-tenancy isolation enforced at application layer (workspace_id on every tenant-scoped row, TypeScript compile-time enforcement)
-- [ ] **INFRA-06**: PostgreSQL RLS enabled on all tenant-scoped tables as defense-in-depth layer using SET LOCAL (transaction-scoped)
+- [x] **INFRA-06**: PostgreSQL RLS enabled on all tenant-scoped tables as defense-in-depth layer using SET LOCAL (transaction-scoped)
 
 ### Authentication
 
@@ -31,9 +31,9 @@
 
 ### Workspace & Projects
 
-- [ ] **WORK-01**: User can create a workspace with a name and slug
-- [ ] **WORK-02**: User can create a project within a workspace (name + project key, e.g. VELO)
-- [ ] **WORK-03**: Free tier enforces limits (3 editors, 1 project, 500 test cases)
+- [x] **WORK-01**: User can create a workspace with a name and slug
+- [x] **WORK-02**: User can create a project within a workspace (name + project key, e.g. VELO)
+- [x] **WORK-03**: Free tier enforces limits (3 editors, 1 project, 500 test cases)
 
 ### Test Cases
 
@@ -151,8 +151,8 @@
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
 | INFRA-04 | Phase 1 | Complete |
-| INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Complete |
+| INFRA-06 | Phase 1 | Complete |
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
@@ -162,9 +162,9 @@
 | DS-02 | Phase 1 | Pending |
 | DS-03 | Phase 1 | Pending |
 | DS-04 | Phase 1 | Pending |
-| WORK-01 | Phase 1 | Pending |
-| WORK-02 | Phase 1 | Pending |
-| WORK-03 | Phase 1 | Pending |
+| WORK-01 | Phase 1 | Complete |
+| WORK-02 | Phase 1 | Complete |
+| WORK-03 | Phase 1 | Complete |
 | TC-01 | Phase 2 | Pending |
 | TC-02 | Phase 2 | Pending |
 | TC-03 | Phase 2 | Pending |
