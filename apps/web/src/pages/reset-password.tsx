@@ -1,4 +1,5 @@
 import React from "react"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -43,7 +44,7 @@ export default function ResetPasswordPage() {
       <main style={{ maxWidth: 400, margin: "80px auto", padding: 24 }}>
         <h1>Password reset</h1>
         <p>Your password has been reset. You can now sign in with your new password.</p>
-        <p><a href="/login">Sign in</a></p>
+        <p><Link href="/login">Sign in</Link></p>
       </main>
     )
   }

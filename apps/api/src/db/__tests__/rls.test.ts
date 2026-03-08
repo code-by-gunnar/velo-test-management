@@ -1,7 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
+import postgres from "postgres"
 import { sql } from "../client.js"
-import { withWorkspace } from "../tenant.js"
 import { uuidv7 } from "uuidv7"
+
+// RLS only applies to non-superuser roles — use DATABASE_URL_APP (velo_app role)
+const appSql = postgres(process.env.DATABASE_URL_APP ?? process.env.DATABASE_URL!, { max: 2 })
+
+async function withWorkspaceApp<T>(workspaceId: string, fn: (tx: typeof appSql) => Promise<T>): Promise<T> {
+  return appSql.begin(async (tx) => {
+    await tx.unsafe(`SET LOCAL app.workspace_id = '${workspaceId}'`)
+    return fn(tx as unknown as typeof appSql)
+  }) as Promise<T>
+}
 
 // Integration test — requires DATABASE_URL pointing to a PostgreSQL 16 test DB
 // with RLS policies applied (migration 0001_rls_policies.sql must have run)
@@ -39,10 +49,11 @@ describe("PostgreSQL RLS cross-workspace isolation (INFRA-06)", () => {
     await sql`DELETE FROM projects WHERE id IN (${projectA}::uuid, ${projectB}::uuid)`
     await sql`DELETE FROM workspaces WHERE id IN (${workspaceA}::uuid, ${workspaceB}::uuid)`
     await sql.end()
+    await appSql.end()
   })
 
-  it("withWorkspace(A) can see Workspace A project but not Workspace B project (INFRA-06)", async () => {
-    const projects = await withWorkspace(workspaceA, async (tx) =>
+  it("withWorkspaceApp(A) can see Workspace A project but not Workspace B project (INFRA-06)", async () => {
+    const projects = await withWorkspaceApp(workspaceA, async (tx) =>
       tx`SELECT id FROM projects WHERE id IN (${projectA}::uuid, ${projectB}::uuid)`
     )
 
@@ -51,8 +62,8 @@ describe("PostgreSQL RLS cross-workspace isolation (INFRA-06)", () => {
     expect(ids).not.toContain(projectB)
   })
 
-  it("withWorkspace(B) can see Workspace B project but not Workspace A project", async () => {
-    const projects = await withWorkspace(workspaceB, async (tx) =>
+  it("withWorkspaceApp(B) can see Workspace B project but not Workspace A project", async () => {
+    const projects = await withWorkspaceApp(workspaceB, async (tx) =>
       tx`SELECT id FROM projects WHERE id IN (${projectA}::uuid, ${projectB}::uuid)`
     )
 
@@ -62,7 +73,7 @@ describe("PostgreSQL RLS cross-workspace isolation (INFRA-06)", () => {
   })
 
   it("SET LOCAL workspace_id is cleared after transaction ends — no bleed between requests", async () => {
-    await withWorkspace(workspaceA, async (tx) => {
+    await withWorkspaceApp(workspaceA, async (tx) => {
       await tx`SELECT 1`
     })
 
