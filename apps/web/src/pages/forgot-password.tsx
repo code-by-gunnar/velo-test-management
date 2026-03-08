@@ -1,4 +1,5 @@
 import React from "react"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -30,7 +31,7 @@ export default function ForgotPasswordPage() {
       <main style={{ maxWidth: 400, margin: "80px auto", padding: 24 }}>
         <h1>Check your email</h1>
         <p>If an account with that email exists, we sent a password reset link. Check your inbox.</p>
-        <p><a href="/login">Back to sign in</a></p>
+        <p><Link href="/login">Back to sign in</Link></p>
       </main>
     )
   }
@@ -48,7 +49,7 @@ export default function ForgotPasswordPage() {
           {isSubmitting ? "Sending..." : "Send reset link"}
         </button>
       </form>
-      <p><a href="/login">Back to sign in</a></p>
+      <p><Link href="/login">Back to sign in</Link></p>
     </main>
   )
 }

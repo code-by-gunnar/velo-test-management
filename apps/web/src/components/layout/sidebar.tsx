@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
@@ -41,12 +41,10 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   const { data: session } = useSession()
 
   // Persist sidebar state in localStorage (DS-04)
-  const [collapsed, setCollapsed] = useState(false)
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === "true") setCollapsed(true)
-  }, [])
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem(STORAGE_KEY) === "true"
+  })
 
   const toggleCollapsed = () => {
     const next = !collapsed

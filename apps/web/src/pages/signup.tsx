@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -62,7 +63,7 @@ export default function SignupPage() {
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
       </form>
-      <p><a href="/login">Already have an account? Sign in</a></p>
+      <p><Link href="/login">Already have an account? Sign in</Link></p>
     </main>
   )
 }

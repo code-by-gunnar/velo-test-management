@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { signIn } from "next-auth/react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -55,8 +56,8 @@ export default function LoginPage() {
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
       </form>
-      <p><a href="/signup">Create an account</a></p>
-      <p><a href="/forgot-password">Forgot your password?</a></p>
+      <p><Link href="/signup">Create an account</Link></p>
+      <p><Link href="/forgot-password">Forgot your password?</Link></p>
     </main>
   )
 }
