@@ -16,11 +16,11 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with email and password
-- [ ] **AUTH-02**: User can sign in with email and password and stay signed in across browser restarts
-- [ ] **AUTH-03**: User can sign out from any screen
-- [ ] **AUTH-04**: User can reset password via email link (email delivered via Resend)
-- [ ] **AUTH-05**: Auth.js v5 JWT session correctly persists custom fields (workspace_id, role) across authorize → jwt → session callback chain
+- [x] **AUTH-01**: User can sign up with email and password
+- [x] **AUTH-02**: User can sign in with email and password and stay signed in across browser restarts
+- [x] **AUTH-03**: User can sign out from any screen
+- [x] **AUTH-04**: User can reset password via email link (email delivered via Resend)
+- [x] **AUTH-05**: Auth.js v5 JWT session correctly persists custom fields (workspace_id, role) across authorize → jwt → session callback chain
 
 ### Design System
 
@@ -153,11 +153,11 @@
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Pending |
 | INFRA-06 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
 | DS-01 | Phase 1 | Pending |
 | DS-02 | Phase 1 | Pending |
 | DS-03 | Phase 1 | Pending |
