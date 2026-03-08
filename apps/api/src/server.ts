@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import valkeyPlugin from "./plugins/valkey.plugin.js"
+import authRoutes from "./routes/auth.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -34,6 +35,7 @@ await fastify.register(cors, {
 
 await fastify.register(helmet)
 await fastify.register(valkeyPlugin)
+await fastify.register(authRoutes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
