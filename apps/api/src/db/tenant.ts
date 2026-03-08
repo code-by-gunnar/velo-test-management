@@ -49,7 +49,8 @@ export async function withWorkspace<T>(
     // Cast through unknown: TransactionSql Omit<> strips call signatures from
     // the TypeScript interface, but the runtime object retains them.
     const txSql = tx as unknown as WorkspaceSql
-    await txSql`SET LOCAL app.workspace_id = ${workspaceId}`
+    // SET LOCAL doesn't support parameterized queries ($1) — use unsafe with validated UUID
+    await txSql.unsafe(`SET LOCAL app.workspace_id = '${workspaceId}'`)
     return fn(txSql)
   }) as Promise<T>
 }
