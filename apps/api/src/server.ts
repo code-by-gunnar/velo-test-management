@@ -1,11 +1,14 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import helmet from "@fastify/helmet"
+import cookie from "@fastify/cookie"
 import { migrate } from "drizzle-orm/postgres-js/migrator"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import valkeyPlugin from "./plugins/valkey.plugin.js"
+import sessionPlugin from "./plugins/session.plugin.js"
 import authRoutes from "./routes/auth.js"
+import workspaceRoutes from "./routes/workspaces.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -34,8 +37,11 @@ await fastify.register(cors, {
 })
 
 await fastify.register(helmet)
+await fastify.register(cookie)
 await fastify.register(valkeyPlugin)
+await fastify.register(sessionPlugin)
 await fastify.register(authRoutes)
+await fastify.register(workspaceRoutes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
