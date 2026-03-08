@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 1 — Foundation
-current_plan: 04 (plan 03 complete)
+current_plan: 05 (plan 04 complete)
 status: In progress
-last_updated: "2026-03-08T22:05:00Z"
+last_updated: "2026-03-08T22:15:00Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # State: Velo
 
 **Project:** Velo QA Test Management Platform
 **Last updated:** 2026-03-08
-**Session:** Completed 01-02 (Database Schema + Migrations)
+**Session:** Completed 01-04 (Auth.js v5 + OTP)
 
 ---
 
@@ -35,12 +35,12 @@ progress:
 ## Current Position
 
 **Current phase:** 1 — Foundation
-**Current plan:** 04 (plan 03 complete)
+**Current plan:** 05 (plan 04 complete)
 **Status:** In progress
 
 **Progress:**
 ```
-Phase 1 [█████     ] 50%  Foundation (3/? plans complete)
+Phase 1 [███████   ] 67%  Foundation (4/? plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -48,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 5/18 requirements delivered (INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05)
+**Overall:** 10/18 requirements delivered (INFRA-01–05, AUTH-01–05)
 
 ---
 
@@ -56,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | In progress (plans 01-03 done) |
+| 1. Foundation | 18 | TBD | In progress (plans 01-04 done) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -87,7 +87,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | Migration files committed to git (not gitignored) | Enables deterministic CI and Railway deploy; removed erroneous drizzle/ entry from .gitignore |
 | Phase 2/3 tables defined in Plan 2 schema | Avoids mid-phase migrations during sample data seeding in Plan 6 |
 | URL-based BullMQ connection options (not iovalkey instance) | BullMQ uses ioredis types internally; iovalkey instance causes TS2322 type mismatch that cannot be resolved without unsafe casts |
-| Relative imports throughout (not @/ aliases) | tsconfig uses NodeNext resolution without paths; aliases require both tsconfig paths and vitest resolve.alias to work |
+| Relative imports throughout (not @/ aliases) in API | tsconfig uses NodeNext resolution without paths; aliases require both tsconfig paths and vitest resolve.alias to work |
+| @auth/core@0.41.0 pinned directly in apps/web | pnpm resolves to v0.34.3 (latest stable) but next-auth@beta.30 needs v0.41.0 — TypeScript module augmentation must point to the same version |
+| Auth.js credential verification delegated to Fastify | All bcrypt logic and DB queries in one place (apps/api); Auth.js authorize() is a thin HTTP client |
+| postgres.js TransactionSql cast to Sql for template tags | TypeScript Omit<> does not preserve call signatures; cast (tx as unknown as Sql) is required workaround |
 
 ### Architecture Patterns Locked In
 
@@ -102,6 +105,9 @@ Phase 6 [          ] 0%   Team and Access Control
 - SET LOCAL (not SET) for RLS transaction-scoped workspace context
 - Programmatic migrate() runs on every Fastify startup (idempotent, safe in CI)
 - Separate single-connection migration client from app pool client (max: 10)
+- Auth.js v5 JWT session: `session.user.{ id, workspace_id, workspace_slug, role }` — all protected pages and API requests use this shape
+- requireAuth(context) / requireUnauthed(context) helpers for all getServerSideProps
+- Fastify auth routes: bcrypt 12 rounds for passwords, 10 rounds for OTP/reset tokens
 
 ### Critical Pitfalls to Avoid
 
@@ -110,7 +116,7 @@ Phase 6 [          ] 0%   Team and Access Control
 | C2 | Multi-tenancy isolation breaks silently | RLS setup in Phase 1; integration test in Phase 2 |
 | C3 | SSE connections dropped by Railway proxy | Test SSE on Railway URL week 1 of Phase 3; 20s heartbeats |
 | C4 | JUnit XML schema variation breaks parser | Build fixture library before writing parser |
-| C5 | Auth.js v5 JWT custom fields silently lost | Integration test session persistence before Phase 2 begins |
+| C5 | Auth.js v5 JWT custom fields silently lost | RESOLVED — integration test in CI verifies AUTH-05 |
 | M1 | 30-second UX fails from sequential round trips | Optimistic UI, inline editors, no modals |
 | M2 | Performance cliff at 1,000+ test cases | Cursor pagination and indexes from first query |
 | M5 | Concurrent run status inconsistency | Compute run status from run_items aggregate; never store as writable column |
@@ -119,7 +125,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Area | Flag | Action |
 |------|------|--------|
-| Auth.js v5 + Valkey adapter | MEDIUM | Verify compatibility at authjs.dev before Phase 1 auth plan |
+| Auth.js v5 + Valkey adapter | RESOLVED | Used JWT strategy (no Valkey adapter needed) |
 | Railway SSE timeout | MEDIUM | Verify Railway proxy timeout config before Phase 3 SSE plan |
 | Jira sync (deferred to v2) | — | Replaced by Linear for MVP |
 | Linear OAuth + two-way sync | MEDIUM | Research before Phase 5 integrations plan |
@@ -127,10 +133,10 @@ Phase 6 [          ] 0%   Team and Access Control
 
 ### Todos
 
-- [ ] Verify Auth.js v5 stable API and Valkey adapter compatibility before Phase 1 plan
 - [ ] Verify Railway SSE timeout configuration before Phase 3 plan
 - [ ] Collect JUnit XML samples (pytest, Surefire, Gradle, Jest-junit, gotestsum) before Phase 4 plan
 - [ ] Research Linear OAuth flow and webhook sync loop prevention before Phase 5 plan
+- [ ] Add RESEND_API_KEY to Railway environment before first user-facing deploy
 
 ### Blockers
 
@@ -140,11 +146,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** Completed 01-03 (Valkey + BullMQ) — iovalkey client, BullMQ email queue/worker, Fastify plugin, health endpoint Valkey ping, integration tests.
+**Last session:** Completed 01-04 (Auth.js v5 + OTP) — Credentials provider, JWT callback chain, OTP email verification, password reset, 5 auth pages, 5+6 tests.
 
-**To resume work:** Run `/gsd:execute-phase 1` starting from plan 04.
+**To resume work:** Run `/gsd:execute-phase 1` starting from plan 05.
 
-**Context summary:** Phase 1 plans 01-03 complete. iovalkey connected to Valkey via URL-based BullMQ connection options. Email queue and worker stub ready; Resend integration deferred to Plan 4. Health endpoint pings Valkey and reports services.valkey. Integration tests in CI pass against valkey/valkey:7. Railway setup still required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 04 (Auth.js v5).
+**Context summary:** Phase 1 plans 01-04 complete. Auth fully implemented: sign-up → OTP → sign-in → session → sign-out → password reset. JWT carries workspace_id/role (AUTH-05 verified). session.user shape locked in for all future phases. Integration tests for auth routes require CI PostgreSQL. Resend requires real API key for email delivery. Next: plan 05 (likely workspace onboarding or remaining foundation items).
 
 ---
 
