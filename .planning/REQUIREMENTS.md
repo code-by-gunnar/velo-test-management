@@ -24,10 +24,10 @@
 
 ### Design System
 
-- [ ] **DS-01**: Design token set is implemented as CSS custom properties (Cobalt, Slate, Mist, Gray Mid, Gray Light, Pass Green, Fail Red, Blocked Amber, Skipped Slate)
-- [ ] **DS-02**: Typography scale is implemented (Inter for UI, JetBrains Mono for code/IDs)
-- [ ] **DS-03**: Base component library exists: Button (primary/secondary/destructive/ghost), Card, Form Input, Status Badge (PASS/FAIL/BLOCKED/SKIPPED)
-- [ ] **DS-04**: Left sidebar navigation (240px, collapsible to 48px icon rail) with persistent project context
+- [x] **DS-01**: Design token set is implemented as CSS custom properties (Cobalt, Slate, Mist, Gray Mid, Gray Light, Pass Green, Fail Red, Blocked Amber, Skipped Slate)
+- [x] **DS-02**: Typography scale is implemented (Inter for UI, JetBrains Mono for code/IDs)
+- [x] **DS-03**: Base component library exists: Button (primary/secondary/destructive/ghost), Card, Form Input, Status Badge (PASS/FAIL/BLOCKED/SKIPPED)
+- [x] **DS-04**: Left sidebar navigation (240px, collapsible to 48px icon rail) with persistent project context
 
 ### Workspace & Projects
 
@@ -158,10 +158,10 @@
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Complete |
-| DS-01 | Phase 1 | Pending |
-| DS-02 | Phase 1 | Pending |
-| DS-03 | Phase 1 | Pending |
-| DS-04 | Phase 1 | Pending |
+| DS-01 | Phase 1 | Complete |
+| DS-02 | Phase 1 | Complete |
+| DS-03 | Phase 1 | Complete |
+| DS-04 | Phase 1 | Complete |
 | WORK-01 | Phase 1 | Complete |
 | WORK-02 | Phase 1 | Complete |
 | WORK-03 | Phase 1 | Complete |

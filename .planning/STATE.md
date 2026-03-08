@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 1 — Foundation
-current_plan: 06 (plan 05 complete)
+current_plan: Phase 1 complete — begin Phase 2
 status: In progress
-last_updated: "2026-03-08T22:26:00Z"
+last_updated: "2026-03-08T22:38:16.017Z"
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # State: Velo
 
 **Project:** Velo QA Test Management Platform
 **Last updated:** 2026-03-08
-**Session:** Completed 01-04 (Auth.js v5 + OTP)
+**Session:** Completed 01-06 (Design System + Onboarding) — Phase 1 Foundation complete
 
 ---
 
@@ -34,13 +34,13 @@ progress:
 
 ## Current Position
 
-**Current phase:** 1 — Foundation
-**Current plan:** 06 (plan 05 complete)
+**Current phase:** 2 — Test Cases (Phase 1 complete)
+**Current plan:** 01 (Phase 1 all 6 plans complete)
 **Status:** In progress
 
 **Progress:**
-[████████░░] 83%
-Phase 1 [████████░░] 83%  Foundation (5/6 plans complete)
+[██████████] 100% Phase 1 complete
+Phase 1 [██████████] 100% Foundation (6/6 plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -48,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 15/18 requirements delivered (INFRA-01–06, AUTH-01–05, WORK-01–03)
+**Overall:** 18/18 Phase 1 requirements delivered (INFRA-01–06, AUTH-01–05, WORK-01–03, DS-01–04)
 
 ---
 
@@ -56,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | In progress (plans 01-05 done) |
+| 1. Foundation | 18 | 6 | Complete (all 18 requirements delivered) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -95,6 +95,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | RLS migration manually authored in drizzle journal | drizzle-kit cannot generate ENABLE/FORCE ROW LEVEL SECURITY or CREATE POLICY DDL |
 | Session plugin forwards Auth.js cookie to WEB_URL/api/auth/session | Avoids reimplementing JWE decryption with jose in Fastify; stays in sync with Auth.js internals |
 | Free tier limits enforced at API layer (not DB constraints) | 1 project max returns 403 TIER_LIMIT_EXCEEDED; easier to tune per-plan without migrations |
+| CVA (class-variance-authority) for Button variant management | Avoids manual className string concatenation; type-safe variant/size combinations |
+| Design tokens as both CSS custom properties and Tailwind aliases | CSS vars for non-Tailwind use cases; Tailwind aliases for utility classes in components |
+| session.update() after workspace creation to refresh JWT | Prevents onboarding redirect loop — workspace_slug in JWT is required by requireAuth redirect logic |
 
 ### Architecture Patterns Locked In
 
@@ -152,11 +155,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** Completed 01-05 (Multi-tenancy + Workspace Scaffold)
+**Last session:** 2026-03-08T22:38:16.008Z
 
-**To resume work:** Run `/gsd:execute-phase 1` starting from plan 06.
+**To resume work:** Run `/gsd:execute-phase 2` to begin Phase 2 (Test Cases).
 
-**Context summary:** Phase 1 plans 01-05 complete. Multi-tenancy: WorkspaceSql branded type enforces tenant query safety at compile time; withWorkspace() wraps all tenant queries with SET LOCAL; RLS policies (FORCE) on all 8 tenant tables. Workspace/project CRUD API complete with Free tier limit enforcement. session.plugin.ts decodes Auth.js cookies for Fastify routes. 15/18 Phase 1 requirements delivered. Next: plan 06 (final Phase 1 plan — likely design system, CI, or remaining INFRA requirements).
+**Context summary:** Phase 1 Foundation complete — all 18 requirements delivered across 6 plans. Design system with CSS custom properties and Tailwind aliases. Base component library (Button/Card/Input/StatusBadge). Collapsible sidebar with localStorage persistence. 3-step onboarding wizard with session JWT refresh. Home dashboard shell. Full auth flow: signup -> verify OTP -> onboarding wizard -> dashboard. Multi-tenancy enforced at compile time via WorkspaceSql branded type + RLS. Workspace/project CRUD API with free tier enforcement.
 
 ---
 
