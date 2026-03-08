@@ -7,8 +7,8 @@
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Repository is set up with CI/CD pipeline running on GitHub Actions (lint, type-check, test on every PR)
-- [ ] **INFRA-02**: Application deploys to Railway automatically from main branch merge
+- [x] **INFRA-01**: Repository is set up with CI/CD pipeline running on GitHub Actions (lint, type-check, test on every PR)
+- [x] **INFRA-02**: Application deploys to Railway automatically from main branch merge
 - [ ] **INFRA-03**: PostgreSQL 16 database is provisioned on Railway with drizzle-kit migration system in place
 - [ ] **INFRA-04**: Valkey instance is provisioned and connected (session store, pub/sub, BullMQ)
 - [ ] **INFRA-05**: Multi-tenancy isolation enforced at application layer (workspace_id on every tenant-scoped row, TypeScript compile-time enforcement)
@@ -147,8 +147,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
 | INFRA-04 | Phase 1 | Pending |
 | INFRA-05 | Phase 1 | Pending |
