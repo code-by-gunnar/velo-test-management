@@ -10,7 +10,7 @@ interface AppLayoutProps {
 export function AppLayout({ slug, projectKey, children }: AppLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-mist">
-      <Sidebar slug={slug} projectKey={projectKey} />
+      <Sidebar slug={slug} {...(projectKey !== undefined ? { projectKey } : {})} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
