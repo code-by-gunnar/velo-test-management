@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 1 — Foundation
-current_plan: "02 (plan 01 complete)"
+current_plan: "03 (plan 02 complete)"
 status: In progress
-last_updated: "2026-03-08T21:29:00Z"
+last_updated: "2026-03-08T21:38:19Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
-  percent: 17
+  completed_plans: 2
+  percent: 33
 ---
 
 # State: Velo
 
 **Project:** Velo QA Test Management Platform
 **Last updated:** 2026-03-08
-**Session:** Roadmap created
+**Session:** Completed 01-02 (Database Schema + Migrations)
 
 ---
 
@@ -35,12 +35,12 @@ progress:
 ## Current Position
 
 **Current phase:** 1 — Foundation
-**Current plan:** 02 (plan 01 complete)
+**Current plan:** 03 (plan 02 complete)
 **Status:** In progress
 
 **Progress:**
 ```
-Phase 1 [██        ] 17%  Foundation (1/? plans complete)
+Phase 1 [████      ] 33%  Foundation (2/? plans complete)
 Phase 2 [          ] 0%   Test Cases
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -48,7 +48,7 @@ Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 ```
 
-**Overall:** 2/18 requirements delivered (INFRA-01, INFRA-02)
+**Overall:** 4/18 requirements delivered (INFRA-01, INFRA-02, INFRA-03, INFRA-05)
 
 ---
 
@@ -56,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
-| 1. Foundation | 18 | TBD | In progress (plan 01 done) |
+| 1. Foundation | 18 | TBD | In progress (plans 01-02 done) |
 | 2. Test Cases | 6 | TBD | Not started |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
@@ -82,11 +82,15 @@ Phase 6 [          ] 0%   Team and Access Control
 | eslint-config-next v16 flat config via direct import (not FlatCompat) | FlatCompat causes circular JSON serialization error in ESLint 9 config validator |
 | vitest passWithNoTests=true on all apps | CI must pass before any test files are written in later plans |
 | jsdom explicit devDependency in apps/web | pnpm strict isolation requires it listed; vitest jsdom environment does not auto-install it |
+| drizzle-orm as dev-only dependency | Used only for schema definition and migrator; postgres.js handles runtime queries |
+| uuidv7 npm package for UUID v7 PKs | PostgreSQL 16 lacks native uuidv7() (added in PG 18+); app-layer generation required |
+| Migration files committed to git (not gitignored) | Enables deterministic CI and Railway deploy; removed erroneous drizzle/ entry from .gitignore |
+| Phase 2/3 tables defined in Plan 2 schema | Avoids mid-phase migrations during sample data seeding in Plan 6 |
 
 ### Architecture Patterns Locked In
 
-- UUID v7 primary keys (time-ordered)
-- workspace_id on every tenant-scoped table (denormalized)
+- UUID v7 primary keys (time-ordered) — `uuid('id').primaryKey().$defaultFn(() => uuidv7())`
+- workspace_id on every tenant-scoped table (denormalized FK)
 - Soft deletes on TestCase, Suite, TestRun; hard deletes on RunItem, Defect
 - Gap-based integer position column (increments of 1000) for drag-drop ordering
 - Recursive CTE for suite tree queries
@@ -94,6 +98,8 @@ Phase 6 [          ] 0%   Team and Access Control
 - Workspace membership cached in Valkey (60s TTL)
 - BullMQ for async ingestion, Jira sync, webhook fanout
 - SET LOCAL (not SET) for RLS transaction-scoped workspace context
+- Programmatic migrate() runs on every Fastify startup (idempotent, safe in CI)
+- Separate single-connection migration client from app pool client (max: 10)
 
 ### Critical Pitfalls to Avoid
 
@@ -132,11 +138,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** Completed 01-01 (Monorepo + CI/CD) — pnpm monorepo scaffold with Next.js 16, Fastify 5, GitHub Actions CI.
+**Last session:** Completed 01-02 (Database Schema + Migrations) — full entity schema (12 tables, 5 enums), Drizzle SQL migration generated, programmatic migrator wired into Fastify startup, runtime postgres.js client created.
 
-**To resume work:** Run `/gsd:execute-phase 1` starting from plan 02.
+**To resume work:** Run `/gsd:execute-phase 1` starting from plan 03.
 
-**Context summary:** Phase 1 plan 01 complete. pnpm monorepo scaffold (apps/web, apps/api, packages/types) is bootable with lint/typecheck/test passing. GitHub Actions CI defined with PostgreSQL 16 + Valkey 7. Railway manual setup required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 02 (PostgreSQL schema + Drizzle migrations).
+**Context summary:** Phase 1 plans 01-02 complete. pnpm monorepo scaffold bootable with lint/typecheck/test passing. Full PostgreSQL schema defined for all Phase 1-3 entities. Migration file at apps/api/drizzle/0000_wandering_blue_shield.sql committed to git. Migrator runs automatically on Fastify startup. Railway setup still required before first push (see 01-01-SUMMARY.md User Setup section). Next: plan 03 (Auth).
 
 ---
 

@@ -23,7 +23,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/6 | In Progress|  |
+| 1. Foundation | 2/6 | In Progress | - |
 | 2. Test Cases | 0/? | Not started | - |
 | 3. Test Runs and Dashboard | 0/? | Not started | - |
 | 4. CI Ingestion | 0/? | Not started | - |
