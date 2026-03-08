@@ -9,20 +9,27 @@
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "fastify": "^5.0.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/helmet": "^13.0.0",
-    "@velo/types": "workspace:*"
+    "@velo/types": "workspace:*",
+    "fastify": "^5.0.0",
+    "postgres": "^3.4.8",
+    "uuidv7": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.7.0",
-    "eslint": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0",
     "vitest": "^2.0.0"
   }
 }
