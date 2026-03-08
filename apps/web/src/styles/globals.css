@@ -1,3 +1,91 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────────
+   Velo design language: Notion/Craft aesthetic — light, spatial, warm.
+   All colours sourced from PROJECT.md locked decisions.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Primary */
+  --color-cobalt: #2563EB;
+  --color-cobalt-light: #DBEAFE;
+  --color-cobalt-dark: #1D4ED8;
+
+  /* Backgrounds */
+  --color-mist: #F8FAFC;
+  --color-white: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F8FAFC;
+
+  /* Text */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94A3B8;
+  --color-text-disabled: #CBD5E1;
+
+  /* Borders */
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+
+  /* Status colours (muted, warm — not saturated) */
+  --color-pass: #4ADE80;         /* muted sage green */
+  --color-pass-bg: #F0FDF4;
+  --color-pass-text: #166534;
+
+  --color-fail: #F87171;         /* warm coral */
+  --color-fail-bg: #FEF2F2;
+  --color-fail-text: #991B1B;
+
+  --color-blocked: #FBBF24;      /* amber */
+  --color-blocked-bg: #FFFBEB;
+  --color-blocked-text: #92400E;
+
+  --color-skipped: #94A3B8;      /* slate */
+  --color-skipped-bg: #F1F5F9;
+  --color-skipped-text: #475569;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 48px;
+
+  /* Spacing scale — 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+  /* Typography */
+  --font-ui: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-mist);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
