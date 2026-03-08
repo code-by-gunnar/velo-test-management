@@ -145,64 +145,62 @@
 
 ## Traceability
 
-*(Populated by roadmapper)*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| DS-01 | — | Pending |
-| DS-02 | — | Pending |
-| DS-03 | — | Pending |
-| DS-04 | — | Pending |
-| WORK-01 | — | Pending |
-| WORK-02 | — | Pending |
-| WORK-03 | — | Pending |
-| TC-01 | — | Pending |
-| TC-02 | — | Pending |
-| TC-03 | — | Pending |
-| TC-04 | — | Pending |
-| TC-05 | — | Pending |
-| TC-06 | — | Pending |
-| TR-01 | — | Pending |
-| TR-02 | — | Pending |
-| TR-03 | — | Pending |
-| TR-04 | — | Pending |
-| TR-05 | — | Pending |
-| TR-06 | — | Pending |
-| TR-07 | — | Pending |
-| DA-01 | — | Pending |
-| DA-02 | — | Pending |
-| DA-03 | — | Pending |
-| IN-01 | — | Pending |
-| IN-02 | — | Pending |
-| IN-03 | — | Pending |
-| IN-04 | — | Pending |
-| INT-01 | — | Pending |
-| INT-02 | — | Pending |
-| INT-03 | — | Pending |
-| INT-04 | — | Pending |
-| USR-01 | — | Pending |
-| USR-02 | — | Pending |
-| USR-03 | — | Pending |
-| USR-04 | — | Pending |
-| USR-05 | — | Pending |
-| USR-06 | — | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| DS-01 | Phase 1 | Pending |
+| DS-02 | Phase 1 | Pending |
+| DS-03 | Phase 1 | Pending |
+| DS-04 | Phase 1 | Pending |
+| WORK-01 | Phase 1 | Pending |
+| WORK-02 | Phase 1 | Pending |
+| WORK-03 | Phase 1 | Pending |
+| TC-01 | Phase 2 | Pending |
+| TC-02 | Phase 2 | Pending |
+| TC-03 | Phase 2 | Pending |
+| TC-04 | Phase 2 | Pending |
+| TC-05 | Phase 2 | Pending |
+| TC-06 | Phase 2 | Pending |
+| TR-01 | Phase 3 | Pending |
+| TR-02 | Phase 3 | Pending |
+| TR-03 | Phase 3 | Pending |
+| TR-04 | Phase 3 | Pending |
+| TR-05 | Phase 3 | Pending |
+| TR-06 | Phase 3 | Pending |
+| TR-07 | Phase 3 | Pending |
+| DA-01 | Phase 3 | Pending |
+| DA-02 | Phase 3 | Pending |
+| DA-03 | Phase 3 | Pending |
+| IN-01 | Phase 4 | Pending |
+| IN-02 | Phase 4 | Pending |
+| IN-03 | Phase 4 | Pending |
+| IN-04 | Phase 4 | Pending |
+| INT-01 | Phase 5 | Pending |
+| INT-02 | Phase 5 | Pending |
+| INT-03 | Phase 5 | Pending |
+| INT-04 | Phase 5 | Pending |
+| USR-01 | Phase 6 | Pending |
+| USR-02 | Phase 6 | Pending |
+| USR-03 | Phase 6 | Pending |
+| USR-04 | Phase 6 | Pending |
+| USR-05 | Phase 6 | Pending |
+| USR-06 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 48 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 48 ⚠️
+- Mapped to phases: 48
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 — traceability populated by roadmapper*
