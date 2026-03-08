@@ -217,3 +217,16 @@ WEB_URL=http://localhost:3000
 ---
 *Phase: 01-foundation*
 *Completed: 2026-03-08*
+
+## Self-Check: PASSED
+
+- apps/web/src/auth.ts: FOUND
+- apps/web/src/lib/auth-guard.ts: FOUND
+- apps/api/src/routes/auth.ts: FOUND
+- apps/api/src/lib/email.ts: FOUND
+- e9e4629 (chore: install deps): FOUND
+- 7a58a87 (feat: Auth.js v5 config): FOUND
+- aa8620e (feat: Fastify auth routes): FOUND
+- 9282a87 (feat: Next.js auth pages): FOUND
+- c1476d7 (test: auth tests): FOUND
+- a5692be (docs: SUMMARY + state updates): FOUND
