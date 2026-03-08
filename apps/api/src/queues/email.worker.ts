@@ -1,10 +1,6 @@
 import { Worker } from "bullmq"
-import { createWorkerConnection } from "../lib/valkey.js"
+import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import type { EmailJobData } from "./email.queue.js"
-
-// Worker connection is separate from the queue connection —
-// Workers use blocking Redis commands (BRPOP) and MUST have maxRetriesPerRequest: null
-const workerConnection = createWorkerConnection()
 
 export const emailWorker = new Worker<EmailJobData>(
   "email",
@@ -20,7 +16,9 @@ export const emailWorker = new Worker<EmailJobData>(
     // await resend.emails.send({ from: "noreply@velo.app", to, subject, ... })
   },
   {
-    connection: workerConnection,
+    // Worker connection is separate from the queue connection —
+    // Workers use blocking Redis commands (BRPOP) and MUST have maxRetriesPerRequest: null
+    connection: getBullMQWorkerConnectionOptions(),
     concurrency: 5,
   }
 )
