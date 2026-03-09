@@ -1,5 +1,7 @@
 import fp from "fastify-plugin"
 import type { FastifyPluginAsync } from "fastify"
+import { hkdfSync } from "crypto"
+import { jwtDecrypt } from "jose"
 
 // Extend FastifyRequest with session data
 declare module "fastify" {
@@ -10,62 +12,52 @@ declare module "fastify" {
   }
 }
 
-// Auth.js v5 JWT is stored in the 'authjs.session-token' cookie (name pinned in auth.ts,
-// SameSite=None so browsers send it cross-origin to this Railway API).
-// We forward the cookie to the Next.js /api/auth/session endpoint for JWE decryption
-// rather than reimplementing decryption here.
+// Auth.js v5 encrypts the session JWT using JWE (A256CBC-HS512, dir).
+// The encryption key is derived from AUTH_SECRET via HKDF-SHA256.
+// We replicate that derivation here so we can decode the token directly
+// without an HTTP round-trip to the Next.js session endpoint.
+//
+// Key derivation matches @auth/core/jwt.ts getDerivedEncryptionKey():
+//   hkdf("sha256", AUTH_SECRET, salt="", info="Auth.js Generated Encryption Key", 32)
+
+function deriveKey(secret: string): Uint8Array {
+  return new Uint8Array(
+    hkdfSync("sha256", Buffer.from(secret), "", "Auth.js Generated Encryption Key", 32)
+  )
+}
 
 const sessionPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest("userId", "")
   fastify.decorateRequest("workspaceId", null)
   fastify.decorateRequest("userRole", null)
 
+  const rawSecret = process.env.AUTH_SECRET
+  if (!rawSecret) {
+    fastify.log.warn("AUTH_SECRET not set — all requests will be unauthenticated")
+    return
+  }
+
+  const encKey = deriveKey(rawSecret)
+
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
-    // Cookie name is pinned to "authjs.session-token" in auth.ts (no __Secure- prefix)
-    // so browsers send it cross-origin with SameSite=None; Secure.
-    const allCookieKeys = Object.keys(request.cookies ?? {})
-    const token = request.cookies?.["authjs.session-token"]
-
-    request.log.info({
-      msg: "session-plugin",
-      cookieKeys: allCookieKeys,
-      hasToken: !!token,
-      webUrl: process.env.WEB_URL ?? "(unset)",
-      path: request.url,
-    })
-
+    // Cookie name is pinned to "authjs.session-token" in auth.ts (SameSite=None; Secure)
+    const token =
+      request.cookies?.["authjs.session-token"] ??
+      request.cookies?.["__Secure-authjs.session-token"]
     if (!token) return
 
     try {
-      // Forward the session cookie to Next.js auth endpoint for decryption
-      const sessionRes = await fetch(
-        `${process.env.WEB_URL}/api/auth/session`,
-        {
-          headers: { Cookie: `authjs.session-token=${token}` },
-        }
-      )
+      const { payload } = await jwtDecrypt(token, encKey, { clockTolerance: 15 })
 
-      const rawBody = await sessionRes.text()
-      request.log.info({
-        msg: "session-endpoint-response",
-        status: sessionRes.status,
-        body: rawBody.slice(0, 200),
-      })
-
-      if (!sessionRes.ok) return
-
-      const session = JSON.parse(rawBody) as {
-        user?: { id: string; workspace_id?: string; role?: string }
+      const id = payload["id"] as string | undefined
+      if (id) {
+        request.userId = id
+        request.workspaceId = (payload["workspace_id"] as string | null | undefined) ?? null
+        request.userRole = (payload["role"] as string | null | undefined) ?? null
       }
-
-      if (session?.user?.id) {
-        request.userId = session.user.id
-        request.workspaceId = session.user.workspace_id ?? null
-        request.userRole = session.user.role ?? null
-      }
-    } catch (err) {
-      request.log.error({ msg: "session-plugin-error", err: String(err) })
+    } catch {
+      // Decryption failure = invalid/expired token → continue unauthenticated
     }
   })
 }

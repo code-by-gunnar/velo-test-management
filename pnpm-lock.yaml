@@ -47,6 +47,9 @@ importers:
       iovalkey:
         specifier: ^0.3.3
         version: 0.3.3
+      jose:
+        specifier: ^6.2.1
+        version: 6.2.1
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -2742,6 +2745,9 @@ packages:
 
   jose@6.2.0:
     resolution: {integrity: sha512-xsfE1TcSCbUdo6U07tR0mvhg0flGxU8tPLbF03mirl2ukGQENhUg4ubGYQnhVH0b5stLlPM+WOqDkEl1R1y5sQ==}
+
+  jose@6.2.1:
+    resolution: {integrity: sha512-jUaKr1yrbfaImV7R2TN/b3IcZzsw38/chqMpo2XJ7i2F8AfM/lA4G1goC3JVEwg0H7UldTmSt3P68nt31W7/mw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -6381,6 +6387,8 @@ snapshots:
   jiti@1.21.7: {}
 
   jose@6.2.0: {}
+
+  jose@6.2.1: {}
 
   js-tokens@4.0.0: {}
 

@@ -26,6 +26,7 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.1.0",
     "iovalkey": "^0.3.3",
+    "jose": "^6.2.1",
     "postgres": "^3.4.8",
     "resend": "^6.9.3",
     "uuidv7": "^1.1.0"
