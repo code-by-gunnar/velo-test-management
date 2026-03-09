@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { clsx } from "clsx"
 import {
   DndContext,
@@ -13,7 +13,6 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  arrayMove,
   useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -53,17 +52,8 @@ export function SuiteTreeItem({
   onSuiteReordered,
 }: SuiteTreeItemProps) {
   const [expanded, setExpanded] = useState(true)
-  const [children, setChildren] = useState<Suite[]>(suite.children)
-  const hasChildren = children.length > 0
+  const hasChildren = suite.children.length > 0
   const isSelected = selected === suite.id
-
-  // Keep local children in sync when suite.children changes (e.g., external refetch)
-  // Uses the "state update during render" pattern (same as SuiteTree for rootSuites).
-  const prevChildrenRef = useRef(suite.children)
-  if (prevChildrenRef.current !== suite.children) {
-    prevChildrenRef.current = suite.children
-    setChildren(suite.children)
-  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -86,14 +76,9 @@ export function SuiteTreeItem({
     const activeId = active.id as string
     const overId = over.id as string
 
-    const newPosition = computeNewPosition(children, activeId, overId)
+    const newPosition = computeNewPosition(suite.children, activeId, overId)
 
-    // Optimistic reorder
-    const oldIndex = children.findIndex((c) => c.id === activeId)
-    const newIndex = children.findIndex((c) => c.id === overId)
-    setChildren(arrayMove(children, oldIndex, newIndex))
-
-    // Persist to API
+    // Persist to API; refetch via onSuiteReordered restores correct order
     try {
       await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
@@ -163,11 +148,11 @@ export function SuiteTreeItem({
           onDragEnd={(e) => { void handleChildDragEnd(e) }}
         >
           <SortableContext
-            items={children.map((c) => c.id)}
+            items={suite.children.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
           >
             <div>
-              {children.map((child) => (
+              {suite.children.map((child) => (
                 <SuiteTreeItem
                   key={child.id}
                   suite={child}
