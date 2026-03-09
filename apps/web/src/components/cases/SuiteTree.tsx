@@ -1,7 +1,38 @@
 import { useState, useRef } from "react"
 import { clsx } from "clsx"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensors,
+  useSensor,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { SuiteTreeItem } from "./SuiteTreeItem"
+
+// Compute mid-gap position for drag reorder.
+// Returns -1 if gap has collapsed (positions equal), signaling server renumber.
+function computeNewPosition(
+  items: { id: string; position: number }[],
+  activeId: string,
+  overId: string
+): number {
+  const sorted = [...items].sort((a, b) => a.position - b.position)
+  const newIndex = sorted.findIndex((i) => i.id === overId)
+  if (newIndex === -1) return -1
+  const prev = sorted[newIndex - 1]?.position ?? 0
+  const next = sorted[newIndex + 1]?.position ?? (sorted[newIndex]!.position + 2000)
+  const newPos = Math.floor((prev + next) / 2)
+  return newPos === prev ? -1 : newPos
+}
 
 interface SuiteTreeProps {
   tree: Suite[]
@@ -10,12 +41,67 @@ interface SuiteTreeProps {
   workspaceId: string
   projectId: string
   onSuiteCreated?: () => void
+  onSuiteReordered?: () => void
 }
 
-export function SuiteTree({ tree, selected, onSelect, workspaceId, projectId, onSuiteCreated }: SuiteTreeProps) {
+export function SuiteTree({
+  tree,
+  selected,
+  onSelect,
+  workspaceId,
+  projectId,
+  onSuiteCreated,
+  onSuiteReordered,
+}: SuiteTreeProps) {
   const [creating, setCreating] = useState(false)
   const [newSuiteName, setNewSuiteName] = useState("")
+  const [rootSuites, setRootSuites] = useState<Suite[]>(tree)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Keep local root suites in sync when tree prop changes (e.g., refetch)
+  // Use a ref to detect external tree changes vs. local optimistic updates
+  const prevTreeRef = useRef(tree)
+  if (prevTreeRef.current !== tree) {
+    prevTreeRef.current = tree
+    setRootSuites(tree)
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  async function handleSuiteDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    const newPosition = computeNewPosition(rootSuites, activeId, overId)
+
+    // Optimistic reorder
+    const oldIndex = rootSuites.findIndex((s) => s.id === activeId)
+    const newIndex = rootSuites.findIndex((s) => s.id === overId)
+    setRootSuites(arrayMove(rootSuites, oldIndex, newIndex))
+
+    // Persist to API
+    try {
+      await fetch(
+        `/api/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ position: newPosition }),
+        }
+      )
+    } catch {
+      // Ignore network errors — refetch will restore correct state
+    }
+
+    // Refetch to confirm server order
+    onSuiteReordered?.()
+  }
 
   const startCreate = () => {
     setCreating(true)
@@ -98,15 +184,29 @@ export function SuiteTree({ tree, selected, onSelect, workspaceId, projectId, on
           <span>All Cases</span>
         </button>
 
-        {/* Suite nodes */}
-        {tree.map((suite) => (
-          <SuiteTreeItem
-            key={suite.id}
-            suite={suite}
-            selected={selected}
-            onSelect={onSelect}
-          />
-        ))}
+        {/* Root suite nodes — wrapped in DndContext for within-root reorder */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(e) => { void handleSuiteDragEnd(e) }}
+        >
+          <SortableContext
+            items={rootSuites.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {rootSuites.map((suite) => (
+              <SuiteTreeItem
+                key={suite.id}
+                suite={suite}
+                selected={selected}
+                onSelect={onSelect}
+                workspaceId={workspaceId}
+                projectId={projectId}
+                onSuiteReordered={onSuiteReordered}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
 
       {/* New suite inline input */}

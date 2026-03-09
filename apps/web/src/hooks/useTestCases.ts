@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import type { Dispatch, SetStateAction } from "react"
 
 export interface TestCase {
   id: string
@@ -33,6 +34,7 @@ interface UpdateCaseInput extends CreateCaseInput {
 
 interface UseTestCasesReturn {
   cases: TestCase[]
+  setCases: Dispatch<SetStateAction<TestCase[]>>
   isLoading: boolean
   error: string | null
   createCase: (input: CreateCaseInput) => Promise<TestCase>
@@ -152,5 +154,5 @@ export function useTestCases(
     }
   }, [workspaceId, projectId, cases])
 
-  return { cases, isLoading, error, createCase, updateCase, deleteCase, refetch: fetchCases }
+  return { cases, setCases, isLoading, error, createCase, updateCase, deleteCase, refetch: fetchCases }
 }
