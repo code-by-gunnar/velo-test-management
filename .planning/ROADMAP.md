@@ -24,7 +24,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
-| 2. Test Cases | 0/6 | Not started | - |
+| 2. Test Cases | 1/6 | In progress | - |
 | 3. Test Runs and Dashboard | 0/? | Not started | - |
 | 4. CI Ingestion | 0/? | Not started | - |
 | 5. Integrations and API | 0/? | Not started | - |
@@ -72,7 +72,7 @@
 **Plans**: 6 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Wave 0: deps install, soft-delete migration, test stubs for all TC-01–TC-06 requirements
+- [x] 02-01-PLAN.md — Wave 0: deps install, soft-delete migration, test stubs for all TC-01–TC-06 requirements (complete 2026-03-09)
 - [ ] 02-02-PLAN.md — Wave 1: Fastify API routes for suites (recursive CTE) + test cases (CRUD + soft delete)
 - [ ] 02-03-PLAN.md — Wave 1: Cases page layout, suite tree panel, case list, slide-in panel, keyboard step editor
 - [ ] 02-04-PLAN.md — Wave 2: dnd-kit drag-drop reorder for cases and suites (gap-based positions)
@@ -225,4 +225,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-09 — Phase 2 plans created (02-01 through 02-06)*
+*Last updated: 2026-03-09 — Phase 2 plan 02-01 complete (Wave 0 foundation)*
