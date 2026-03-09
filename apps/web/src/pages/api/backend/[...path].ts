@@ -10,7 +10,9 @@ export const config = { api: { bodyParser: false } }
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const path = (req.query.path as string[]).join("/")
   const queryString = req.url?.split("?")[1] ?? ""
-  const apiUrl = `${process.env.API_URL}/${path}${queryString ? `?${queryString}` : ""}`
+  // Railway routes are all prefixed with /api/; we strip it from the public path
+  // so the browser sees /api/backend/workspaces instead of /api/backend/api/workspaces.
+  const apiUrl = `${process.env.API_URL}/api/${path}${queryString ? `?${queryString}` : ""}`
 
   // Read raw body from stream
   const rawBody = await new Promise<Buffer>((resolve, reject) => {
