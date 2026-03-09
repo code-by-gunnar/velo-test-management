@@ -36,6 +36,7 @@ function computeNewPosition(
 
 interface SuiteTreeProps {
   tree: Suite[]
+  isLoading?: boolean
   selected: string | null
   onSelect: (id: string | null) => void
   workspaceId: string
@@ -46,6 +47,7 @@ interface SuiteTreeProps {
 
 export function SuiteTree({
   tree,
+  isLoading,
   selected,
   onSelect,
   workspaceId,
@@ -88,7 +90,7 @@ export function SuiteTree({
     // Persist to API
     try {
       await fetch(
-        `/api/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -121,7 +123,7 @@ export function SuiteTree({
       return
     }
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/projects/${projectId}/suites`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, parent_id: null }),
@@ -169,6 +171,17 @@ export function SuiteTree({
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto p-1">
+        {isLoading ? (
+          // Skeleton shimmer while suites load
+          <div className="space-y-1 px-1 pt-1">
+            {[40, 60, 48, 72].map((w) => (
+              <div key={w} className="flex items-center gap-2 py-1">
+                <div className="skeleton h-3 rounded" style={{ width: `${w}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
         {/* All Cases root */}
         <button
           type="button"
@@ -207,6 +220,8 @@ export function SuiteTree({
             ))}
           </SortableContext>
         </DndContext>
+          </>
+        )}
       </div>
 
       {/* New suite inline input */}

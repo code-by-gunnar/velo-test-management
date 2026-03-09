@@ -58,8 +58,8 @@ export function useTestCases(
     setError(null)
     try {
       const url = selectedSuiteId
-        ? `/api/workspaces/${workspaceId}/projects/${projectId}/cases?suite_id=${selectedSuiteId}`
-        : `/api/workspaces/${workspaceId}/projects/${projectId}/cases`
+        ? `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases?suite_id=${selectedSuiteId}`
+        : `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases`
       const res = await fetch(url)
       if (!res.ok) throw new Error(`Failed to fetch cases: ${res.status}`)
       const data = await res.json() as TestCase[]
@@ -90,7 +90,7 @@ export function useTestCases(
     setCases((prev) => [...prev, optimistic])
 
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/projects/${projectId}/cases`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -118,7 +118,7 @@ export function useTestCases(
     )
 
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/projects/${projectId}/cases/${input.id}`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${input.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
@@ -140,7 +140,7 @@ export function useTestCases(
     setCases((current) => current.filter((c) => c.id !== id))
 
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/projects/${projectId}/cases/${id}`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${id}`, {
         method: "DELETE",
       })
       if (!res.ok) {

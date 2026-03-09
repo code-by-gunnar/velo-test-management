@@ -76,7 +76,24 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-/* Base resets */
+/* ─── Skeleton shimmer ───────────────────────────────────────────────────────
+   Animated gradient sweep per design spec §8.7 (1.2s loop).
+   Usage: <div className="skeleton" /> or add class to any block element.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e9eef5 50%, #f1f5f9 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* ─── Base resets ────────────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
 }

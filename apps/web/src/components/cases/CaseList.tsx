@@ -90,7 +90,7 @@ export function CaseList({
     // Persist to API
     try {
       await fetch(
-        `/api/workspaces/${workspaceId}/projects/${projectId}/cases/${activeId}/position`,
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${activeId}/position`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -169,8 +169,20 @@ export function CaseList({
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <span className="text-sm text-gray-400">Loading…</span>
+        <div className="flex-1 overflow-auto">
+          <table className="w-full">
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-gray-100">
+                  <td className="w-8 px-2 py-3" />
+                  <td className="w-8 px-3 py-3"><div className="skeleton h-3.5 w-3.5 rounded" /></td>
+                  <td className="py-3 pr-4"><div className="skeleton h-3 rounded" style={{ width: `${[55, 70, 45, 65, 50][i]}%` }} /></td>
+                  <td className="py-3 pr-4"><div className="skeleton h-3 w-12 rounded" /></td>
+                  <td className="py-3 pr-4"><div className="skeleton h-3 w-6 rounded" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : cases.length === 0 ? (
         // Empty state
@@ -249,7 +261,7 @@ export function CaseList({
           suites={suites}
           onMove={async (targetSuiteId) => {
             await fetch(
-              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -265,7 +277,7 @@ export function CaseList({
           }}
           onCopy={async (targetSuiteId) => {
             await fetch(
-              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -281,7 +293,7 @@ export function CaseList({
           }}
           onDelete={async () => {
             await fetch(
-              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

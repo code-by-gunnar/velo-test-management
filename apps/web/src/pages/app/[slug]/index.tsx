@@ -1,67 +1,10 @@
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
-import { AppLayout } from "@/components/layout/app-layout"
-import { Card, CardHeader, CardTitle } from "@/components/ui"
 
-interface DashboardProps {
-  slug: string
-}
-
-export default function DashboardPage({ slug }: DashboardProps) {
-  return (
-    <AppLayout slug={slug}>
-      <div className="p-6">
-        <h1 className="mb-6 text-xl font-semibold text-gray-900">Dashboard</h1>
-
-        {/* 3-column grid on large screens, 1 column on mobile */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Recent Runs — placeholder, filled in Phase 3 */}
-          <Card className="col-span-2 opacity-60">
-            <CardHeader>
-              <CardTitle>Recent Runs</CardTitle>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">Coming soon</span>
-            </CardHeader>
-            <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-gray-200">
-              <p className="text-sm text-gray-400">Test runs will appear here once you start executing tests.</p>
-            </div>
-          </Card>
-
-          {/* Coverage — placeholder */}
-          <Card className="opacity-60">
-            <CardHeader>
-              <CardTitle>Coverage</CardTitle>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">Coming soon</span>
-            </CardHeader>
-            <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-gray-200">
-              <p className="text-center text-sm text-gray-400">Coverage stats appear here.</p>
-            </div>
-          </Card>
-
-          {/* Activity feed — placeholder */}
-          <Card className="col-span-2 lg:col-span-3 opacity-60">
-            <CardHeader>
-              <CardTitle>Activity</CardTitle>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400">Coming soon</span>
-            </CardHeader>
-            <div className="flex h-20 items-center justify-center rounded-md border border-dashed border-gray-200">
-              <p className="text-sm text-gray-400">Workspace activity will appear here.</p>
-            </div>
-          </Card>
-        </div>
-
-        {/* Projects */}
-        <div className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">Projects</h2>
-          <Card>
-            <p className="text-sm text-gray-500">
-              Add your first test case to get started.{" "}
-              <a href="#" className="text-cobalt hover:underline">Test Cases &rarr;</a>
-            </p>
-          </Card>
-        </div>
-      </div>
-    </AppLayout>
-  )
+// Workspace root — always redirects to the first project's cases page.
+// Rendered only on the server; the component itself is never shown.
+export default function WorkspaceRootPage() {
+  return null
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
@@ -71,8 +14,38 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   const { slug } = context.params as { slug: string }
+  const workspaceId = session.user.workspace_id
 
-  return {
-    props: { slug },
+  if (!workspaceId) {
+    return { redirect: { destination: "/onboarding", permanent: false } }
   }
+
+  // Read the raw JWE token so we can authenticate the server-side fetch to Railway.
+  // Same pattern as the Next.js gateway — avoids cross-origin cookie issues.
+  const token =
+    context.req.cookies["__Secure-authjs.session-token"] ??
+    context.req.cookies["authjs.session-token"]
+
+  try {
+    const res = await fetch(
+      `${process.env.API_URL}/api/workspaces/${workspaceId}/projects`,
+      { headers: token ? { authorization: `Bearer ${token}` } : {} }
+    )
+    if (res.ok) {
+      const projects = await res.json() as Array<{ id: string; project_key: string }>
+      if (projects.length > 0) {
+        return {
+          redirect: {
+            destination: `/app/${slug}/${projects[0]!.project_key}/cases`,
+            permanent: false,
+          },
+        }
+      }
+    }
+  } catch {
+    // API unreachable — fall through to onboarding
+  }
+
+  // No projects found — send back to onboarding to create one
+  return { redirect: { destination: "/onboarding", permanent: false } }
 }

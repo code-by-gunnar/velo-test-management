@@ -25,6 +25,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug, projectKey } = context.params as { slug: string; projectKey: string }
   const workspaceId = session.user.workspace_id ?? ""
 
+  const token =
+    context.req.cookies["__Secure-authjs.session-token"] ??
+    context.req.cookies["authjs.session-token"]
+
   // Look up the project by projectKey to get its id
   let projectId = ""
   if (workspaceId) {
@@ -32,10 +36,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       const res = await fetch(
         `${process.env.API_URL}/api/workspaces/${workspaceId}/projects`,
         {
-          headers: {
-            // Forward the session cookie so the API can authenticate the request
-            cookie: context.req.headers.cookie ?? "",
-          },
+          headers: token ? { authorization: `Bearer ${token}` } : {},
         }
       )
       if (res.ok) {

@@ -75,7 +75,7 @@ export function CasePanel({
     } else {
       // Existing case — fetch data
       setIsEditing(false)
-      const url = `/api/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`
+      const url = `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`
       fetch(url)
         .then((res) => res.ok ? res.json() : null)
         .then((data: { title: string; priority: string; preconditions: string | null; steps: Step[] } | null) => {
@@ -128,8 +128,8 @@ export function CasePanel({
       }
 
       const url = caseId
-        ? `/api/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`
-        : `/api/workspaces/${workspaceId}/projects/${projectId}/cases`
+        ? `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`
+        : `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases`
 
       const res = await fetch(url, {
         method: caseId ? "PUT" : "POST",

@@ -62,7 +62,7 @@ export function useSuiteTree(workspaceId: string, projectId: string): UseSuiteTr
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/projects/${projectId}/suites`)
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites`)
       if (!res.ok) throw new Error(`Failed to fetch suites: ${res.status}`)
       const data = await res.json() as Omit<Suite, "children">[]
       setFlatList(data.map((s) => ({ ...s, children: [] })))
