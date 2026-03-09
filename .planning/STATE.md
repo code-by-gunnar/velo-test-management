@@ -2,23 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 2 — Test Cases (Phase 1 complete)
-current_plan: 01 (Phase 1 all 6 plans complete)
+current_phase: 2 — Test Cases
+current_plan: 02 (02-01 complete)
 status: executing
-last_updated: "2026-03-09T07:35:00.977Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-09T10:42:59.321Z"
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 12
+  completed_plans: 8
+  percent: 67
 ---
 
 # State: Velo
 
 **Project:** Velo QA Test Management Platform
-**Last updated:** 2026-03-08
-**Session:** Completed 01-06 (Design System + Onboarding) — Phase 1 Foundation complete
+**Last updated:** 2026-03-09
+**Session:** Completed 02-01 (Wave 0 Foundation: deps + migration + test stubs)
 
 ---
 
@@ -26,7 +27,7 @@ progress:
 
 **Core value:** A QA engineer can create a test case in under 30 seconds and see run results update in real time — without fighting the tool.
 
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 2 — Test Cases
 
 **Milestone scope:** Phase 1 (Foundation) + Phase 2 (Core MVP). Phases 3-6 are future.
 
@@ -34,21 +35,19 @@ progress:
 
 ## Current Position
 
-**Current phase:** 2 — Test Cases (Phase 1 complete)
-**Current plan:** 01 (Phase 1 all 6 plans complete)
+**Current phase:** 2 — Test Cases
+**Current plan:** 02 (02-01 complete)
 **Status:** In progress
 
 **Progress:**
-[██████████] 100% Phase 1 complete
-Phase 1 [██████████] 100% Foundation (6/6 plans complete)
-Phase 2 [          ] 0%   Test Cases
+[███████░░░] 67%
+Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
-```
 
-**Overall:** 18/18 Phase 1 requirements delivered (INFRA-01–06, AUTH-01–05, WORK-01–03, DS-01–04)
+**Overall:** 18/18 Phase 1 requirements + TC-01–TC-06 stubs (Wave 0 complete)
 
 ---
 
@@ -57,7 +56,7 @@ Phase 6 [          ] 0%   Team and Access Control
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
 | 1. Foundation | 18 | 6 | Complete (all 18 requirements delivered) |
-| 2. Test Cases | 6 | TBD | Not started |
+| 2. Test Cases | 6 | TBD | In progress (02-01 Wave 0 complete) |
 | 3. Test Runs and Dashboard | 10 | TBD | Not started |
 | 4. CI Ingestion | 4 | TBD | Not started |
 | 5. Integrations and API | 4 | TBD | Not started |
@@ -98,6 +97,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | CVA (class-variance-authority) for Button variant management | Avoids manual className string concatenation; type-safe variant/size combinations |
 | Design tokens as both CSS custom properties and Tailwind aliases | CSS vars for non-Tailwind use cases; Tailwind aliases for utility classes in components |
 | session.update() after workspace creation to refresh JWT | Prevents onboarding redirect loop — workspace_slug in JWT is required by requireAuth redirect logic |
+| Partial index on test_cases (project_id, suite_id, position) WHERE deleted_at IS NULL added at schema creation | Phase 3 list queries use this index heavily; deferring it requires an exclusive lock on a potentially large table |
+| @fastify/multipart + exceljs for CSV/XLSX import (TC-06) | multipart handles file upload stream; exceljs provides XLSX read/write without native bindings |
+| dnd-kit (not react-beautiful-dnd) for drag-drop (TC-04) | react-beautiful-dnd is deprecated; dnd-kit is maintained and has better touch/keyboard support |
 
 ### Architecture Patterns Locked In
 
@@ -155,11 +157,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T07:35:00.974Z
+**Last session:** 2026-03-09T10:50:00.000Z
 
-**To resume work:** Run `/gsd:execute-phase 2` to begin Phase 2 (Test Cases).
+**Stopped at:** Completed 02-01-PLAN.md
 
-**Context summary:** Phase 1 Foundation complete — all 18 requirements delivered across 6 plans. Design system with CSS custom properties and Tailwind aliases. Base component library (Button/Card/Input/StatusBadge). Collapsible sidebar with localStorage persistence. 3-step onboarding wizard with session JWT refresh. Home dashboard shell. Full auth flow: signup -> verify OTP -> onboarding wizard -> dashboard. Multi-tenancy enforced at compile time via WorkspaceSql branded type + RLS. Workspace/project CRUD API with free tier enforcement.
+**To resume work:** Run `/gsd:execute-phase 2` to continue Phase 2 (02-02 next).
+
+**Context summary:** Phase 1 Foundation complete — all 18 requirements delivered across 6 plans. Phase 2 Wave 0 complete: soft-delete migration (0002), dnd-kit + exceljs + multipart dependencies installed, all 5 test stub files for TC-01–TC-06 on disk. suites.ts route implemented with full integration tests. Test cases routes (test-cases.ts) and StepEditor component exist from prior session work.
 
 ---
 
