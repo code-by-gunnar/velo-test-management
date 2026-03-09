@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url"
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import helmet from "@fastify/helmet"
@@ -18,7 +19,7 @@ async function runMigrations() {
   const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 })
   try {
     await migrate(drizzle(migrationClient), {
-      migrationsFolder: new URL("../drizzle", import.meta.url).pathname,
+      migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
     })
     console.log("Migrations complete")
   } finally {
