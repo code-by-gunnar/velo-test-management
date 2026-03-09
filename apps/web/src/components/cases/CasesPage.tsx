@@ -19,7 +19,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
     refetch: refetchSuites,
   } = useSuiteTree(workspaceId, projectId)
 
-  const { cases, isLoading, refetch: refetchCases } = useTestCases(workspaceId, projectId, selectedSuiteId)
+  const { cases, setCases, isLoading, refetch: refetchCases } = useTestCases(workspaceId, projectId, selectedSuiteId)
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [openCaseId, setOpenCaseId] = useState<string | null>(null)
@@ -76,6 +76,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
           workspaceId={workspaceId}
           projectId={projectId}
           onSuiteCreated={refetchSuites}
+          onSuiteReordered={refetchSuites}
         />
       </div>
 
@@ -85,8 +86,12 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
           cases={cases}
           isLoading={isLoading}
           selectedSuite={selectedSuite}
+          workspaceId={workspaceId}
+          projectId={projectId}
           onNewCase={handleNewCase}
           onOpenCase={handleOpenCase}
+          onCasesChange={setCases}
+          refetch={refetchCases}
         />
       </div>
 
