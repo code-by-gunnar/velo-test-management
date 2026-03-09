@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useRef } from "react"
 import { clsx } from "clsx"
 import {
   DndContext,
@@ -58,9 +58,12 @@ export function SuiteTreeItem({
   const isSelected = selected === suite.id
 
   // Keep local children in sync when suite.children changes (e.g., external refetch)
-  useEffect(() => {
+  // Uses the "state update during render" pattern (same as SuiteTree for rootSuites).
+  const prevChildrenRef = useRef(suite.children)
+  if (prevChildrenRef.current !== suite.children) {
+    prevChildrenRef.current = suite.children
     setChildren(suite.children)
-  }, [suite.children])
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
