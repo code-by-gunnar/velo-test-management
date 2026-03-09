@@ -79,12 +79,17 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       aria-label="Main navigation"
     >
       {/* Workspace header */}
-      <div className="flex h-12 items-center gap-2.5 border-b border-gray-200 px-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cobalt text-[11px] font-bold text-white tracking-wide">
-          V
-        </div>
+      <div className={clsx(
+        "flex h-12 shrink-0 items-center border-b border-gray-200",
+        collapsed ? "justify-center px-1" : "gap-2.5 px-3"
+      )}>
         {!collapsed && (
-          <span className="flex-1 truncate text-sm font-semibold text-gray-900">Velo</span>
+          <>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cobalt text-[11px] font-bold text-white tracking-wide">
+              V
+            </div>
+            <span className="flex-1 truncate text-sm font-semibold text-gray-900">Velo</span>
+          </>
         )}
         <button
           type="button"
