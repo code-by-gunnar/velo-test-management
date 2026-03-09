@@ -41,10 +41,14 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
-    // Cookie name is pinned to "authjs.session-token" in auth.ts (SameSite=None; Secure)
-    const token =
-      request.cookies?.["authjs.session-token"] ??
-      request.cookies?.["__Secure-authjs.session-token"]
+    // Token comes from the Next.js gateway via Authorization: Bearer (preferred),
+    // or directly from the browser cookie (for future direct-API use).
+    const authHeader = request.headers["authorization"]
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
+    const cookieToken =
+      request.cookies?.["__Secure-authjs.session-token"] ??
+      request.cookies?.["authjs.session-token"]
+    const token = bearerToken ?? cookieToken
     if (!token) return
 
     try {
