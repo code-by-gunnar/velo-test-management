@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     method: req.method ?? "GET",
     headers: req.headers as HeadersInit,
   }
-  if (rawBody.length > 0) reqInit.body = rawBody
+  if (rawBody.length > 0) reqInit.body = rawBody as unknown as Uint8Array
 
   const webReq = new Request(url.toString(), reqInit)
 
