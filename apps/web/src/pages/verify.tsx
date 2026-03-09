@@ -9,7 +9,7 @@ export default function VerifyPage() {
   const [message, setMessage] = React.useState("")
 
   const onSubmit = async ({ code }: { code: string }) => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-otp`, {
+    const res = await fetch(`/api/backend/auth/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
@@ -27,7 +27,7 @@ export default function VerifyPage() {
   }
 
   const resend = async () => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-otp`, {
+    await fetch(`/api/backend/auth/resend-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
