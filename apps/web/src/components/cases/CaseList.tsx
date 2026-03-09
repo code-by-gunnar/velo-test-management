@@ -199,40 +199,40 @@ export function CaseList({
           </Button>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
-          <table className="w-full">
-            <thead className="sticky top-0 bg-white">
-              <tr className="border-b border-gray-200">
-                {/* Drag handle column header — empty */}
-                <th className="w-8 px-2 py-2" />
-                <th className="w-8 px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={(el) => {
-                      if (el) el.indeterminate = indeterminate
-                    }}
-                    onChange={toggleAll}
-                    className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
-                    aria-label="Select all"
-                  />
-                </th>
-                <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Title
-                </th>
-                <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Priority
-                </th>
-                <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Steps
-                </th>
-              </tr>
-            </thead>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={(e) => { void handleDragEnd(e) }}
-            >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(e) => { void handleDragEnd(e) }}
+        >
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-gray-200">
+                  {/* Drag handle column header — empty */}
+                  <th className="w-8 px-2 py-2" />
+                  <th className="w-8 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      ref={(el) => {
+                        if (el) el.indeterminate = indeterminate
+                      }}
+                      onChange={toggleAll}
+                      className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+                      aria-label="Select all"
+                    />
+                  </th>
+                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Title
+                  </th>
+                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Priority
+                  </th>
+                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Steps
+                  </th>
+                </tr>
+              </thead>
               <SortableContext
                 items={cases.map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
@@ -250,9 +250,9 @@ export function CaseList({
                   ))}
                 </tbody>
               </SortableContext>
-            </DndContext>
-          </table>
-        </div>
+            </table>
+          </div>
+        </DndContext>
       )}
 
       {selectedIds.size > 0 && (
