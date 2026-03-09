@@ -25,11 +25,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req.on("error", reject)
   })
 
-  const webReq = new Request(url.toString(), {
+  const reqInit: RequestInit = {
     method: req.method ?? "GET",
     headers: req.headers as HeadersInit,
-    body: rawBody.length > 0 ? rawBody : undefined,
-  })
+  }
+  if (rawBody.length > 0) reqInit.body = rawBody
+
+  const webReq = new Request(url.toString(), reqInit)
 
   const webHandler = req.method === "POST" ? handlers.POST : handlers.GET
   const webRes = await webHandler(webReq)
