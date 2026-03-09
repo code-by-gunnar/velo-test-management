@@ -46,7 +46,7 @@ export default function OnboardingPage() {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workspaces`, {
+      const res = await fetch(`/api/backend/workspaces`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -73,7 +73,7 @@ export default function OnboardingPage() {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workspaces/${workspaceId}/projects`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -89,7 +89,7 @@ export default function OnboardingPage() {
   const finish = async () => {
     if (state.loadSampleData) {
       // Seed request — backend creates sample suites/test cases
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workspaces/${workspaceId}/seed`, {
+      await fetch(`/api/backend/workspaces/${workspaceId}/seed`, {
         method: "POST",
         credentials: "include",
       })

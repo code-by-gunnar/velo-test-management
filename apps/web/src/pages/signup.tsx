@@ -19,7 +19,7 @@ export default function SignupPage() {
   })
 
   const onSubmit = async (data: FormData) => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+    const res = await fetch(`/api/backend/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
