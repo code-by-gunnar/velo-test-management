@@ -1,0 +1,6 @@
+Title,Preconditions,Priority,Action,Expected Result
+Login with valid credentials,User exists,high,Navigate to /login,Login page is displayed
+Login with valid credentials,User exists,high,Enter valid email and password,Credentials accepted
+Login with valid credentials,User exists,high,Click Sign In,User is redirected to dashboard
+Search for product,User is logged in,medium,Type product name in search bar,Search results appear
+Search for product,User is logged in,medium,Click first result,Product detail page opens
