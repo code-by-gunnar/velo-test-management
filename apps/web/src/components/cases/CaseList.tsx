@@ -44,6 +44,7 @@ interface CaseListProps {
   workspaceId: string
   projectId: string
   onNewCase: () => void
+  onImport: () => void
   onOpenCase: (id: string) => void
   onCasesChange: (cases: TestCase[]) => void
   refetch: () => void
@@ -57,6 +58,7 @@ export function CaseList({
   workspaceId,
   projectId,
   onNewCase,
+  onImport,
   onOpenCase,
   onCasesChange,
   refetch,
@@ -155,9 +157,14 @@ export function CaseList({
             <span className="text-xs text-gray-400">{cases.length} {cases.length === 1 ? "case" : "cases"}</span>
           )}
         </div>
-        <Button variant="primary" size="sm" onClick={onNewCase}>
-          New Case
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={onImport}>
+            Import
+          </Button>
+          <Button variant="primary" size="sm" onClick={onNewCase}>
+            New Case
+          </Button>
+        </div>
       </div>
 
       {/* Content */}

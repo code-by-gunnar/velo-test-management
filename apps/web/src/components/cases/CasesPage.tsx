@@ -4,6 +4,7 @@ import { useTestCases } from "@/hooks/useTestCases"
 import { SuiteTree } from "./SuiteTree"
 import { CaseList } from "./CaseList"
 import { CasePanel } from "./CasePanel"
+import { ImportModal } from "./ImportModal"
 
 interface CasesPageProps {
   workspaceId: string
@@ -23,6 +24,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [openCaseId, setOpenCaseId] = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   // N key shortcut to open new case panel (when panel is closed)
   useEffect(() => {
@@ -60,6 +62,11 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
     void refetchCases()
   }
 
+  const handleImportSuccess = () => {
+    setImportOpen(false)
+    void refetchCases()
+  }
+
   // Find selected suite for breadcrumb
   const selectedSuite = selectedSuiteId
     ? flatList.find((s) => s.id === selectedSuiteId) ?? null
@@ -90,11 +97,21 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
           workspaceId={workspaceId}
           projectId={projectId}
           onNewCase={handleNewCase}
+          onImport={() => setImportOpen(true)}
           onOpenCase={handleOpenCase}
           onCasesChange={setCases}
           refetch={refetchCases}
         />
       </div>
+
+      {/* Import modal */}
+      <ImportModal
+        isOpen={importOpen}
+        workspaceId={workspaceId}
+        projectId={projectId}
+        onClose={() => setImportOpen(false)}
+        onSuccess={handleImportSuccess}
+      />
 
       {/* Right panel: Case editor (slide-in) */}
       <CasePanel
