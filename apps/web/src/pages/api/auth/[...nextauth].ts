@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next"
+import { NextRequest } from "next/server"
 import { handlers } from "@/auth"
 
 // Pages Router requires a default export with (req, res) signature.
-// Auth.js v5 handlers use Web standard Request/Response, so we bridge here.
-// Body parsing is disabled so we pass the raw body through unchanged
-// (Auth.js uses form-encoded bodies for some callbacks).
+// Auth.js v5 handlers expect NextRequest, so we bridge here.
+// Body parsing is disabled so we pass the raw body through unchanged.
 export const config = {
   api: { bodyParser: false },
 }
@@ -29,12 +29,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     method: req.method ?? "GET",
     headers: req.headers as HeadersInit,
   }
-  if (rawBody.length > 0) reqInit.body = rawBody as unknown as Uint8Array
+  if (rawBody.length > 0) reqInit.body = rawBody.toString("utf-8")
 
-  const webReq = new Request(url.toString(), reqInit)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nextReq = new NextRequest(url.toString(), reqInit as any)
 
   const webHandler = req.method === "POST" ? handlers.POST : handlers.GET
-  const webRes = await webHandler(webReq)
+  const webRes = await webHandler(nextReq)
 
   res.status(webRes.status)
   webRes.headers.forEach((value, key) => {
