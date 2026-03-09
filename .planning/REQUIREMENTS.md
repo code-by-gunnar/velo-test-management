@@ -42,7 +42,7 @@
 - [x] **TC-03**: User can organise test cases into nested suites (unlimited depth) within a project
 - [x] **TC-04**: User can drag and drop suites and test cases to reorder them (gap-based integer positions, no full-table rewrite on reorder)
 - [x] **TC-05**: User can bulk move or copy test cases between suites
-- [ ] **TC-06**: User can import test cases from CSV or Excel file, preserving step structure (not flattened to single description field)
+- [x] **TC-06**: User can import test cases from CSV or Excel file, preserving step structure (not flattened to single description field)
 
 ### Test Runs
 
@@ -170,7 +170,7 @@
 | TC-03 | Phase 2 | Complete |
 | TC-04 | Phase 2 | Complete |
 | TC-05 | Phase 2 | Complete |
-| TC-06 | Phase 2 | Pending |
+| TC-06 | Phase 2 | Complete |
 | TR-01 | Phase 3 | Pending |
 | TR-02 | Phase 3 | Pending |
 | TR-03 | Phase 3 | Pending |
