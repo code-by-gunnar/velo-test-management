@@ -1,34 +1,419 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, beforeAll, afterAll } from "vitest"
+import Fastify from "fastify"
+import { uuidv7 } from "uuidv7"
+import testCasesRoutes from "../test-cases.js"
 
-// TC-01: Create + retrieve test cases
-describe("POST /api/workspaces/:wid/projects/:pid/cases", () => {
-  it.todo("creates a test case with title, preconditions, priority, and steps in one transaction")
-  it.todo("steps are stored in test_case_steps with correct step_order")
-  it.todo("returns 403 when test_cases count >= 500 (Free tier limit)")
-})
+// Set required env vars for testing
+process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
+process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
 
-describe("GET /api/workspaces/:wid/projects/:pid/cases", () => {
-  it.todo("returns only cases where deleted_at IS NULL")
-  it.todo("returns only cases from the requesting workspace (RLS isolation)")
-  it.todo("filters by suite_id when query param provided")
-})
+// Superuser SQL connection for test setup (bypasses RLS)
+const sql = (await import("../../db/client.js")).sql
 
-describe("PUT /api/workspaces/:wid/projects/:pid/cases/:id", () => {
-  it.todo("replaces steps by deleting all existing and inserting new in same transaction")
-})
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-describe("DELETE /api/workspaces/:wid/projects/:pid/cases/:id", () => {
-  it.todo("sets deleted_at = NOW(), does not hard delete")
-})
+function buildApp(userId: string, workspaceId: string) {
+  const app = Fastify({ logger: false })
+  app.decorateRequest("userId", "")
+  app.decorateRequest("workspaceId", "")
+  app.decorateRequest("userRole", "")
+  app.addHook("preHandler", async (request) => {
+    request.userId = userId
+    request.workspaceId = workspaceId
+    request.userRole = "editor"
+  })
+  return app
+}
 
-// TC-04: Drag-drop position reorder
-describe("PATCH /api/workspaces/:wid/projects/:pid/cases/:id/position", () => {
+// ── Test suite ────────────────────────────────────────────────────────────────
+
+describe("Test case routes integration (TC-01, TC-03)", () => {
+  let workspaceA: string
+  let workspaceB: string
+  let projectA: string
+  let projectB: string
+  let suiteA: string
+  let appA: ReturnType<typeof Fastify>
+  let appB: ReturnType<typeof Fastify>
+  const userId = uuidv7()
+
+  beforeAll(async () => {
+    workspaceA = uuidv7()
+    workspaceB = uuidv7()
+    projectA = uuidv7()
+    projectB = uuidv7()
+    suiteA = uuidv7()
+
+    // Insert test user
+    await sql`
+      INSERT INTO users (id, email, password_hash, email_verified)
+      VALUES (${userId}::uuid, ${`case-test-${Date.now()}@example.com`}, 'hash', true)
+    `
+
+    // Create workspaces + projects (superuser bypass for setup)
+    await sql`
+      INSERT INTO workspaces (id, name, slug, plan_tier) VALUES
+        (${workspaceA}::uuid, 'Cases WS A', ${`cases-ws-a-${Date.now()}`}, 'free'),
+        (${workspaceB}::uuid, 'Cases WS B', ${`cases-ws-b-${Date.now()}`}, 'free')
+    `
+    await sql`
+      INSERT INTO projects (id, workspace_id, name, project_key) VALUES
+        (${projectA}::uuid, ${workspaceA}::uuid, 'Cases Project A', 'cpa'),
+        (${projectB}::uuid, ${workspaceB}::uuid, 'Cases Project B', 'cpb')
+    `
+    await sql`
+      INSERT INTO suites (id, workspace_id, project_id, name, position) VALUES
+        (${suiteA}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, 'Test Suite A', 1000)
+    `
+
+    appA = buildApp(userId, workspaceA)
+    appB = buildApp(userId, workspaceB)
+
+    await appA.register(testCasesRoutes)
+    await appB.register(testCasesRoutes)
+
+    await appA.ready()
+    await appB.ready()
+  })
+
+  afterAll(async () => {
+    await sql`DELETE FROM test_case_steps WHERE test_case_id IN (
+      SELECT id FROM test_cases WHERE workspace_id IN (${workspaceA}::uuid, ${workspaceB}::uuid)
+    )`
+    await sql`DELETE FROM test_cases WHERE workspace_id IN (${workspaceA}::uuid, ${workspaceB}::uuid)`
+    await sql`DELETE FROM suites WHERE workspace_id IN (${workspaceA}::uuid, ${workspaceB}::uuid)`
+    await sql`DELETE FROM projects WHERE id IN (${projectA}::uuid, ${projectB}::uuid)`
+    await sql`DELETE FROM workspaces WHERE id IN (${workspaceA}::uuid, ${workspaceB}::uuid)`
+    await sql`DELETE FROM users WHERE id = ${userId}::uuid`
+    await appA.close()
+    await appB.close()
+    await sql.end()
+  })
+
+  // ── POST /cases ─────────────────────────────────────────────────────────────
+
+  it("creates a test case with title, preconditions, priority, and steps in one transaction (TC-01)", async () => {
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Login with valid credentials",
+        priority: "high",
+        suite_id: suiteA,
+        preconditions: "User has a registered account",
+        steps: [
+          { action: "Navigate to login page", expected_result: "Login page is shown" },
+          { action: "Enter valid email and password", expected_result: "Fields are filled" },
+          { action: "Click Sign In button", expected_result: "User is redirected to dashboard" },
+        ],
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    const body = res.json() as {
+      id: string
+      title: string
+      suite_id: string
+      step_count: number
+      preconditions: string
+    }
+    expect(body.title).toBe("Login with valid credentials")
+    expect(body.suite_id).toBe(suiteA)
+    expect(body.step_count).toBe(3)
+    expect(body.preconditions).toBe("User has a registered account")
+  })
+
+  it("steps are stored in test_case_steps with correct step_order (increments of 1000)", async () => {
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Step order test",
+        priority: "low",
+        steps: [
+          { action: "First step" },
+          { action: "Second step" },
+          { action: "Third step" },
+        ],
+      },
+    })
+    const { id } = createRes.json() as { id: string }
+
+    const getRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+    })
+    const detail = getRes.json() as { steps: Array<{ step_order: number; action: string }> }
+    expect(detail.steps[0]?.step_order).toBe(1000)
+    expect(detail.steps[1]?.step_order).toBe(2000)
+    expect(detail.steps[2]?.step_order).toBe(3000)
+  })
+
+  it("GET /cases/:id returns the test case with all steps ordered by step_order", async () => {
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Case with ordered steps",
+        priority: "medium",
+        steps: [
+          { action: "Step A", expected_result: "Result A" },
+          { action: "Step B", expected_result: "Result B" },
+        ],
+      },
+    })
+    const { id } = createRes.json() as { id: string }
+
+    const getRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+    })
+    expect(getRes.statusCode).toBe(200)
+    const detail = getRes.json() as {
+      id: string
+      title: string
+      steps: Array<{ action: string; step_order: number }>
+    }
+    expect(detail.steps).toHaveLength(2)
+    expect(detail.steps[0]?.action).toBe("Step A")
+    expect(detail.steps[1]?.action).toBe("Step B")
+    expect((detail.steps[0]?.step_order ?? 0) < (detail.steps[1]?.step_order ?? 0)).toBe(true)
+  })
+
+  // ── GET /cases ──────────────────────────────────────────────────────────────
+
+  it("returns only cases where deleted_at IS NULL", async () => {
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Case to be deleted",
+        priority: "low",
+        steps: [],
+      },
+    })
+    const { id } = createRes.json() as { id: string }
+
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+    })
+
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+    })
+    const cases = listRes.json() as Array<{ id: string }>
+    expect(cases.find((c) => c.id === id)).toBeUndefined()
+  })
+
+  it("returns only cases from the requesting workspace (RLS isolation)", async () => {
+    // Create a case in workspace B
+    await appB.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceB}/projects/${projectB}/cases`,
+      payload: {
+        title: "Workspace B Exclusive Case",
+        priority: "critical",
+        steps: [],
+      },
+    })
+
+    // Query from workspace A — must not see workspace B cases
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+    })
+    const cases = listRes.json() as Array<{ title: string }>
+    const titles = cases.map((c) => c.title)
+    expect(titles).not.toContain("Workspace B Exclusive Case")
+  })
+
+  it("filters by suite_id when query param provided", async () => {
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "In Suite A (filter test)",
+        priority: "medium",
+        suite_id: suiteA,
+        steps: [],
+      },
+    })
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "No Suite (filter test)",
+        priority: "medium",
+        steps: [],
+      },
+    })
+
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases?suite_id=${suiteA}`,
+    })
+    const cases = listRes.json() as Array<{ suite_id: string }>
+    expect(cases.every((c) => c.suite_id === suiteA)).toBe(true)
+  })
+
+  // ── PUT /cases/:id ──────────────────────────────────────────────────────────
+
+  it("replaces steps by deleting all existing and inserting new in same transaction", async () => {
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Step replacement case",
+        priority: "high",
+        steps: [
+          { action: "Original step 1" },
+          { action: "Original step 2" },
+        ],
+      },
+    })
+    const { id } = createRes.json() as { id: string }
+
+    const putRes = await appA.inject({
+      method: "PUT",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+      payload: {
+        title: "Step replacement case (updated)",
+        priority: "critical",
+        steps: [
+          { action: "New step 1", expected_result: "New result 1" },
+          { action: "New step 2", expected_result: "New result 2" },
+          { action: "New step 3" },
+        ],
+      },
+    })
+    expect(putRes.statusCode).toBe(200)
+
+    const getRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+    })
+    const detail = getRes.json() as {
+      title: string
+      priority: string
+      steps: Array<{ action: string }>
+    }
+    expect(detail.title).toBe("Step replacement case (updated)")
+    expect(detail.priority).toBe("critical")
+    expect(detail.steps).toHaveLength(3)
+    expect(detail.steps[0]?.action).toBe("New step 1")
+    expect(detail.steps.find((s) => s.action === "Original step 1")).toBeUndefined()
+  })
+
+  // ── DELETE /cases/:id ───────────────────────────────────────────────────────
+
+  it("sets deleted_at = NOW(), does not hard delete (row remains in DB)", async () => {
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Soft delete test case",
+        priority: "low",
+        steps: [],
+      },
+    })
+    const { id } = createRes.json() as { id: string }
+
+    const deleteRes = await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${id}`,
+    })
+    expect(deleteRes.statusCode).toBe(204)
+
+    // Verify row still exists with deleted_at set
+    const rows = await sql`SELECT deleted_at FROM test_cases WHERE id = ${id}::uuid`
+    expect(rows.length).toBe(1)
+    expect(rows[0]?.deleted_at).not.toBeNull()
+  })
+
+  // ── Tier limit ──────────────────────────────────────────────────────────────
+
+  it("returns 403 TIER_LIMIT_EXCEEDED when test_cases count >= 500 (Free tier limit)", async () => {
+    const limitWsId = uuidv7()
+    const limitProjId = uuidv7()
+
+    await sql`
+      INSERT INTO workspaces (id, name, slug, plan_tier) VALUES
+        (${limitWsId}::uuid, 'Limit WS', ${`limit-ws-${Date.now()}`}, 'free')
+    `
+    await sql`
+      INSERT INTO projects (id, workspace_id, name, project_key) VALUES
+        (${limitProjId}::uuid, ${limitWsId}::uuid, 'Limit Project', 'lp1')
+    `
+
+    // Insert exactly 500 cases directly (bypass API for speed)
+    const caseIds = Array.from({ length: 500 }, () => uuidv7())
+    for (const caseId of caseIds) {
+      await sql`
+        INSERT INTO test_cases (id, workspace_id, project_id, title, priority, position)
+        VALUES (${caseId}::uuid, ${limitWsId}::uuid, ${limitProjId}::uuid, 'Bulk Case', 'low', 1000)
+      `
+    }
+
+    const limitApp = buildApp(userId, limitWsId)
+    await limitApp.register(testCasesRoutes)
+    await limitApp.ready()
+
+    const res = await limitApp.inject({
+      method: "POST",
+      url: `/api/workspaces/${limitWsId}/projects/${limitProjId}/cases`,
+      payload: {
+        title: "Case that exceeds limit",
+        priority: "medium",
+        steps: [],
+      },
+    })
+
+    expect(res.statusCode).toBe(403)
+    const body = res.json() as { code: string }
+    expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+
+    // Cleanup
+    await limitApp.close()
+    await sql`DELETE FROM test_cases WHERE workspace_id = ${limitWsId}::uuid`
+    await sql`DELETE FROM projects WHERE id = ${limitProjId}::uuid`
+    await sql`DELETE FROM workspaces WHERE id = ${limitWsId}::uuid`
+  })
+
+  // ── Auth guard ─────────────────────────────────────────────────────────────
+
+  it("GET /cases returns 401 when no session (userId empty)", async () => {
+    const noAuthApp = Fastify({ logger: false })
+    noAuthApp.decorateRequest("userId", "")
+    noAuthApp.decorateRequest("workspaceId", "")
+    noAuthApp.decorateRequest("userRole", "")
+    await noAuthApp.register(testCasesRoutes)
+    await noAuthApp.ready()
+
+    const res = await noAuthApp.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+    })
+    expect(res.statusCode).toBe(401)
+    await noAuthApp.close()
+  })
+
+  it("GET /cases returns 403 when workspaceId param does not match session", async () => {
+    const res = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceB}/projects/${projectB}/cases`,
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
+  // ── TC-04: Drag-drop position reorder (future plan) ─────────────────────────
+
   it.todo("updates a single test_case row position without touching other rows")
   it.todo("when gap collapses, renumber all cases in suite starting at 1000 increments")
-})
 
-// TC-05: Bulk move and copy
-describe("POST /api/workspaces/:wid/projects/:pid/cases/bulk", () => {
+  // ── TC-05: Bulk move and copy (future plan) ──────────────────────────────────
+
   it.todo("action=move: updates suite_id for all selected case IDs")
   it.todo("action=copy: creates new test_case rows with new UUIDs in target suite")
   it.todo("action=copy: copies all test_case_steps with correct new test_case_id references")
