@@ -24,7 +24,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
-| 2. Test Cases | 1/6 | In progress | - |
+| 2. Test Cases | 3/6 | In Progress|  |
 | 3. Test Runs and Dashboard | 0/? | Not started | - |
 | 4. CI Ingestion | 0/? | Not started | - |
 | 5. Integrations and API | 0/? | Not started | - |
