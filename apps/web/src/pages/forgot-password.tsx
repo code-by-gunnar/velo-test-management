@@ -17,7 +17,7 @@ export default function ForgotPasswordPage() {
   })
 
   const onSubmit = async (data: FormData) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/forgot-password`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
