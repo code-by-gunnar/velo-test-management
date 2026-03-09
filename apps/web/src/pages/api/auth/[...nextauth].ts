@@ -31,8 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (rawBody.length > 0) reqInit.body = rawBody.toString("utf-8")
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nextReq = new NextRequest(url.toString(), reqInit as any)
+  const nextReq = new NextRequest(url.toString(), reqInit as any) // eslint-disable-line
 
   const webHandler = req.method === "POST" ? handlers.POST : handlers.GET
   const webRes = await webHandler(nextReq)
