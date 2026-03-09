@@ -128,7 +128,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
 
     try {
       const res = await fetch(
-        `/api/workspaces/${workspaceId}/projects/${projectId}/cases/import`,
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/import`,
         {
           method: "POST",
           body: formData,

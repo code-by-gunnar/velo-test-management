@@ -1,8 +1,8 @@
-import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
+import { useState } from "react"
 
 interface SidebarProps {
   slug: string
@@ -11,27 +11,41 @@ interface SidebarProps {
 
 const STORAGE_KEY = "velo:sidebar-collapsed"
 
-// Navigation items with their Phase availability
 const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}` : `/app/${slug}`,
-    icon: "\u229F",  // placeholder — replace with actual icon in design polish
-    available: false,  // Phase 3
-    tooltip: "Coming in Phase 3",
-  },
   {
     label: "Test Cases",
     href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/cases` : "#",
-    icon: "\u2611",
-    available: true,  // Phase 2 — delivered in plan 02-03
-    tooltip: "Test Cases",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+    available: true,
   },
   {
     label: "Test Runs",
-    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/runs` : "#",
-    icon: "\u25B6",
-    available: false,  // Phase 3
+    href: (_slug: string, _key?: string) => "#",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6 5.5l4.5 2.5L6 10.5V5.5z" fill="currentColor" />
+      </svg>
+    ),
+    available: false,
+    tooltip: "Coming in Phase 3",
+  },
+  {
+    label: "Reports",
+    href: (_slug: string, _key?: string) => "#",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M2 12h2V8H2v4zm3 0h2V5H5v7zm3 0h2V2H8v10zm3 0h2V7h-2v5z" fill="currentColor" />
+      </svg>
+    ),
+    available: false,
     tooltip: "Coming in Phase 3",
   },
 ] as const
@@ -40,7 +54,6 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
 
-  // Persist sidebar state in localStorage (DS-04)
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false
     return localStorage.getItem(STORAGE_KEY) === "true"
@@ -52,54 +65,77 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
     localStorage.setItem(STORAGE_KEY, String(next))
   }
 
+  const displayName = session?.user?.name ?? session?.user?.email ?? ""
+  const initials = displayName
+    ? displayName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
+    : "?"
+
   return (
     <aside
       className={clsx(
-        "flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-200",
-        collapsed ? "w-12" : "w-60"  // 48px collapsed, 240px expanded
+        "flex h-screen shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-200",
+        collapsed ? "w-12" : "w-60"
       )}
       aria-label="Main navigation"
     >
       {/* Workspace header */}
-      <div className="flex h-12 items-center gap-2 border-b border-gray-200 px-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cobalt text-xs font-bold text-white">
+      <div className="flex h-12 items-center gap-2.5 border-b border-gray-200 px-3">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cobalt text-[11px] font-bold text-white tracking-wide">
           V
         </div>
         {!collapsed && (
-          <span className="truncate text-sm font-semibold text-gray-900">Velo</span>
+          <span className="flex-1 truncate text-sm font-semibold text-gray-900">Velo</span>
         )}
         <button
           type="button"
           onClick={toggleCollapsed}
-          className={clsx(
-            "ml-auto flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600",
-          )}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? "\u203A" : "\u2039"}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            {collapsed ? (
+              <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
         </button>
       </div>
 
-      {/* Navigation items */}
-      <nav className="flex-1 overflow-y-auto p-2">
+      {/* Project context pill — shown when inside a project */}
+      {!collapsed && projectKey && (
+        <div className="border-b border-gray-100 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-md bg-mist px-2 py-1.5">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-cobalt/10 text-[10px] font-bold text-cobalt">
+              {projectKey.slice(0, 2).toUpperCase()}
+            </div>
+            <span className="truncate font-mono text-xs font-medium text-gray-700 uppercase tracking-wide">
+              {projectKey}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Nav items */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2" aria-label="Project navigation">
         {NAV_ITEMS.map((item) => {
           const href = item.href(slug, projectKey)
           const isActive = router.asPath === href
 
           if (!item.available) {
-            // Visible but disabled (DS-04 — not hidden)
             return (
               <div
                 key={item.label}
-                className="flex cursor-not-allowed items-center gap-3 rounded-md px-2 py-1.5 text-gray-300"
-                title={collapsed ? `${item.label} \u2014 ${item.tooltip}` : item.tooltip}
+                title={collapsed ? `${item.label} — ${item.tooltip}` : item.tooltip}
                 aria-disabled="true"
-              >
-                <span className="shrink-0 text-base">{item.icon}</span>
-                {!collapsed && (
-                  <span className="text-sm">{item.label}</span>
+                className={clsx(
+                  "flex cursor-not-allowed items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-300",
+                  collapsed ? "justify-center px-2" : "pl-2 pr-2 border-l-[3px] border-transparent"
                 )}
+              >
+                <span className="shrink-0">{item.icon}</span>
+                {!collapsed && <span>{item.label}</span>}
               </div>
             )
           }
@@ -108,52 +144,60 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             <Link
               key={item.label}
               href={href}
-              className={clsx(
-                "flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
-                isActive
-                  ? "bg-cobalt-light text-cobalt font-medium"
-                  : "text-gray-700 hover:bg-gray-100",
-              )}
               title={collapsed ? item.label : undefined}
+              className={clsx(
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+                collapsed ? "justify-center px-2" : "pr-2",
+                isActive
+                  ? "border-l-[3px] border-cobalt bg-cobalt/5 text-cobalt font-medium pl-[5px]"
+                  : "border-l-[3px] border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 pl-2"
+              )}
             >
-              <span className="shrink-0 text-base">{item.icon}</span>
+              <span className="shrink-0">{item.icon}</span>
               {!collapsed && <span>{item.label}</span>}
             </Link>
           )
         })}
 
-        {/* Divider */}
         <div className="my-2 border-t border-gray-100" />
 
-        {/* Settings — active in Phase 1 */}
+        {/* Settings */}
         <Link
           href={`/app/${slug}/settings`}
-          className={clsx(
-            "flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors",
-            router.asPath.includes("/settings")
-              ? "bg-cobalt-light text-cobalt font-medium"
-              : "text-gray-700 hover:bg-gray-100"
-          )}
           title={collapsed ? "Settings" : undefined}
+          className={clsx(
+            "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+            collapsed ? "justify-center px-2" : "pr-2",
+            router.asPath.includes("/settings")
+              ? "border-l-[3px] border-cobalt bg-cobalt/5 text-cobalt font-medium pl-[5px]"
+              : "border-l-[3px] border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 pl-2"
+          )}
         >
-          <span className="shrink-0 text-base">\u2699</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="shrink-0">
+            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
           {!collapsed && <span>Settings</span>}
         </Link>
       </nav>
 
-      {/* User section — sign out */}
+      {/* User section */}
       <div className="border-t border-gray-200 p-2">
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/login" })}
+          title={collapsed ? (displayName || "Sign out") : undefined}
           className={clsx(
-            "flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100",
+            "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-600 hover:bg-gray-100 transition-colors",
+            collapsed ? "justify-center px-2" : "px-2"
           )}
-          title={collapsed ? "Sign out" : undefined}
         >
-          <span className="shrink-0 text-base">\u21C4</span>
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-semibold text-gray-600">
+            {initials}
+          </div>
           {!collapsed && (
-            <span className="truncate">{session?.user?.name ?? session?.user?.email ?? "Sign out"}</span>
+            <span className="flex-1 truncate text-left text-xs">{displayName || "Sign out"}</span>
           )}
         </button>
       </div>

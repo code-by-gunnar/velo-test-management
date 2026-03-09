@@ -17,6 +17,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
     flatList,
     selected: selectedSuiteId,
     setSelected: setSelectedSuiteId,
+    isLoading: suitesLoading,
     refetch: refetchSuites,
   } = useSuiteTree(workspaceId, projectId)
 
@@ -78,6 +79,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
       <div className="w-56 shrink-0 border-r border-gray-200 bg-white" style={{ minWidth: 220 }}>
         <SuiteTree
           tree={tree}
+          isLoading={suitesLoading}
           selected={selectedSuiteId}
           onSelect={setSelectedSuiteId}
           workspaceId={workspaceId}
