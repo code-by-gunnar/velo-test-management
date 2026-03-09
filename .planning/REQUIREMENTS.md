@@ -40,7 +40,7 @@
 - [x] **TC-01**: User can create a test case with title, preconditions, steps, expected results, and priority — entirely by keyboard, in under 30 seconds from blank to saved
 - [x] **TC-02**: User can add, reorder, and delete steps using only keyboard (Tab to next field, Enter to add step)
 - [x] **TC-03**: User can organise test cases into nested suites (unlimited depth) within a project
-- [ ] **TC-04**: User can drag and drop suites and test cases to reorder them (gap-based integer positions, no full-table rewrite on reorder)
+- [x] **TC-04**: User can drag and drop suites and test cases to reorder them (gap-based integer positions, no full-table rewrite on reorder)
 - [ ] **TC-05**: User can bulk move or copy test cases between suites
 - [ ] **TC-06**: User can import test cases from CSV or Excel file, preserving step structure (not flattened to single description field)
 
@@ -168,7 +168,7 @@
 | TC-01 | Phase 2 | Complete |
 | TC-02 | Phase 2 | Complete |
 | TC-03 | Phase 2 | Complete |
-| TC-04 | Phase 2 | Pending |
+| TC-04 | Phase 2 | Complete |
 | TC-05 | Phase 2 | Pending |
 | TC-06 | Phase 2 | Pending |
 | TR-01 | Phase 3 | Pending |
