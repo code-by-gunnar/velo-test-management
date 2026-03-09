@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { clsx } from "clsx"
 import {
   DndContext,
   closestCenter,
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { CaseListRow } from "./CaseListRow"
+import { BulkActionBar } from "./BulkActionBar"
 
 // Compute mid-gap position for drag reorder.
 // Returns -1 if gap has collapsed (positions equal), signaling server renumber.
@@ -40,6 +40,7 @@ interface CaseListProps {
   cases: TestCase[]
   isLoading: boolean
   selectedSuite: Suite | null  // null = All Cases
+  suites: Suite[]              // Flat suite list for BulkActionBar suite picker
   workspaceId: string
   projectId: string
   onNewCase: () => void
@@ -52,6 +53,7 @@ export function CaseList({
   cases,
   isLoading,
   selectedSuite,
+  suites,
   workspaceId,
   projectId,
   onNewCase,
@@ -234,26 +236,59 @@ export function CaseList({
         </div>
       )}
 
-      {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className={clsx(
-          "flex items-center gap-3 border-t border-gray-200 bg-white px-4 py-2.5 shadow-md"
-        )}>
-          <span className="text-sm font-medium text-gray-700">
-            {selectedIds.size} selected
-          </span>
-          <div className="ml-auto flex gap-2">
-            <Button variant="secondary" size="sm">
-              Move to ▾
-            </Button>
-            <Button variant="secondary" size="sm">
-              Copy to ▾
-            </Button>
-            <Button variant="destructive" size="sm">
-              Delete
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          suites={suites}
+          onMove={async (targetSuiteId) => {
+            await fetch(
+              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "move",
+                  case_ids: [...selectedIds],
+                  target_suite_id: targetSuiteId,
+                }),
+              }
+            )
+            setSelectedIds(new Set())
+            refetch()
+          }}
+          onCopy={async (targetSuiteId) => {
+            await fetch(
+              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "copy",
+                  case_ids: [...selectedIds],
+                  target_suite_id: targetSuiteId,
+                }),
+              }
+            )
+            setSelectedIds(new Set())
+            refetch()
+          }}
+          onDelete={async () => {
+            await fetch(
+              `/api/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "delete",
+                  case_ids: [...selectedIds],
+                }),
+              }
+            )
+            setSelectedIds(new Set())
+            refetch()
+          }}
+          onClearSelection={() => setSelectedIds(new Set())}
+        />
       )}
     </div>
   )
