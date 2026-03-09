@@ -538,9 +538,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "target_suite_id required for move/copy" })
       }
 
-      return withWorkspace(workspaceId, async (tx) => {
-        if (action === "move") {
-          const targetSuite = target_suite_id ?? null
+      if (action === "move") {
+        const targetSuite = target_suite_id ?? null
+        await withWorkspace(workspaceId, async (tx) => {
           await tx.unsafe(`
             UPDATE test_cases
             SET suite_id = ${targetSuite !== null ? `'${targetSuite}'` : "NULL"},
@@ -548,13 +548,15 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
               AND project_id = '${projectId}'
           `)
-          return reply.status(204).send()
-        }
+        })
+        return reply.status(204).send()
+      }
 
-        if (action === "copy") {
-          // For each source case: generate new UUID in app layer, insert new case + steps.
-          // CRITICAL: steps use newCaseId (not srcId) to prevent orphaned steps (Pitfall 5).
-          let created = 0
+      if (action === "copy") {
+        // For each source case: generate new UUID in app layer, insert new case + steps.
+        // CRITICAL: steps use newCaseId (not srcId) to prevent orphaned steps (Pitfall 5).
+        let created = 0
+        await withWorkspace(workspaceId, async (tx) => {
           for (const caseId of case_ids) {
             if (!isUuid(caseId)) continue
 
@@ -624,21 +626,23 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
             created++
           }
-          return reply.status(201).send({ created })
-        }
+        })
+        return reply.status(201).send({ created })
+      }
 
-        if (action === "delete") {
+      if (action === "delete") {
+        await withWorkspace(workspaceId, async (tx) => {
           await tx.unsafe(`
             UPDATE test_cases
             SET deleted_at = NOW()
             WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
               AND project_id = '${projectId}'
           `)
-          return reply.status(204).send()
-        }
+        })
+        return reply.status(204).send()
+      }
 
-        return reply.status(400).send({ error: "Invalid action" })
-      })
+      return reply.status(400).send({ error: "Invalid action" })
     }
   )
 
