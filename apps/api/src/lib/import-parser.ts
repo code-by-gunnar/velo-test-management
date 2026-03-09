@@ -107,15 +107,17 @@ function applyExplicitMapping(
     if (explicit.preconditions && h === explicit.preconditions) mapping.preconditions = i
     if (explicit.priority && h === explicit.priority) mapping.priority = i
   })
-  // Fall back to auto-detection for any field not explicitly mapped
+  // Fall back to auto-detection for any field not explicitly mapped.
+  // Spread auto first, then overwrite only the fields that were explicitly resolved
+  // (avoids assigning `number | undefined` to optional number props under exactOptionalPropertyTypes).
   const auto = detectColumns(headers)
-  return {
-    title: mapping.title ?? auto.title,
-    action: mapping.action ?? auto.action,
-    expected: mapping.expected ?? auto.expected,
-    preconditions: mapping.preconditions ?? auto.preconditions,
-    priority: mapping.priority ?? auto.priority,
-  }
+  const result: ReturnType<typeof detectColumns> = { ...auto }
+  if (mapping.title !== undefined) result.title = mapping.title
+  if (mapping.action !== undefined) result.action = mapping.action
+  if (mapping.expected !== undefined) result.expected = mapping.expected
+  if (mapping.preconditions !== undefined) result.preconditions = mapping.preconditions
+  if (mapping.priority !== undefined) result.priority = mapping.priority
+  return result
 }
 
 export async function parseImportBuffer(

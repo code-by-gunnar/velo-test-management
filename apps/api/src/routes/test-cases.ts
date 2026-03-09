@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
-import { parseImportBuffer, type TestCaseImport } from "../lib/import-parser.js"
+import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 
 // Free tier limit (shared with workspaces.ts)
 const FREE_TIER_MAX_TEST_CASES = 500
@@ -678,11 +678,19 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const buffer = await data.toBuffer()
 
-      // Use explicit column mapping from query params if provided (forwarded from UI)
+      // Use explicit column mapping from query params if provided (forwarded from UI).
+      // Build object conditionally to avoid setting optional keys to undefined
+      // (required by exactOptionalPropertyTypes: true in tsconfig).
       const { colTitle, colAction, colExpected, colPreconditions, colPriority } = request.query
-      const explicit = (colTitle ?? colAction)
-        ? { title: colTitle, action: colAction, expected: colExpected, preconditions: colPreconditions, priority: colPriority }
-        : undefined
+      let explicit: ExplicitColumnMapping | undefined
+      if (colTitle ?? colAction) {
+        explicit = {}
+        if (colTitle) explicit.title = colTitle
+        if (colAction) explicit.action = colAction
+        if (colExpected) explicit.expected = colExpected
+        if (colPreconditions) explicit.preconditions = colPreconditions
+        if (colPriority) explicit.priority = colPriority
+      }
 
       let parsed: TestCaseImport[]
       try {
