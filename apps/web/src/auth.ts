@@ -36,21 +36,6 @@ const credentialsSchema = z.object({
 // ─── Auth.js v5 configuration ─────────────────────────────────────────────────
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Override session cookie so the Railway API (separate origin) receives it.
-  // - name: explicit, no __Secure- prefix, so session plugin uses a single known name
-  // - sameSite: "none" + secure: true — required for cross-origin fetch (credentials:include)
-  //   from vercel.app → railway.app; SameSite=Lax (default) is silently dropped by browsers
-  cookies: {
-    sessionToken: {
-      name: "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "none" as const,
-        secure: true,
-        path: "/",
-      },
-    },
-  },
   providers: [
     Credentials({
       credentials: {
