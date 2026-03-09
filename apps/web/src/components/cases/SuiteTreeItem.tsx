@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { clsx } from "clsx"
 import {
   DndContext,
@@ -58,10 +58,9 @@ export function SuiteTreeItem({
   const isSelected = selected === suite.id
 
   // Keep local children in sync when suite.children changes (e.g., external refetch)
-  const prevChildrenRef = { current: suite.children }
-  if (prevChildrenRef.current !== suite.children && suite.children !== children) {
+  useEffect(() => {
     setChildren(suite.children)
-  }
+  }, [suite.children])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -94,7 +93,7 @@ export function SuiteTreeItem({
     // Persist to API
     try {
       await fetch(
-        `/api/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
