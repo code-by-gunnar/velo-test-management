@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, createRef } from "react"
+import React, { useRef, useEffect } from "react"
 import { StepRow } from "./StepRow"
 
 export interface Step {
@@ -11,23 +11,16 @@ interface StepEditorProps {
   onChange: (steps: Step[]) => void
 }
 
-function makeStepRef() {
-  return {
-    action: createRef<HTMLTextAreaElement>(),
-    expected: createRef<HTMLTextAreaElement>(),
-  }
-}
-
 export function StepEditor({ steps, onChange }: StepEditorProps) {
-  // Maintain a parallel refs array for each step's action/expected textareas
-  const stepRefs = useRef<Array<{ action: React.RefObject<HTMLTextAreaElement | null>; expected: React.RefObject<HTMLTextAreaElement | null> }>>([])
+  // Store DOM elements via callback refs — never read during render
+  const elementsRef = useRef<Map<string, HTMLTextAreaElement | null>>(new Map())
 
-  // Sync refs array length to steps length
-  while (stepRefs.current.length < steps.length) {
-    stepRefs.current.push(makeStepRef())
+  function elementKey(index: number, field: "action" | "expected") {
+    return `${index}-${field}`
   }
-  if (stepRefs.current.length > steps.length) {
-    stepRefs.current.length = steps.length
+
+  function focusElement(index: number, field: "action" | "expected") {
+    elementsRef.current.get(elementKey(index, field))?.focus()
   }
 
   // Ensure we have at least one step
@@ -48,21 +41,20 @@ export function StepEditor({ steps, onChange }: StepEditorProps) {
       { action: "", expected_result: "" },
       ...steps.slice(index + 1),
     ]
-    // Add a new ref slot
-    stepRefs.current.splice(index + 1, 0, makeStepRef())
     onChange(next)
     setTimeout(() => {
-      stepRefs.current[index + 1]?.action.current?.focus()
+      focusElement(index + 1, "action")
     }, 0)
   }
 
   const handleDelete = (index: number) => {
     if (steps.length <= 1) return
     const next = steps.filter((_, i) => i !== index)
-    stepRefs.current.splice(index, 1)
+    elementsRef.current.delete(elementKey(index, "action"))
+    elementsRef.current.delete(elementKey(index, "expected"))
     onChange(next)
     setTimeout(() => {
-      stepRefs.current[index - 1]?.expected.current?.focus()
+      focusElement(index - 1, "expected")
     }, 0)
   }
 
@@ -77,26 +69,22 @@ export function StepEditor({ steps, onChange }: StepEditorProps) {
       </div>
 
       {/* Step rows */}
-      {steps.map((step, index) => {
-        // Ensure refs exist for this index
-        if (!stepRefs.current[index]) {
-          stepRefs.current[index] = makeStepRef()
-        }
-        return (
-          <StepRow
-            key={index}
-            index={index}
-            action={step.action}
-            expected_result={step.expected_result}
-            isLast={index === steps.length - 1}
-            onChange={handleChange}
-            onAddAfter={handleAddAfter}
-            onDelete={handleDelete}
-            actionRef={stepRefs.current[index]!.action}
-            expectedRef={stepRefs.current[index]!.expected}
-          />
-        )
-      })}
+      {steps.map((step, index) => (
+        <StepRow
+          key={index}
+          index={index}
+          action={step.action}
+          expected_result={step.expected_result}
+          isLast={index === steps.length - 1}
+          onChange={handleChange}
+          onAddAfter={handleAddAfter}
+          onDelete={handleDelete}
+          actionRef={(el) => { elementsRef.current.set(elementKey(index, "action"), el) }}
+          expectedRef={(el) => { elementsRef.current.set(elementKey(index, "expected"), el) }}
+          onFocusAction={() => focusElement(index, "action")}
+          onFocusExpected={() => focusElement(index, "expected")}
+        />
+      ))}
     </div>
   )
 }

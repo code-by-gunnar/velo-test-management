@@ -221,8 +221,7 @@ export function CasePanel({
                     // Merge react-hook-form ref with our titleRef for focus management
                     const rhfField = register("title", { required: "Title is required" })
                     if (typeof rhfField.ref === "function") rhfField.ref(el)
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ;(titleRef as any).current = el
+                    ;(titleRef as { current: typeof el }).current = el
                   }}
                   placeholder="Test case title"
                   className={clsx(
