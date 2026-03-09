@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (rawBody.length > 0) reqInit.body = rawBody.toString("utf-8")
 
-  const nextReq = new NextRequest(url.toString(), reqInit as any) // eslint-disable-line
+  const nextReq = new NextRequest(url.toString(), reqInit as any)
 
   const webHandler = req.method === "POST" ? handlers.POST : handlers.GET
   const webRes = await webHandler(nextReq)
