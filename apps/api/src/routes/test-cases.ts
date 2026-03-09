@@ -509,13 +509,135 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── POST /cases/bulk placeholder (TC-05 in future plan) ──────────────────
+  // ── POST /cases/bulk — bulk move, copy, delete (TC-05) ───────────────────
+  // IMPORTANT: registered BEFORE /cases/:caseId wildcard to avoid routing conflict.
+  // Body: { action: "move" | "copy" | "delete", case_ids: string[], target_suite_id?: string | null }
+  // move:   UPDATE suite_id for all case_ids → 204 No Content
+  // copy:   duplicate each case + steps with new UUIDs → 201 { created: number }
+  // delete: soft-delete all case_ids → 204 No Content
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
+    Body: { action: string; case_ids: string[]; target_suite_id?: string | null }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/bulk",
-    async (_request, reply) => {
-      return reply.status(404).send({ error: "Not implemented yet — see TC-05" })
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      const { action, case_ids, target_suite_id } = request.body
+
+      if (!case_ids || case_ids.length === 0) {
+        return reply.status(400).send({ error: "case_ids required" })
+      }
+
+      if ((action === "move" || action === "copy") && target_suite_id === undefined) {
+        return reply.status(400).send({ error: "target_suite_id required for move/copy" })
+      }
+
+      return withWorkspace(workspaceId, async (tx) => {
+        if (action === "move") {
+          const targetSuite = target_suite_id ?? null
+          await tx.unsafe(`
+            UPDATE test_cases
+            SET suite_id = ${targetSuite !== null ? `'${targetSuite}'` : "NULL"},
+                updated_at = NOW()
+            WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
+              AND project_id = '${projectId}'
+          `)
+          return reply.status(204).send()
+        }
+
+        if (action === "copy") {
+          // For each source case: generate new UUID in app layer, insert new case + steps.
+          // CRITICAL: steps use newCaseId (not srcId) to prevent orphaned steps (Pitfall 5).
+          let created = 0
+          for (const caseId of case_ids) {
+            if (!isUuid(caseId)) continue
+
+            const srcRows = await tx.unsafe(`
+              SELECT id, title, preconditions, priority, position
+              FROM test_cases
+              WHERE id = '${caseId}'
+                AND deleted_at IS NULL
+                AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            `)
+            if (srcRows.length === 0) continue
+            const src = srcRows[0] as unknown as {
+              id: string
+              title: string
+              preconditions: string | null
+              priority: string
+              position: number
+            }
+
+            const steps = await tx.unsafe(`
+              SELECT step_order, action, expected_result
+              FROM test_case_steps
+              WHERE test_case_id = '${caseId}'
+              ORDER BY step_order
+            `)
+
+            const newCaseId = uuidv7()
+            const targetSuite = target_suite_id ?? null
+            const safeTitle = src.title.replace(/'/g, "''")
+            const safePreconditions = src.preconditions ? src.preconditions.replace(/'/g, "''") : null
+
+            await tx.unsafe(`
+              INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
+              VALUES (
+                '${newCaseId}',
+                current_setting('app.workspace_id', true)::uuid,
+                '${projectId}',
+                ${targetSuite !== null ? `'${targetSuite}'` : "NULL"},
+                '${safeTitle}',
+                ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
+                '${src.priority}',
+                ${src.position},
+                ${request.userId ? `'${request.userId}'` : "NULL"}
+              )
+            `)
+
+            for (const step of steps) {
+              const s = step as unknown as {
+                step_order: number
+                action: string
+                expected_result: string | null
+              }
+              const safeAction = s.action.replace(/'/g, "''")
+              const safeExpected = s.expected_result ? s.expected_result.replace(/'/g, "''") : null
+
+              await tx.unsafe(`
+                INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
+                VALUES (
+                  '${uuidv7()}',
+                  '${newCaseId}',
+                  ${s.step_order},
+                  '${safeAction}',
+                  ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+                )
+              `)
+            }
+
+            created++
+          }
+          return reply.status(201).send({ created })
+        }
+
+        if (action === "delete") {
+          await tx.unsafe(`
+            UPDATE test_cases
+            SET deleted_at = NOW()
+            WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
+              AND project_id = '${projectId}'
+          `)
+          return reply.status(204).send()
+        }
+
+        return reply.status(400).send({ error: "Invalid action" })
+      })
     }
   )
 }
