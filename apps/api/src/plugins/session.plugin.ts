@@ -23,17 +23,20 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
     // Auth.js v5 uses __Secure- prefix on HTTPS (production/preview), plain name on HTTP (dev)
-    const token =
-      request.cookies?.["__Secure-authjs.session-token"] ??
-      request.cookies?.["authjs.session-token"]
+    const secureName = "__Secure-authjs.session-token"
+    const plainName = "authjs.session-token"
+    const token = request.cookies?.[secureName] ?? request.cookies?.[plainName]
     if (!token) return
+
+    // Forward with the same cookie name that was received so Next.js can decrypt it
+    const cookieName = request.cookies?.[secureName] ? secureName : plainName
 
     try {
       // Forward the session cookie to Next.js auth endpoint for decryption
       const sessionRes = await fetch(
         `${process.env.WEB_URL}/api/auth/session`,
         {
-          headers: { Cookie: `authjs.session-token=${token}` },
+          headers: { Cookie: `${cookieName}=${token}` },
         }
       )
 
