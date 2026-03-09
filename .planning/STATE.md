@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 2 — Test Cases
-current_plan: 05
+current_plan: 06
 status: executing
-stopped_at: Completed 02-04 (Drag-and-drop position reorder — TC-04)
-last_updated: "2026-03-09T18:10:00.000Z"
+stopped_at: Completed 02-05 (Bulk operations — TC-05)
+last_updated: "2026-03-09T18:16:44.159Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[████████░░] 83%
+[█████████░] 92%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -108,6 +108,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | position=-1 sentinel signals gap collapse to server (TC-04) | Avoids extra round-trip; UI computes gap collapse, sends -1; server renumbers all siblings at 1000-increments |
 | Nested DndContext per parent in SuiteTreeItem (TC-04) | dnd-kit within-parent constraint: each parent's children have their own context; no cross-parent drag possible |
 | setCases exposed from useTestCases (TC-04) | CaseList needs arrayMove for optimistic reorder; exposing setter is minimal change without lifting state |
+| POST /cases/bulk registered before /cases/:caseId wildcard (TC-05) | Fastify static-before-wildcard rule; bulk and position static segments must precede :caseId param route |
+| Bulk copy uses app-layer UUID mapping for steps (TC-05) | INSERT INTO ... SELECT without ID remapping causes steps to reference old case IDs — explicit loop with uuidv7() per step prevents orphaned refs (Pitfall 5) |
+| BulkActionBar as fixed-position overlay (TC-05) | fixed bottom-0 does not shift page content; z-30 ensures it renders above table rows and DnD drag previews |
 
 ### Architecture Patterns Locked In
 
@@ -165,13 +168,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T18:10:00.000Z
+**Last session:** 2026-03-09T18:16:44.155Z
 
-**Stopped at:** Completed 02-04 (Drag-and-drop position reorder — TC-04)
+**Stopped at:** Completed 02-05 (Bulk operations — TC-05)
 
-**To resume work:** Run `/gsd:execute-phase 2` to continue with plan 02-05.
+**To resume work:** Run `/gsd:execute-phase 2` to continue with plan 02-06.
 
-**Context summary:** Phase 2 plan 02-04 complete — drag-and-drop reorder delivered. PATCH /cases/:id/position and PATCH /suites/:id/position fully implemented with gap-based single-row UPDATE and gap-collapse renumber (position=-1 sentinel). dnd-kit DndContext + SortableContext in CaseList (wraps tbody), useSortable in CaseListRow with ≡ drag handle. SuiteTree has DndContext for root suites; SuiteTreeItem has useSortable + nested DndContext per parent for within-parent-only child reorder. PointerSensor distance:8 prevents checkbox clicks triggering drag. Optimistic arrayMove + refetch pattern. TC-04 integration tests written (need DB to run). Both API and web typecheck pass.
+**Context summary:** Phase 2 plan 02-05 complete — bulk operations delivered. POST /cases/bulk endpoint handles move (UPDATE suite_id), copy (app-layer UUID mapping per step — Pitfall 5 prevention), and delete (soft-delete). BulkActionBar component (fixed bottom-0 overlay) with suite picker dropdown (depth indentation, Root option, click-outside-to-close). CaseList wired: onMove/onCopy/onDelete POST to bulk endpoint, clear selection, refetch. CasesPage passes flatList as suites prop to CaseList. TC-05 integration tests written (need DB to run). Both API and web typecheck pass.
 
 ---
 
