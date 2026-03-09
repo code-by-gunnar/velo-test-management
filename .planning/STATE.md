@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 2 — Test Cases
-current_plan: 02 (02-01 complete)
+current_plan: 03 (02-03 complete — at checkpoint:human-verify)
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-09T10:42:59.321Z"
+stopped_at: Completed 02-03-PLAN.md (checkpoint reached)
+last_updated: "2026-03-09T11:05:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 1
@@ -97,6 +97,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | CVA (class-variance-authority) for Button variant management | Avoids manual className string concatenation; type-safe variant/size combinations |
 | Design tokens as both CSS custom properties and Tailwind aliases | CSS vars for non-Tailwind use cases; Tailwind aliases for utility classes in components |
 | session.update() after workspace creation to refresh JWT | Prevents onboarding redirect loop — workspace_slug in JWT is required by requireAuth redirect logic |
+| React 19 createRef<T>() returns RefObject<T|null> | StepRow props typed as RefObject<HTMLTextAreaElement|null>; use createRef not {current:null} cast |
+| Tab on Expected always calls onAddAfter (not just last row) | Consistent keyboard flow — Tab always advances to new step regardless of row position |
+| N key for new case handled at CasesPage level | Avoids conflict with SuiteTree's own N key handler for new suite creation |
 | Partial index on test_cases (project_id, suite_id, position) WHERE deleted_at IS NULL added at schema creation | Phase 3 list queries use this index heavily; deferring it requires an exclusive lock on a potentially large table |
 | @fastify/multipart + exceljs for CSV/XLSX import (TC-06) | multipart handles file upload stream; exceljs provides XLSX read/write without native bindings |
 | dnd-kit (not react-beautiful-dnd) for drag-drop (TC-04) | react-beautiful-dnd is deprecated; dnd-kit is maintained and has better touch/keyboard support |
@@ -157,13 +160,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T10:50:00.000Z
+**Last session:** 2026-03-09T11:05:00.000Z
 
-**Stopped at:** Completed 02-01-PLAN.md
+**Stopped at:** Completed 02-03-PLAN.md (checkpoint:human-verify reached)
 
-**To resume work:** Run `/gsd:execute-phase 2` to continue Phase 2 (02-02 next).
+**To resume work:** Run `/gsd:execute-phase 2` — human must verify keyboard case creation flow at /cases before continuing.
 
-**Context summary:** Phase 1 Foundation complete — all 18 requirements delivered across 6 plans. Phase 2 Wave 0 complete: soft-delete migration (0002), dnd-kit + exceljs + multipart dependencies installed, all 5 test stub files for TC-01–TC-06 on disk. suites.ts route implemented with full integration tests. Test cases routes (test-cases.ts) and StepEditor component exist from prior session work.
+**Context summary:** Phase 2 plan 02-03 complete — three-panel cases page delivered. Suite tree left panel (220px, inline suite create), case list center (empty state + table + bulk actions), slide-in CasePanel right (50%, view+edit modes). Keyboard-first StepEditor: Tab moves Action→Expected, Tab/Enter on Expected adds new row, Backspace on empty Action deletes row, Shift+Tab reverses. CasePanel focus management (title auto-focused on open, Cmd+S save, Esc close, E key edit). useSuiteTree + useTestCases hooks with optimistic mutations. 10 jsdom tests passing. Sidebar Test Cases enabled.
 
 ---
 
