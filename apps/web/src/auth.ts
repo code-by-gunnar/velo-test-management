@@ -36,6 +36,19 @@ const credentialsSchema = z.object({
 // ─── Auth.js v5 configuration ─────────────────────────────────────────────────
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // The Railway API is a separate origin from Vercel.
+  // Browsers only send SameSite=None cookies in cross-origin fetch requests,
+  // so we must override Auth.js's default SameSite=Lax for the session token.
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: "none" as const,
+        secure: true,
+        path: "/",
+      },
+    },
+  },
   providers: [
     Credentials({
       credentials: {
