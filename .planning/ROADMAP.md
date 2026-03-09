@@ -24,7 +24,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
-| 2. Test Cases | 0/? | Not started | - |
+| 2. Test Cases | 0/6 | Not started | - |
 | 3. Test Runs and Dashboard | 0/? | Not started | - |
 | 4. CI Ingestion | 0/? | Not started | - |
 | 5. Integrations and API | 0/? | Not started | - |
@@ -49,7 +49,7 @@
 4. A user can create a workspace with a name/slug and create a project inside it; Free tier limits (3 editors, 1 project, 500 test cases) are schema-enforced
 5. The design token set, typography scale, base components (Button variants, Card, Form Input, Status Badge), and collapsible sidebar all render correctly in the browser with no visual regressions
 
-**Plans**: TBD
+**Plans**: 6 plans
 
 ---
 
@@ -69,7 +69,15 @@
 5. A user can bulk-select test cases and move or copy them to a different suite in one action
 6. A user can import a CSV or Excel file and see test cases created with step structure intact — not flattened to a single description field
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Wave 0: deps install, soft-delete migration, test stubs for all TC-01–TC-06 requirements
+- [ ] 02-02-PLAN.md — Wave 1: Fastify API routes for suites (recursive CTE) + test cases (CRUD + soft delete)
+- [ ] 02-03-PLAN.md — Wave 1: Cases page layout, suite tree panel, case list, slide-in panel, keyboard step editor
+- [ ] 02-04-PLAN.md — Wave 2: dnd-kit drag-drop reorder for cases and suites (gap-based positions)
+- [ ] 02-05-PLAN.md — Wave 2: Bulk select UI + BulkActionBar + POST /cases/bulk (move/copy/delete)
+- [ ] 02-06-PLAN.md — Wave 3: CSV/Excel import parser + @fastify/multipart upload endpoint + ImportModal UI
 
 ---
 
@@ -217,4 +225,4 @@
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-08 after plan 04 (Auth.js v5 + OTP)*
+*Last updated: 2026-03-09 — Phase 2 plans created (02-01 through 02-06)*
