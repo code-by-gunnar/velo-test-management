@@ -86,6 +86,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
           cases={cases}
           isLoading={isLoading}
           selectedSuite={selectedSuite}
+          suites={flatList}
           workspaceId={workspaceId}
           projectId={projectId}
           onNewCase={handleNewCase}
