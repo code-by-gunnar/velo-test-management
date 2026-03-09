@@ -24,7 +24,17 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook("preHandler", async (request) => {
     // Cookie name is pinned to "authjs.session-token" in auth.ts (no __Secure- prefix)
     // so browsers send it cross-origin with SameSite=None; Secure.
+    const allCookieKeys = Object.keys(request.cookies ?? {})
     const token = request.cookies?.["authjs.session-token"]
+
+    request.log.info({
+      msg: "session-plugin",
+      cookieKeys: allCookieKeys,
+      hasToken: !!token,
+      webUrl: process.env.WEB_URL ?? "(unset)",
+      path: request.url,
+    })
+
     if (!token) return
 
     try {
@@ -36,9 +46,16 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
         }
       )
 
+      const rawBody = await sessionRes.text()
+      request.log.info({
+        msg: "session-endpoint-response",
+        status: sessionRes.status,
+        body: rawBody.slice(0, 200),
+      })
+
       if (!sessionRes.ok) return
 
-      const session = await sessionRes.json() as {
+      const session = JSON.parse(rawBody) as {
         user?: { id: string; workspace_id?: string; role?: string }
       }
 
@@ -47,8 +64,8 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
         request.workspaceId = session.user.workspace_id ?? null
         request.userRole = session.user.role ?? null
       }
-    } catch {
-      // Session decode failure = unauthenticated — continue without session
+    } catch (err) {
+      request.log.error({ msg: "session-plugin-error", err: String(err) })
     }
   })
 }
