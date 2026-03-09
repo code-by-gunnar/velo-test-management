@@ -487,10 +487,175 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(res.statusCode).toBe(403)
   })
 
-  // ── TC-05: Bulk move and copy (future plan) ──────────────────────────────────
+  // ── TC-05: Bulk move, copy, delete ──────────────────────────────────────────
 
-  it.todo("action=move: updates suite_id for all selected case IDs")
-  it.todo("action=copy: creates new test_case rows with new UUIDs in target suite")
-  it.todo("action=copy: copies all test_case_steps with correct new test_case_id references")
-  it.todo("copied cases have correct step_order and 0 orphaned steps")
+  it("action=move: updates suite_id for all selected case IDs (TC-05)", async () => {
+    // Create two cases in no-suite (root)
+    const c1Res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Bulk move case 1", priority: "medium", steps: [] },
+    })
+    const c2Res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Bulk move case 2", priority: "medium", steps: [] },
+    })
+    const { id: c1 } = c1Res.json() as { id: string }
+    const { id: c2 } = c2Res.json() as { id: string }
+
+    // Move both to suiteA
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "move", case_ids: [c1, c2], target_suite_id: suiteA },
+    })
+    expect(res.statusCode).toBe(204)
+
+    // Verify suite_id updated
+    const rows = await sql`SELECT id, suite_id FROM test_cases WHERE id = ANY(${[c1, c2]}::uuid[])`
+    expect(rows.every((r) => r.suite_id === suiteA)).toBe(true)
+  })
+
+  it("action=copy: creates new test_case rows with new UUIDs in target suite (TC-05)", async () => {
+    // Create a case with steps in suiteA
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Bulk copy source case",
+        priority: "high",
+        suite_id: suiteA,
+        steps: [
+          { action: "Step 1", expected_result: "Result 1" },
+          { action: "Step 2", expected_result: "Result 2" },
+          { action: "Step 3" },
+        ],
+      },
+    })
+    const { id: srcId } = srcRes.json() as { id: string }
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "copy", case_ids: [srcId], target_suite_id: null },
+    })
+    expect(res.statusCode).toBe(201)
+    const { created } = res.json() as { created: number }
+    expect(created).toBe(1)
+
+    // Find the copied case (same title, different id, no suite)
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+    })
+    const allCases = listRes.json() as Array<{ id: string; title: string; suite_id: string | null }>
+    const copied = allCases.find((c) => c.id !== srcId && c.title === "Bulk copy source case")
+    expect(copied).toBeDefined()
+    expect(copied!.id).not.toBe(srcId)
+    expect(copied!.suite_id).toBeNull()
+  })
+
+  it("action=copy: copied case has same step count as source — 0 orphaned steps (TC-05, Pitfall 5)", async () => {
+    // Create source case with 3 steps
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Pitfall 5 source case",
+        priority: "critical",
+        steps: [
+          { action: "Action A", expected_result: "Expected A" },
+          { action: "Action B", expected_result: "Expected B" },
+          { action: "Action C" },
+        ],
+      },
+    })
+    const { id: srcId } = srcRes.json() as { id: string }
+
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "copy", case_ids: [srcId], target_suite_id: suiteA },
+    })
+
+    // Find the copied case
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases?suite_id=${suiteA}`,
+    })
+    const casesInSuite = listRes.json() as Array<{ id: string; title: string; step_count: number }>
+    const copied = casesInSuite.find((c) => c.title === "Pitfall 5 source case")
+    expect(copied).toBeDefined()
+
+    // Verify step count equals source (critical: step_count=3, not 0)
+    expect(copied!.step_count).toBe(3)
+
+    // Also verify steps have the COPIED case's id (not original), via direct DB check
+    const steps = await sql`SELECT test_case_id FROM test_case_steps WHERE test_case_id = ${copied!.id}::uuid`
+    expect(steps).toHaveLength(3)
+    // All steps must reference the NEW case id, not the source
+    expect(steps.every((s) => s.test_case_id === copied!.id)).toBe(true)
+  })
+
+  it("action=delete: sets deleted_at for selected cases, leaves others untouched (TC-05)", async () => {
+    const d1Res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Bulk delete case 1", priority: "low", steps: [] },
+    })
+    const d2Res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Bulk delete case 2", priority: "low", steps: [] },
+    })
+    const keepRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Bulk keep case", priority: "low", steps: [] },
+    })
+    const { id: d1 } = d1Res.json() as { id: string }
+    const { id: d2 } = d2Res.json() as { id: string }
+    const { id: keepId } = keepRes.json() as { id: string }
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "delete", case_ids: [d1, d2] },
+    })
+    expect(res.statusCode).toBe(204)
+
+    // d1 and d2 should have deleted_at set
+    const deletedRows = await sql`SELECT id, deleted_at FROM test_cases WHERE id = ANY(${[d1, d2]}::uuid[])`
+    expect(deletedRows.every((r) => r.deleted_at !== null)).toBe(true)
+
+    // keepId must be untouched
+    const keepRow = await sql`SELECT deleted_at FROM test_cases WHERE id = ${keepId}::uuid`
+    expect(keepRow[0]?.deleted_at).toBeNull()
+  })
+
+  it("bulk endpoint returns 400 when case_ids is empty (TC-05)", async () => {
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "move", case_ids: [], target_suite_id: suiteA },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it("bulk endpoint returns 400 when target_suite_id missing for move/copy (TC-05)", async () => {
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Missing target case", priority: "low", steps: [] },
+    })
+    const { id } = srcRes.json() as { id: string }
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "copy", case_ids: [id] }, // no target_suite_id
+    })
+    expect(res.statusCode).toBe(400)
+  })
 })
