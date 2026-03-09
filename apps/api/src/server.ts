@@ -2,6 +2,7 @@ import Fastify from "fastify"
 import cors from "@fastify/cors"
 import helmet from "@fastify/helmet"
 import cookie from "@fastify/cookie"
+import multipart from "@fastify/multipart"
 import { migrate } from "drizzle-orm/postgres-js/migrator"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
@@ -48,6 +49,7 @@ await fastify.register(cors, {
 
 await fastify.register(helmet)
 await fastify.register(cookie)
+await fastify.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB limit
 await fastify.register(valkeyPlugin)
 await fastify.register(sessionPlugin)
 await fastify.register(authRoutes)

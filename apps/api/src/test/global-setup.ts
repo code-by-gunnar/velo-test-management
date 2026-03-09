@@ -8,7 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export async function setup() {
   const url = process.env.DATABASE_URL
-  if (!url) throw new Error("DATABASE_URL required for tests")
+  if (!url) {
+    console.log("[test] No DATABASE_URL — skipping migrations (pure unit tests only)")
+    return
+  }
 
   const client = postgres(url, { max: 1 })
   try {

@@ -27,6 +27,7 @@
     "fastify-plugin": "^5.1.0",
     "iovalkey": "^0.3.3",
     "jose": "^6.2.1",
+    "papaparse": "^5.5.3",
     "postgres": "^3.4.8",
     "resend": "^6.9.3",
     "uuidv7": "^1.1.0"
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.0.0",
+    "@types/papaparse": "^5.5.2",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "drizzle-kit": "^0.31.9",
