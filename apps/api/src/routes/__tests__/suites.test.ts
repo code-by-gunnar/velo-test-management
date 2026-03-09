@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import Fastify from "fastify"
-import postgres from "postgres"
 import { uuidv7 } from "uuidv7"
 import suitesRoutes from "../suites.js"
 

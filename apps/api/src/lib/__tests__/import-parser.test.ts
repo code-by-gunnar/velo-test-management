@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it } from "vitest"
 
 // TC-06: CSV and XLSX import parser unit tests
 describe("parseImportFile — CSV", () => {
