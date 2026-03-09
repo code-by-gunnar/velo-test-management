@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 2 — Test Cases
-current_plan: 03 (02-01, 02-02 complete)
+current_plan: 05
 status: executing
-stopped_at: Completed 02-02 (Suite + Test Case API routes)
-last_updated: "2026-03-09T10:44:59.214Z"
+stopped_at: Completed 02-04 (Drag-and-drop position reorder — TC-04)
+last_updated: "2026-03-09T18:10:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 12
-  completed_plans: 9
-  percent: 75
+  completed_plans: 10
+  percent: 83
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[████████░░] 75%
+[████████░░] 83%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -105,6 +105,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | dnd-kit (not react-beautiful-dnd) for drag-drop (TC-04) | react-beautiful-dnd is deprecated; dnd-kit is maintained and has better touch/keyboard support |
 | tx.unsafe() with UUID-validated params for CTE queries | current_setting('app.workspace_id', true)::uuid cannot be parameterized in recursive CTE; UUIDs validated by regex before interpolation |
 | Placeholder 404 handlers for /cases/position and /cases/bulk before :caseId wildcard | Prevents Fastify routing conflict between static TC-04/TC-05 paths and dynamic :caseId wildcard |
+| position=-1 sentinel signals gap collapse to server (TC-04) | Avoids extra round-trip; UI computes gap collapse, sends -1; server renumbers all siblings at 1000-increments |
+| Nested DndContext per parent in SuiteTreeItem (TC-04) | dnd-kit within-parent constraint: each parent's children have their own context; no cross-parent drag possible |
+| setCases exposed from useTestCases (TC-04) | CaseList needs arrayMove for optimistic reorder; exposing setter is minimal change without lifting state |
 
 ### Architecture Patterns Locked In
 
@@ -162,13 +165,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T10:44:59.210Z
+**Last session:** 2026-03-09T18:10:00.000Z
 
-**Stopped at:** Completed 02-02 (Suite + Test Case API routes)
+**Stopped at:** Completed 02-04 (Drag-and-drop position reorder — TC-04)
 
-**To resume work:** Run `/gsd:execute-phase 2` — human must verify keyboard case creation flow at /cases before continuing.
+**To resume work:** Run `/gsd:execute-phase 2` to continue with plan 02-05.
 
-**Context summary:** Phase 2 plan 02-03 complete — three-panel cases page delivered. Suite tree left panel (220px, inline suite create), case list center (empty state + table + bulk actions), slide-in CasePanel right (50%, view+edit modes). Keyboard-first StepEditor: Tab moves Action→Expected, Tab/Enter on Expected adds new row, Backspace on empty Action deletes row, Shift+Tab reverses. CasePanel focus management (title auto-focused on open, Cmd+S save, Esc close, E key edit). useSuiteTree + useTestCases hooks with optimistic mutations. 10 jsdom tests passing. Sidebar Test Cases enabled.
+**Context summary:** Phase 2 plan 02-04 complete — drag-and-drop reorder delivered. PATCH /cases/:id/position and PATCH /suites/:id/position fully implemented with gap-based single-row UPDATE and gap-collapse renumber (position=-1 sentinel). dnd-kit DndContext + SortableContext in CaseList (wraps tbody), useSortable in CaseListRow with ≡ drag handle. SuiteTree has DndContext for root suites; SuiteTreeItem has useSortable + nested DndContext per parent for within-parent-only child reorder. PointerSensor distance:8 prevents checkbox clicks triggering drag. Optimistic arrayMove + refetch pattern. TC-04 integration tests written (need DB to run). Both API and web typecheck pass.
 
 ---
 
