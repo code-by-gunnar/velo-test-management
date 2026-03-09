@@ -9,8 +9,10 @@ interface StepRowProps {
   onChange: (index: number, field: "action" | "expected_result", value: string) => void
   onAddAfter: (index: number) => void
   onDelete: (index: number) => void
-  actionRef: React.RefObject<HTMLTextAreaElement | null>
-  expectedRef: React.RefObject<HTMLTextAreaElement | null>
+  actionRef: React.RefCallback<HTMLTextAreaElement>
+  expectedRef: React.RefCallback<HTMLTextAreaElement>
+  onFocusAction: () => void
+  onFocusExpected: () => void
 }
 
 export function StepRow({
@@ -23,6 +25,8 @@ export function StepRow({
   onDelete,
   actionRef,
   expectedRef,
+  onFocusAction,
+  onFocusExpected,
 }: StepRowProps) {
   const autoResize = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget
@@ -33,7 +37,7 @@ export function StepRow({
   const handleActionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Tab" && !e.shiftKey) {
       e.preventDefault()
-      expectedRef.current?.focus()
+      onFocusExpected()
     } else if (e.key === "Backspace" && action === "" && index > 0) {
       e.preventDefault()
       onDelete(index)
@@ -49,7 +53,7 @@ export function StepRow({
       onAddAfter(index)
     } else if (e.key === "Tab" && e.shiftKey) {
       e.preventDefault()
-      actionRef.current?.focus()
+      onFocusAction()
     }
   }
 
