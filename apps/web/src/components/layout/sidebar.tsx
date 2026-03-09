@@ -10,6 +10,7 @@ interface SidebarProps {
 }
 
 const STORAGE_KEY = "velo:sidebar-collapsed"
+const PROJECT_KEY_STORAGE = "velo:last-project-key"
 
 const NAV_ITEMS = [
   {
@@ -58,6 +59,15 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
     if (typeof window === "undefined") return false
     return localStorage.getItem(STORAGE_KEY) === "true"
   })
+
+  // Persist the last known projectKey so project-scoped nav links work on
+  // pages that don't have a projectKey (e.g. Settings).
+  const effectiveProjectKey = projectKey ?? (
+    typeof window !== "undefined" ? (localStorage.getItem(PROJECT_KEY_STORAGE) ?? undefined) : undefined
+  )
+  if (typeof window !== "undefined" && projectKey) {
+    localStorage.setItem(PROJECT_KEY_STORAGE, projectKey)
+  }
 
   const toggleCollapsed = () => {
     const next = !collapsed
@@ -109,14 +119,14 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       </div>
 
       {/* Project context pill — shown when inside a project */}
-      {!collapsed && projectKey && (
+      {!collapsed && effectiveProjectKey && (
         <div className="border-b border-gray-100 px-3 py-2">
           <div className="flex items-center gap-2 rounded-md bg-mist px-2 py-1.5">
             <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-cobalt/10 text-[10px] font-bold text-cobalt">
-              {projectKey.slice(0, 2).toUpperCase()}
+              {effectiveProjectKey.slice(0, 2).toUpperCase()}
             </div>
             <span className="truncate font-mono text-xs font-medium text-gray-700 uppercase tracking-wide">
-              {projectKey}
+              {effectiveProjectKey}
             </span>
           </div>
         </div>
@@ -125,7 +135,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-2 py-2" aria-label="Project navigation">
         {NAV_ITEMS.map((item) => {
-          const href = item.href(slug, projectKey)
+          const href = item.href(slug, effectiveProjectKey)
           const isActive = router.asPath === href
 
           if (!item.available) {
