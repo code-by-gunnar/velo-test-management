@@ -10,10 +10,10 @@ declare module "fastify" {
   }
 }
 
-// Auth.js v5 JWT is stored in the 'authjs.session-token' cookie.
-// To decode it server-side in Fastify, we forward the cookie to the Next.js
-// /api/auth/session endpoint and read the decoded session object.
-// This avoids reimplementing JWE decryption in Fastify.
+// Auth.js v5 JWT is stored in the 'authjs.session-token' cookie (name pinned in auth.ts,
+// SameSite=None so browsers send it cross-origin to this Railway API).
+// We forward the cookie to the Next.js /api/auth/session endpoint for JWE decryption
+// rather than reimplementing decryption here.
 
 const sessionPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest("userId", "")
@@ -22,21 +22,17 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
-    // Auth.js v5 uses __Secure- prefix on HTTPS (production/preview), plain name on HTTP (dev)
-    const secureName = "__Secure-authjs.session-token"
-    const plainName = "authjs.session-token"
-    const token = request.cookies?.[secureName] ?? request.cookies?.[plainName]
+    // Cookie name is pinned to "authjs.session-token" in auth.ts (no __Secure- prefix)
+    // so browsers send it cross-origin with SameSite=None; Secure.
+    const token = request.cookies?.["authjs.session-token"]
     if (!token) return
-
-    // Forward with the same cookie name that was received so Next.js can decrypt it
-    const cookieName = request.cookies?.[secureName] ? secureName : plainName
 
     try {
       // Forward the session cookie to Next.js auth endpoint for decryption
       const sessionRes = await fetch(
         `${process.env.WEB_URL}/api/auth/session`,
         {
-          headers: { Cookie: `${cookieName}=${token}` },
+          headers: { Cookie: `authjs.session-token=${token}` },
         }
       )
 
