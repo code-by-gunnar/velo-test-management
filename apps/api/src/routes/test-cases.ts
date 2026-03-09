@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { parseImportBuffer, type TestCaseImport } from "../lib/import-parser.js"
 
 // Free tier limit (shared with workspaces.ts)
 const FREE_TIER_MAX_TEST_CASES = 500
@@ -638,6 +639,120 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
         return reply.status(400).send({ error: "Invalid action" })
       })
+    }
+  )
+
+  // ── POST /cases/import — CSV/XLSX file upload (TC-06) ────────────────────
+  // IMPORTANT: registered BEFORE /cases/:caseId wildcard to avoid routing conflict.
+  // Accepts multipart/form-data with a "file" field (.csv or .xlsx).
+  // Parses server-side with parseImportBuffer (pure function).
+  // Inserts test cases + steps atomically per case.
+  fastify.post<{
+    Params: { workspaceId: string; projectId: string }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/cases/import",
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(projectId)) {
+        return reply.status(400).send({ error: "Invalid projectId" })
+      }
+
+      const data = await request.file()
+      if (!data) return reply.status(400).send({ error: "No file uploaded" })
+
+      const buffer = await data.toBuffer()
+
+      let parsed: TestCaseImport[]
+      try {
+        parsed = await parseImportBuffer(buffer, data.filename)
+      } catch (err: unknown) {
+        return reply
+          .status(422)
+          .send({ error: err instanceof Error ? err.message : "Parse error" })
+      }
+
+      let importedCount = 0
+
+      await withWorkspace(workspaceId, async (tx) => {
+        for (const tc of parsed) {
+          // Check free tier limit per case (re-count inside transaction)
+          const countRows = await tx.unsafe(`
+            SELECT COUNT(*)::int AS n
+            FROM test_cases
+            WHERE project_id = '${projectId}'
+              AND deleted_at IS NULL
+          `)
+          const count = parseInt(
+            String((countRows[0] as unknown as { n: number }).n ?? "0")
+          )
+
+          if (count >= FREE_TIER_MAX_TEST_CASES) break // Stop at tier cap
+
+          const maxRows = await tx.unsafe(`
+            SELECT COALESCE(MAX(position), 0) AS max_pos
+            FROM test_cases
+            WHERE project_id = '${projectId}'
+              AND suite_id IS NULL
+              AND deleted_at IS NULL
+          `)
+          const maxPos = parseInt(
+            String((maxRows[0] as unknown as { max_pos: number }).max_pos ?? "0")
+          )
+          const position = maxPos + 1000
+
+          const newCaseId = uuidv7()
+          const safeTitle = tc.title.replace(/'/g, "''")
+          const safePreconditions = tc.preconditions
+            ? tc.preconditions.replace(/'/g, "''")
+            : null
+          const priority = tc.priority ?? "medium"
+
+          await tx.unsafe(`
+            INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
+            VALUES (
+              '${newCaseId}',
+              current_setting('app.workspace_id', true)::uuid,
+              '${projectId}',
+              NULL,
+              '${safeTitle}',
+              ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
+              '${priority}',
+              ${position},
+              ${request.userId ? `'${request.userId}'` : "NULL"}
+            )
+          `)
+
+          for (let i = 0; i < tc.steps.length; i++) {
+            const step = tc.steps[i]!
+            const stepId = uuidv7()
+            const stepOrder = (i + 1) * 1000
+            const safeAction = step.action.replace(/'/g, "''")
+            const safeExpected = step.expected_result
+              ? step.expected_result.replace(/'/g, "''")
+              : null
+
+            await tx.unsafe(`
+              INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
+              VALUES (
+                '${stepId}',
+                '${newCaseId}',
+                ${stepOrder},
+                '${safeAction}',
+                ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+              )
+            `)
+          }
+
+          importedCount++
+        }
+      })
+
+      return reply.status(201).send({ imported: importedCount })
     }
   )
 }
