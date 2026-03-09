@@ -24,8 +24,8 @@ const NAV_ITEMS = [
     label: "Test Cases",
     href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/cases` : "#",
     icon: "\u2611",
-    available: false,  // Phase 2
-    tooltip: "Coming in Phase 2",
+    available: true,  // Phase 2 — delivered in plan 02-03
+    tooltip: "Test Cases",
   },
   {
     label: "Test Runs",
