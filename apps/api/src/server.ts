@@ -9,6 +9,8 @@ import valkeyPlugin from "./plugins/valkey.plugin.js"
 import sessionPlugin from "./plugins/session.plugin.js"
 import authRoutes from "./routes/auth.js"
 import workspaceRoutes from "./routes/workspaces.js"
+import suitesRoutes from "./routes/suites.js"
+import testCasesRoutes from "./routes/test-cases.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -42,6 +44,8 @@ await fastify.register(valkeyPlugin)
 await fastify.register(sessionPlugin)
 await fastify.register(authRoutes)
 await fastify.register(workspaceRoutes)
+await fastify.register(suitesRoutes)
+await fastify.register(testCasesRoutes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
