@@ -26,7 +26,27 @@ async function runMigrations() {
   }
 }
 
+// Idempotent schema fixups — run after migrations to patch columns that Drizzle
+// may have skipped if the migration was registered before the SQL file was deployed.
+async function runFixups() {
+  const fixupClient = postgres(process.env.DATABASE_URL!, { max: 1 })
+  try {
+    await fixupClient.unsafe(
+      `ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL`
+    )
+    await fixupClient.unsafe(
+      `CREATE INDEX IF NOT EXISTS idx_test_cases_not_deleted
+         ON test_cases (project_id, suite_id, position)
+         WHERE deleted_at IS NULL`
+    )
+    console.log("Schema fixups complete")
+  } finally {
+    await fixupClient.end()
+  }
+}
+
 await runMigrations()
+await runFixups()
 
 const fastify = Fastify({
   logger: {

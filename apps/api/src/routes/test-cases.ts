@@ -653,6 +653,13 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
   // Inserts test cases + steps atomically per case.
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
+    Querystring: {
+      colTitle?: string
+      colAction?: string
+      colExpected?: string
+      colPreconditions?: string
+      colPriority?: string
+    }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/import",
     async (request, reply) => {
@@ -671,9 +678,15 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const buffer = await data.toBuffer()
 
+      // Use explicit column mapping from query params if provided (forwarded from UI)
+      const { colTitle, colAction, colExpected, colPreconditions, colPriority } = request.query
+      const explicit = (colTitle ?? colAction)
+        ? { title: colTitle, action: colAction, expected: colExpected, preconditions: colPreconditions, priority: colPriority }
+        : undefined
+
       let parsed: TestCaseImport[]
       try {
-        parsed = await parseImportBuffer(buffer, data.filename)
+        parsed = await parseImportBuffer(buffer, data.filename, explicit)
       } catch (err: unknown) {
         return reply
           .status(422)

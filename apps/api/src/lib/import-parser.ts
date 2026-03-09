@@ -86,9 +86,42 @@ function groupMultiRow(
   return order.map((t) => cases.get(t)!)
 }
 
+export interface ExplicitColumnMapping {
+  title?: string
+  action?: string
+  expected?: string
+  preconditions?: string
+  priority?: string
+}
+
+// Build column index map from an explicit user-supplied header → field mapping
+function applyExplicitMapping(
+  headers: string[],
+  explicit: ExplicitColumnMapping
+): ReturnType<typeof detectColumns> {
+  const mapping: ReturnType<typeof detectColumns> = {}
+  headers.forEach((h, i) => {
+    if (explicit.title && h === explicit.title) mapping.title = i
+    if (explicit.action && h === explicit.action) mapping.action = i
+    if (explicit.expected && h === explicit.expected) mapping.expected = i
+    if (explicit.preconditions && h === explicit.preconditions) mapping.preconditions = i
+    if (explicit.priority && h === explicit.priority) mapping.priority = i
+  })
+  // Fall back to auto-detection for any field not explicitly mapped
+  const auto = detectColumns(headers)
+  return {
+    title: mapping.title ?? auto.title,
+    action: mapping.action ?? auto.action,
+    expected: mapping.expected ?? auto.expected,
+    preconditions: mapping.preconditions ?? auto.preconditions,
+    priority: mapping.priority ?? auto.priority,
+  }
+}
+
 export async function parseImportBuffer(
   buffer: ArrayBuffer | Buffer,
-  filename: string
+  filename: string,
+  explicit?: ExplicitColumnMapping
 ): Promise<TestCaseImport[]> {
   const lower = filename.toLowerCase()
 
@@ -102,7 +135,7 @@ export async function parseImportBuffer(
     const result = Papa.parse<string[]>(text, { skipEmptyLines: true })
     const [headerRow, ...dataRows] = result.data
     if (!headerRow) throw new Error("Missing required column: title")
-    const cols = detectColumns(headerRow)
+    const cols = explicit ? applyExplicitMapping(headerRow, explicit) : detectColumns(headerRow)
     if (cols.title === undefined) throw new Error("Missing required column: title")
     return groupMultiRow(dataRows, cols)
   }
@@ -125,10 +158,10 @@ export async function parseImportBuffer(
     })
     const [headerRow, ...dataRows] = rows
     if (!headerRow) throw new Error("Missing required column: title")
-    const cols = detectColumns(headerRow)
+    const cols = explicit ? applyExplicitMapping(headerRow, explicit) : detectColumns(headerRow)
     if (cols.title === undefined) throw new Error("Missing required column: title")
     return groupMultiRow(dataRows, cols)
   }
 
-  throw new Error("Unsupported file type")
+  throw new Error("Unsupported file type — please upload a .csv or .xlsx file")
 }
