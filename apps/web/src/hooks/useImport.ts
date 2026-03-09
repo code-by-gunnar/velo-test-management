@@ -126,9 +126,18 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
     const formData = new FormData()
     formData.append("file", file)
 
+    // Forward the user's column mapping so the server uses it instead of auto-detecting
+    const { columnMapping } = state
+    const params = new URLSearchParams()
+    if (columnMapping.title) params.set("colTitle", columnMapping.title)
+    if (columnMapping.action) params.set("colAction", columnMapping.action)
+    if (columnMapping.expected) params.set("colExpected", columnMapping.expected)
+    if (columnMapping.preconditions) params.set("colPreconditions", columnMapping.preconditions)
+    if (columnMapping.priority) params.set("colPriority", columnMapping.priority)
+
     try {
       const res = await fetch(
-        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/import`,
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/import?${params.toString()}`,
         {
           method: "POST",
           body: formData,
