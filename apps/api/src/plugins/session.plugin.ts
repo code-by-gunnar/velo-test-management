@@ -22,7 +22,10 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
-    const token = request.cookies?.["authjs.session-token"]
+    // Auth.js v5 uses __Secure- prefix on HTTPS (production/preview), plain name on HTTP (dev)
+    const token =
+      request.cookies?.["__Secure-authjs.session-token"] ??
+      request.cookies?.["authjs.session-token"]
     if (!token) return
 
     try {
