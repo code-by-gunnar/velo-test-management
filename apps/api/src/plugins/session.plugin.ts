@@ -12,17 +12,23 @@ declare module "fastify" {
   }
 }
 
-// Auth.js v5 encrypts the session JWT using JWE (A256CBC-HS512, dir).
-// The encryption key is derived from AUTH_SECRET via HKDF-SHA256.
-// We replicate that derivation here so we can decode the token directly
-// without an HTTP round-trip to the Next.js session endpoint.
+// Auth.js v5 (@auth/core ≥ 0.34) derives the JWE encryption key using:
+//   HKDF-SHA256(secret, salt=cookieName, info="Auth.js Generated Encryption Key (cookieName)", 64 bytes)
 //
-// Key derivation matches @auth/core/jwt.ts getDerivedEncryptionKey():
-//   hkdf("sha256", AUTH_SECRET, salt="", info="Auth.js Generated Encryption Key", 32)
+// The salt IS the cookie name. On HTTPS (Vercel production) the cookie is
+// "__Secure-authjs.session-token"; on HTTP (local dev) it's "authjs.session-token".
+// Key length is 64 bytes — A256CBC-HS512 needs a 512-bit key.
+// (Our earlier implementation used empty salt + 32 bytes, which derived a different key.)
 
-function deriveKey(secret: string): Uint8Array {
+function deriveKey(secret: string, cookieName: string): Uint8Array {
   return new Uint8Array(
-    hkdfSync("sha256", Buffer.from(secret), "", "Auth.js Generated Encryption Key", 32)
+    hkdfSync(
+      "sha256",
+      Buffer.from(secret),
+      cookieName,
+      `Auth.js Generated Encryption Key (${cookieName})`,
+      64
+    )
   )
 }
 
@@ -37,7 +43,9 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
     return
   }
 
-  const encKey = deriveKey(rawSecret)
+  // Pre-derive keys for both HTTPS and HTTP cookie names
+  const secureKey = deriveKey(rawSecret, "__Secure-authjs.session-token")
+  const plainKey  = deriveKey(rawSecret, "authjs.session-token")
 
   // Pre-handler hook: decode Auth.js session token for every request
   fastify.addHook("preHandler", async (request) => {
@@ -51,17 +59,29 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
     const token = bearerToken ?? cookieToken
     if (!token) return
 
-    try {
-      const { payload } = await jwtDecrypt(token, encKey, { clockTolerance: 15 })
-
-      const id = payload["id"] as string | undefined
-      if (id) {
-        request.userId = id
-        request.workspaceId = (payload["workspace_id"] as string | null | undefined) ?? null
-        request.userRole = (payload["role"] as string | null | undefined) ?? null
+    // Try the HTTPS key first (production), fall back to plain (dev)
+    let payload: Record<string, unknown> | null = null
+    for (const key of [secureKey, plainKey]) {
+      try {
+        const result = await jwtDecrypt(token, key, {
+          clockTolerance: 15,
+          keyManagementAlgorithms: ["dir"],
+          contentEncryptionAlgorithms: ["A256CBC-HS512", "A256GCM"],
+        })
+        payload = result.payload as Record<string, unknown>
+        break
+      } catch {
+        // Try next key
       }
-    } catch {
-      // Decryption failure = invalid/expired token → continue unauthenticated
+    }
+
+    if (!payload) return
+
+    const id = payload["id"] as string | undefined
+    if (id) {
+      request.userId = id
+      request.workspaceId = (payload["workspace_id"] as string | null | undefined) ?? null
+      request.userRole = (payload["role"] as string | null | undefined) ?? null
     }
   })
 }
