@@ -196,7 +196,10 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── PATCH /suites/:suiteId/position — reorder ─────────────────────────────
+  // ── PATCH /suites/:suiteId/position — reorder (TC-04) ────────────────────
+  // Body: { position: number }
+  //   position >= 0 : single-row UPDATE (gap-based midpoint from UI)
+  //   position === -1 : gap collapsed signal → renumber all sibling suites at 1000, 2000, ...
   fastify.patch<{
     Params: { workspaceId: string; projectId: string; suiteId: string }
     Body: { position: number }
@@ -225,10 +228,50 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suiteId" })
       }
 
-      if (!Number.isInteger(position) || position < 0) {
-        return reply.status(400).send({ error: "position must be a non-negative integer" })
+      if (!Number.isInteger(position) || (position < -1)) {
+        return reply.status(400).send({ error: "position must be -1 or a non-negative integer" })
       }
 
+      if (position === -1) {
+        // Gap collapsed — renumber all siblings under same parent_id
+        await withWorkspace(workspaceId, async (tx) => {
+          // 1. Get this suite's parent_id
+          const suiteRows = await tx.unsafe(`
+            SELECT parent_id FROM suites
+            WHERE id = '${suiteId}'
+              AND project_id = '${projectId}'
+              AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          `)
+          if (suiteRows.length === 0) return
+
+          const parentId: string | null = (suiteRows[0] as unknown as { parent_id: string | null }).parent_id ?? null
+          const parentFilter = parentId !== null
+            ? `AND parent_id = '${parentId}'`
+            : "AND parent_id IS NULL"
+
+          // 2. Fetch all siblings ordered by current position
+          const siblings = await tx.unsafe(`
+            SELECT id FROM suites
+            WHERE project_id = '${projectId}'
+              ${parentFilter}
+              AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            ORDER BY position
+          `)
+
+          // 3. Renumber each at 1000-increments
+          for (let i = 0; i < siblings.length; i++) {
+            const row = siblings[i] as unknown as { id: string }
+            await tx.unsafe(`
+              UPDATE suites SET position = ${(i + 1) * 1000}
+              WHERE id = '${row.id}'
+            `)
+          }
+        })
+
+        return reply.status(204).send()
+      }
+
+      // Single-row update — common path (O(1) query)
       const updated = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx.unsafe(`
           UPDATE suites

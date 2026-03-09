@@ -408,15 +408,104 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── POST /cases/position placeholder (TC-04 in future plan) ──────────────
-  // Registered before /cases/:caseId to avoid routing conflict.
-  // Returns 404 until TC-04 is implemented.
+  // ── PATCH /cases/:caseId/position — reorder case (TC-04) ─────────────────
+  // Registered BEFORE the /cases/:caseId wildcard handler to avoid routing conflict.
+  // Body: { position: number }
+  //   position >= 0 : single-row UPDATE (gap-based midpoint from UI)
+  //   position === -1 : gap collapsed signal → renumber all sibling cases at 1000, 2000, ...
+  fastify.patch<{
+    Params: { workspaceId: string; projectId: string; caseId: string }
+    Body: { position: number }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/cases/:caseId/position",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["position"],
+          properties: {
+            position: { type: "number" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId, projectId, caseId } = request.params
+      const { position } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(caseId)) {
+        return reply.status(400).send({ error: "Invalid caseId" })
+      }
+
+      if (!Number.isInteger(position) || (position < -1)) {
+        return reply.status(400).send({ error: "position must be -1 or a non-negative integer" })
+      }
+
+      await withWorkspace(workspaceId, async (tx) => {
+        if (position === -1) {
+          // Gap collapsed — renumber all non-deleted cases in this case's suite
+          // 1. Get this case's suite_id
+          const tcRows = await tx.unsafe(`
+            SELECT suite_id FROM test_cases
+            WHERE id = '${caseId}'
+              AND project_id = '${projectId}'
+              AND deleted_at IS NULL
+              AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          `)
+          if (tcRows.length === 0) return
+
+          const suiteId: string | null = (tcRows[0] as unknown as { suite_id: string | null }).suite_id ?? null
+          const suiteFilter = suiteId !== null
+            ? `AND suite_id = '${suiteId}'`
+            : "AND suite_id IS NULL"
+
+          // 2. Fetch all non-deleted cases in same suite ordered by current position
+          const cases = await tx.unsafe(`
+            SELECT id FROM test_cases
+            WHERE project_id = '${projectId}'
+              ${suiteFilter}
+              AND deleted_at IS NULL
+              AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            ORDER BY position
+          `)
+
+          // 3. Renumber each at 1000-increments
+          for (let i = 0; i < cases.length; i++) {
+            const row = cases[i] as unknown as { id: string }
+            await tx.unsafe(`
+              UPDATE test_cases SET position = ${(i + 1) * 1000}
+              WHERE id = '${row.id}'
+            `)
+          }
+        } else {
+          // Single-row update — this is the common path (O(1) query)
+          await tx.unsafe(`
+            UPDATE test_cases
+            SET position = ${position}, updated_at = NOW()
+            WHERE id = '${caseId}'
+              AND project_id = '${projectId}'
+              AND deleted_at IS NULL
+              AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          `)
+        }
+      })
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /cases/position placeholder (TC-04 path guard) ───────────────────
+  // Registered before /cases/:caseId to avoid routing conflict on static segment.
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/position",
     async (_request, reply) => {
-      return reply.status(404).send({ error: "Not implemented yet — see TC-04" })
+      return reply.status(404).send({ error: "Not implemented" })
     }
   )
 

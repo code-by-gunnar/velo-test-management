@@ -407,10 +407,85 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(res.statusCode).toBe(403)
   })
 
-  // ── TC-04: Drag-drop position reorder (future plan) ─────────────────────────
+  // ── TC-04: Drag-drop position reorder ──────────────────────────────────────
 
-  it.todo("updates a single test_case row position without touching other rows")
-  it.todo("when gap collapses, renumber all cases in suite starting at 1000 increments")
+  it("PATCH /cases/:id/position updates a single test_case row position (TC-04)", async () => {
+    // Create a case to move
+    const createRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Position update target",
+        priority: "medium",
+        steps: [],
+      },
+    })
+    const { id: caseId } = createRes.json() as { id: string }
+
+    // Set a specific mid-gap position
+    const patchRes = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${caseId}/position`,
+      payload: { position: 1500 },
+    })
+    expect(patchRes.statusCode).toBe(204)
+
+    // Verify only this row was updated
+    const rows = await sql`
+      SELECT position FROM test_cases WHERE id = ${caseId}::uuid
+    `
+    expect(rows[0]?.position).toBe(1500)
+  })
+
+  it("PATCH /cases/:id/position with -1 renumbers all cases in suite starting at 1000 (TC-04)", async () => {
+    // Create 3 cases in suiteA
+    const ids: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const res = await appA.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+        payload: {
+          title: `Renumber case ${i}`,
+          priority: "low",
+          suite_id: suiteA,
+          steps: [],
+        },
+      })
+      const { id } = res.json() as { id: string }
+      ids.push(id)
+    }
+
+    // Send -1 to trigger renumber from any case in that suite
+    const patchRes = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/${ids[0]}/position`,
+      payload: { position: -1 },
+    })
+    expect(patchRes.statusCode).toBe(204)
+
+    // Fetch all non-deleted cases in suiteA ordered by position
+    const rows = await sql`
+      SELECT id, position FROM test_cases
+      WHERE suite_id = ${suiteA}::uuid
+        AND deleted_at IS NULL
+        AND workspace_id = ${workspaceA}::uuid
+      ORDER BY position
+    `
+
+    // Each position must be a multiple of 1000, incrementing by 1000
+    rows.forEach((row, idx) => {
+      expect(row.position).toBe((idx + 1) * 1000)
+    })
+  })
+
+  it("PATCH /cases/:id/position returns 403 when workspaceId param does not match session (TC-04)", async () => {
+    const res = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceB}/projects/${projectB}/cases/some-id/position`,
+      payload: { position: 500 },
+    })
+    expect(res.statusCode).toBe(403)
+  })
 
   // ── TC-05: Bulk move and copy (future plan) ──────────────────────────────────
 
