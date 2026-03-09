@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 2 — Test Cases
-current_plan: 03 (02-03 complete — at checkpoint:human-verify)
+current_plan: 03 (02-01, 02-02 complete)
 status: executing
-stopped_at: Completed 02-03-PLAN.md (checkpoint reached)
-last_updated: "2026-03-09T11:05:00.000Z"
+stopped_at: Completed 02-02 (Suite + Test Case API routes)
+last_updated: "2026-03-09T10:44:59.214Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 12
-  completed_plans: 8
-  percent: 67
+  completed_plans: 9
+  percent: 75
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[███████░░░] 67%
+[████████░░] 75%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -103,6 +103,8 @@ Phase 6 [          ] 0%   Team and Access Control
 | Partial index on test_cases (project_id, suite_id, position) WHERE deleted_at IS NULL added at schema creation | Phase 3 list queries use this index heavily; deferring it requires an exclusive lock on a potentially large table |
 | @fastify/multipart + exceljs for CSV/XLSX import (TC-06) | multipart handles file upload stream; exceljs provides XLSX read/write without native bindings |
 | dnd-kit (not react-beautiful-dnd) for drag-drop (TC-04) | react-beautiful-dnd is deprecated; dnd-kit is maintained and has better touch/keyboard support |
+| tx.unsafe() with UUID-validated params for CTE queries | current_setting('app.workspace_id', true)::uuid cannot be parameterized in recursive CTE; UUIDs validated by regex before interpolation |
+| Placeholder 404 handlers for /cases/position and /cases/bulk before :caseId wildcard | Prevents Fastify routing conflict between static TC-04/TC-05 paths and dynamic :caseId wildcard |
 
 ### Architecture Patterns Locked In
 
@@ -160,9 +162,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-09T11:05:00.000Z
+**Last session:** 2026-03-09T10:44:59.210Z
 
-**Stopped at:** Completed 02-03-PLAN.md (checkpoint:human-verify reached)
+**Stopped at:** Completed 02-02 (Suite + Test Case API routes)
 
 **To resume work:** Run `/gsd:execute-phase 2` — human must verify keyboard case creation flow at /cases before continuing.
 
