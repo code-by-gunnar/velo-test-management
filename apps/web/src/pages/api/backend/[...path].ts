@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const fetchRes = await fetch(apiUrl, {
     method: req.method ?? "GET",
     headers: forwardHeaders,
-    ...(rawBody.length > 0 ? { body: rawBody } : {}),
+    ...(rawBody.length > 0 ? { body: rawBody.toString("utf-8") } : {}),
   })
 
   // Forward status + headers (skip hop-by-hop headers that cause issues)
