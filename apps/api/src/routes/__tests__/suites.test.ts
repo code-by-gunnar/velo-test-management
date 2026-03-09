@@ -246,6 +246,71 @@ describe("Suite routes integration (TC-01)", () => {
     expect(body.position).toBe(3500)
   })
 
+  // ── TC-04: Suite position renumber ───────────────────────────────────────────
+
+  it("PATCH /suites/:id/position with -1 renumbers all sibling suites at 1000 increments (TC-04)", async () => {
+    // Create 3 root suites in a fresh project for clean renumber test
+    const renumWsId = uuidv7()
+    const renumProjId = uuidv7()
+    await sql`
+      INSERT INTO workspaces (id, name, slug, plan_tier) VALUES
+        (${renumWsId}::uuid, 'Renum WS', ${`renum-ws-${Date.now()}`}, 'free')
+    `
+    await sql`
+      INSERT INTO projects (id, workspace_id, name, project_key) VALUES
+        (${renumProjId}::uuid, ${renumWsId}::uuid, 'Renum Project', 'rnp')
+    `
+    const renumApp = buildApp(userId, renumWsId)
+    await renumApp.register(suitesRoutes)
+    await renumApp.ready()
+
+    const createdIds: string[] = []
+    for (let i = 0; i < 3; i++) {
+      const res = await renumApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${renumWsId}/projects/${renumProjId}/suites`,
+        payload: { name: `Sibling Suite ${i}` },
+      })
+      const { id } = res.json() as { id: string }
+      createdIds.push(id)
+    }
+
+    // Trigger renumber via position = -1
+    const patchRes = await renumApp.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${renumWsId}/projects/${renumProjId}/suites/${createdIds[0]}/position`,
+      payload: { position: -1 },
+    })
+    expect(patchRes.statusCode).toBe(204)
+
+    // Verify all siblings are renumbered at 1000, 2000, 3000
+    const rows = await sql`
+      SELECT id, position FROM suites
+      WHERE project_id = ${renumProjId}::uuid
+        AND parent_id IS NULL
+        AND workspace_id = ${renumWsId}::uuid
+      ORDER BY position
+    `
+    rows.forEach((row, idx) => {
+      expect(row.position).toBe((idx + 1) * 1000)
+    })
+
+    // Cleanup
+    await renumApp.close()
+    await sql`DELETE FROM suites WHERE workspace_id = ${renumWsId}::uuid`
+    await sql`DELETE FROM projects WHERE id = ${renumProjId}::uuid`
+    await sql`DELETE FROM workspaces WHERE id = ${renumWsId}::uuid`
+  })
+
+  it("PATCH /suites/:id/position returns 403 when workspaceId param does not match session (TC-04)", async () => {
+    const res = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceB}/projects/${projectB}/suites/some-id/position`,
+      payload: { position: 500 },
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
   // ── DELETE /suites/:id ──────────────────────────────────────────────────────
 
   it("DELETE /suites/:id hard-deletes the suite", async () => {
