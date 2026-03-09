@@ -17,6 +17,24 @@ interface FilePickerProps {
   error: string | null
 }
 
+const SAMPLE_CSV_ROWS = [
+  ["title", "action", "expected result", "priority"],
+  ["User can log in", "Enter valid credentials and click Sign In", "Dashboard loads", "high"],
+  ["User sees error on bad password", "Enter wrong password and click Sign In", "Error message displayed", "medium"],
+  ["User can reset password", "Click Forgot Password and enter email", "Reset email sent confirmation", "medium"],
+]
+
+function downloadSampleCsv() {
+  const csv = SAMPLE_CSV_ROWS.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = "velo-sample-import.csv"
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function FilePicker({ onFile, error }: FilePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -70,6 +88,17 @@ function FilePicker({ onFile, error }: FilePickerProps) {
           onChange={handleInputChange}
         />
       </div>
+
+      <p className="text-center text-xs text-gray-400">
+        Not sure about the format?{" "}
+        <button
+          type="button"
+          onClick={downloadSampleCsv}
+          className="text-cobalt underline hover:no-underline"
+        >
+          Download sample CSV
+        </button>
+      </p>
 
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
