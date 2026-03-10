@@ -8,8 +8,9 @@ const TEXT_PRIMARY = "#2D2926"
 const TEXT_SECONDARY = "#6B6560"
 const BORDER = "#E8E4DE"
 
-// Velo mark as inline SVG data URI (cobalt double-pill)
-const LOGO_DATA_URI = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 48' width='192' height='48'%3E%3Cg transform='scale(0.75) translate(0 0)'%3E%3Cg transform='rotate(-52 25.5 27)'%3E%3Crect x='11' y='20' width='29' height='14' rx='7' fill='%231A56DB'/%3E%3C/g%3E%3Cg transform='rotate(-52 38.5 37)'%3E%3Crect x='24' y='30' width='29' height='14' rx='7' fill='%231A56DB'/%3E%3C/g%3E%3C/g%3E%3Ctext x='52' y='33' font-family='Inter,system-ui,-apple-system,sans-serif' font-weight='800' font-size='30' letter-spacing='-1' fill='%232D2926'%3Evelo%3C/text%3E%3C/svg%3E`
+// Logo hosted on the web app's public folder — email clients block data URIs
+const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+const LOGO_URL = `${WEB_URL}/velo-lockup-light.svg`
 
 function layout(content: string): string {
   return `<!DOCTYPE html>
@@ -23,7 +24,7 @@ function layout(content: string): string {
           <!-- Logo -->
           <tr>
             <td align="center" style="padding:0 0 32px;">
-              <img src="${LOGO_DATA_URI}" alt="Velo" width="120" height="30" style="display:block;" />
+              <img src="${LOGO_URL}" alt="Velo" width="120" height="30" style="display:block;" />
             </td>
           </tr>
           <!-- Card -->
@@ -57,10 +58,16 @@ function paragraph(text: string): string {
 }
 
 function button(text: string, url: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:24px 0;">
     <tr>
-      <td style="background-color:${COBALT};border-radius:6px;">
-        <a href="${url}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">${text}</a>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="background-color:${COBALT};border-radius:6px;">
+              <a href="${url}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">${text}</a>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>
   </table>`
