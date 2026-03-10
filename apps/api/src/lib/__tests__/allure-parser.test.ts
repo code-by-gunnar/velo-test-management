@@ -23,10 +23,12 @@ describe("parseAllureJson", () => {
     })
     const results = parseAllureJson(single)
     expect(results).toHaveLength(1)
-    expect(results[0].name).toBe("User can log in")
-    expect(results[0].fullName).toBe("com.example.LoginTest#testLogin")
-    expect(results[0].status).toBe("pass")
-    expect(results[0].durationMs).toBe(512)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const result = results[0]!
+    expect(result.name).toBe("User can log in")
+    expect(result.fullName).toBe("com.example.LoginTest#testLogin")
+    expect(result.status).toBe("pass")
+    expect(result.durationMs).toBe(512)
   })
 
   it("parses array of Allure results from fixture file", () => {
@@ -43,11 +45,11 @@ describe("parseAllureJson", () => {
       { uuid: "5", name: "u", status: "unknown", start: 0, stop: 100 },
     ])
     const results = parseAllureJson(input)
-    expect(results[0].status).toBe("pass")
-    expect(results[1].status).toBe("fail")
-    expect(results[2].status).toBe("fail")
-    expect(results[3].status).toBe("skipped")
-    expect(results[4].status).toBe("skipped")
+    expect(results[0]?.status).toBe("pass")
+    expect(results[1]?.status).toBe("fail")
+    expect(results[2]?.status).toBe("fail")
+    expect(results[3]?.status).toBe("skipped")
+    expect(results[4]?.status).toBe("skipped")
   })
 
   it("computes duration from start and stop timestamps", () => {
@@ -58,24 +60,24 @@ describe("parseAllureJson", () => {
       { uuid: "4", name: "no-times", status: "passed" },
     ])
     const results = parseAllureJson(input)
-    expect(results[0].durationMs).toBe(512)
-    expect(results[1].durationMs).toBeNull()
-    expect(results[2].durationMs).toBeNull()
-    expect(results[3].durationMs).toBeNull()
+    expect(results[0]?.durationMs).toBe(512)
+    expect(results[1]?.durationMs).toBeNull()
+    expect(results[2]?.durationMs).toBeNull()
+    expect(results[3]?.durationMs).toBeNull()
   })
 
   it("extracts failure message and trace from statusDetails", () => {
     const results = parseAllureJson(allureFixture)
     // Second item is "failed"
     const failed = results[1]
-    expect(failed.status).toBe("fail")
-    expect(failed.failureMessage).toBe("Expected: <401>\n     but: was <200>")
-    expect(failed.failureBody).toContain("org.hamcrest.AssertionError")
+    expect(failed?.status).toBe("fail")
+    expect(failed?.failureMessage).toBe("Expected: <401>\n     but: was <200>")
+    expect(failed?.failureBody).toContain("org.hamcrest.AssertionError")
     // Third item is "broken"
     const broken = results[2]
-    expect(broken.status).toBe("fail")
-    expect(broken.failureMessage).toBe("NullPointerException: tokenRefreshService is null")
-    expect(broken.failureBody).toContain("java.lang.NullPointerException")
+    expect(broken?.status).toBe("fail")
+    expect(broken?.failureMessage).toBe("NullPointerException: tokenRefreshService is null")
+    expect(broken?.failureBody).toContain("java.lang.NullPointerException")
   })
 
   it("uses fullName field when available, falls back to name then uuid", () => {
@@ -84,8 +86,8 @@ describe("parseAllureJson", () => {
       { uuid: "2", name: "with-name", fullName: "com.example.Test#method", status: "passed" },
     ])
     const results = parseAllureJson(input)
-    expect(results[0].fullName).toBe("no-full")
-    expect(results[1].fullName).toBe("com.example.Test#method")
+    expect(results[0]?.fullName).toBe("no-full")
+    expect(results[1]?.fullName).toBe("com.example.Test#method")
   })
 
   it("returns 400-style error for ZIP content (PK magic bytes)", () => {
@@ -102,6 +104,7 @@ describe("parseAllureJson", () => {
   it("classname is null for Allure results (no direct classname field)", () => {
     const input = JSON.stringify({ uuid: "1", name: "test", status: "passed" })
     const results = parseAllureJson(input)
-    expect(results[0].classname).toBeNull()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(results[0]!.classname).toBeNull()
   })
 })
