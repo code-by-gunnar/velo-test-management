@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 6 — Team and Access Control
-current_plan: 06-02 complete
+current_plan: 06-03 complete
 status: planning
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-10T20:26:12.448Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-03-10T20:33:29.524Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 34
-  completed_plans: 28
-  percent: 82
+  completed_plans: 29
+  percent: 85
 ---
 
 # State: Velo
@@ -40,13 +40,13 @@ progress:
 **Status:** Ready to plan
 
 **Progress:**
-[████████░░] 82%
+[█████████░] 85%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
-Phase 6 [██░░░░░░░░] 33%  Team and Access Control (2/6 plans complete)
+Phase 6 [███░░░░░░░] 50%  Team and Access Control (3/6 plans complete)
 
-**Overall:** 28/34 plans complete
+**Overall:** 29/34 plans complete
 
 ---
 
@@ -59,7 +59,7 @@ Phase 6 [██░░░░░░░░] 33%  Team and Access Control (2/6 plans
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
-| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02 complete) |
+| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02, 06-03 complete) |
 
 ---
 
@@ -157,6 +157,9 @@ Phase 6 [██░░░░░░░░] 33%  Team and Access Control (2/6 plans
 | Admin guard in members.ts uses bare sql (pre-RLS) not withWorkspace (06-02) | Admin check must happen before RLS context is set; withWorkspace only for the actual invitation insert |
 | Invite token iteration checks bcrypt on all pending invites for email (06-02) | Handles edge case where multiple pending invites exist for same email (e.g. after re-invite race) |
 | Email worker switch statement with default fallback for unknown types (06-02) | otp/password-reset/welcome handled upstream by email.ts lib — worker logs and skips these |
+| Valkey blocklist key pattern for deactivation: deactivated:{wid}:{uid} with 30-day TTL (06-03) | SET before DB update (atomic ordering); 30 days covers max JWT lifetime |
+| Session plugin checks Valkey blocklist after JWT decode — fail-open on Valkey errors (06-03) | DB membership check in routes is secondary guard; preHandler failure must not block all auth |
+| valkey imported directly in session.plugin.ts (not fastify.valkey decoration) (06-03) | Plugin load order not guaranteed; direct import avoids decorator-not-found error in tests |
 
 ### Architecture Patterns Locked In
 
@@ -214,13 +217,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T20:26:12.438Z
+**Last session:** 2026-03-10T20:33:29.518Z
 
-**Stopped at:** Completed 06-02-PLAN.md
+**Stopped at:** Completed 06-03-PLAN.md
 
-**To resume work:** Continue Phase 6 plan 06-03 (role change + member deactivation routes).
+**To resume work:** Continue Phase 6 plan 06-04.
 
-**Context summary:** Phase 6 plans 06-01 and 06-02 complete. Invitation CRUD backend done: POST/GET invitations (admin-only), POST invitations/accept (authenticated). Free tier editor cap enforced (TIER_LIMIT_EXCEEDED). Email worker extended with workspace-invite case. 14 tests passing. Next: 06-03 covers PATCH role change and PATCH deactivate with Valkey session invalidation.
+**Context summary:** Phase 6 plans 06-01, 06-02, 06-03 complete. Invitation CRUD done (USR-01, USR-02). Role management done: PATCH role change with free tier editor cap (USR-03). Member deactivation with Valkey blocklist + immediate session invalidation (USR-04). Session plugin checks deactivated:{wid}:{uid} key on every request. 23 members tests passing, 172 total. Next: 06-04 covers remaining Phase 6 plans.
 
 ---
 
