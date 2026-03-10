@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4 — CI Ingestion
-current_plan: 04-02 complete
+current_plan: 04-03 complete
 status: executing
-stopped_at: Completed 04-02-PLAN.md
+stopped_at: Completed 04-03-PLAN.md
 last_updated: "2026-03-10T12:18:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 23
-  completed_plans: 20
-  percent: 87
+  completed_plans: 21
+  percent: 91
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 4 — CI Ingestion
-**Current plan:** 04-02 complete
+**Current plan:** 04-03 complete
 **Status:** In progress
 
 **Progress:**
-[█████████░] 87%
+[█████████░] 91%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
-Phase 4 [██░░░     ] 40%  CI Ingestion (2/5 plans complete)
+Phase 4 [███░░     ] 60%  CI Ingestion (3/5 plans complete)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 20/23 plans complete across phases 1-4
+**Overall:** 21/23 plans complete across phases 1-4
 
 ---
 
@@ -134,6 +134,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | single-test-junit.xml fixture created for isArray edge case (04-01) | fast-xml-parser does not auto-wrap single child nodes in arrays; explicit isArray config required in parser |
 | ALWAYS_ARRAY_PATHS covers both bare testsuite.testcase and wrapped testsuites.testsuite.testcase (04-02) | Both forms needed: Surefire/Gradle use bare root, pytest/Jest/gotestsum use testsuites wrapper |
 | durationMs returns null (not 0) when time attribute absent (04-02) | Distinguishes "no timing data" from "ran in 0ms" for accurate CI result display |
+| Allure parser imports NormalizedTestCase from junit-parser.js (04-03) | Single source of truth for interface — allure-parser does not duplicate the type definition |
+| R2 client uses lazy initialization — getR2Client() throws only on first call if env vars missing (04-03) | Safe to import r2.ts in test environments without R2 credentials configured |
+| r2Enabled() exported as explicit guard (04-03) | Ingestion routes can degrade gracefully when R2 not configured in local dev |
+| Allure classname is null (04-03) | Allure has no direct classname field; fullName carries the qualified test name |
 
 ### Architecture Patterns Locked In
 
@@ -191,9 +195,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T12:16:04.682Z
+**Last session:** 2026-03-10T12:17:23.733Z
 
-**Stopped at:** Completed 04-02-PLAN.md
+**Stopped at:** Completed 04-03-PLAN.md
 
 **To resume work:** Execute 04-03-PLAN.md to implement Allure JSON parser.
 
