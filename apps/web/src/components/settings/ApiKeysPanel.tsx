@@ -68,9 +68,15 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
         const body = await res.json() as { message?: string }
         throw new Error(body.message ?? `Failed to create key (${res.status})`)
       }
-      const created = await res.json() as { key: string; api_key: ApiKey }
+      const created = await res.json() as { id: string; name: string; key: string; prefix: string }
       setRawKey(created.key)
-      setKeys((prev) => [created.api_key, ...prev])
+      setKeys((prev) => [{
+        id: created.id,
+        name: created.name,
+        key_prefix: created.prefix,
+        created_at: new Date().toISOString(),
+        revoked_at: null,
+      }, ...prev])
       setNewKeyName("")
       setShowForm(false)
     } catch (err) {
