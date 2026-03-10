@@ -267,7 +267,7 @@ export function RunCreateModal({
 
           {/* Error */}
           {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-fail-text">
+            <p className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text">
               {error}
             </p>
           )}

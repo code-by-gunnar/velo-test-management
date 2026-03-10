@@ -103,9 +103,19 @@ velo-test-management/
 - **Migrations**: Run via Drizzle on startup (`runMigrations()`). If a migration gets skipped (journal entry without SQL file in a prior deploy), add an idempotent fixup in `runFixups()` in server.ts.
 - **ESLint rules in apps/web**: `react-hooks/refs` forbids `ref.current` access during render AND `react-hooks/set-state-in-effect` forbids `setState` inside `useEffect`. Use the render-time conditional update pattern only with `useRef` from React — but be aware this may also be flagged. When in doubt, remove local state and read from props directly.
 
+## Design System
+
+- **Aesthetic**: "Industrial Notebook" — warm, precise, human. Not the Notion/Craft cool-white default.
+- **Fonts**: DM Sans (headings/display via `font-display`) + IBM Plex Sans (body via `font-body`) + JetBrains Mono (code via `font-mono`). NOT Inter.
+- **Colors**: Warm stone gray scale (overrides Tailwind default gray). Cobalt `#1A56DB` primary. Gold accent `#E8C547` for sidebar active states.
+- **Status tokens**: Pass `#3D9970` (muted forest), Fail `#C0392B` (brick red), Blocked `#D4820C` (burnt amber), Skipped `#8B8680` (warm gray). Never use raw Tailwind green/red/amber — always use `pass-*`, `fail-*`, `blocked-*`, `skipped-*` tokens.
+- **Backgrounds**: Page bg `#F5F3EF` (warm paper), cards `#FAFAF8` (warm white). Never pure `#FFFFFF` for page backgrounds.
+- **Sidebar**: Dark warm (`gray-800` / `#2D2926`) with light text and gold active indicator.
+- **Icons**: Lucide React (`lucide-react`). No inline SVGs — import named icons from the package.
+
 ## Stack
 
-- **Frontend**: Next.js 16 Pages Router, TypeScript, Tailwind, dnd-kit
+- **Frontend**: Next.js 16 Pages Router, TypeScript, Tailwind, dnd-kit, lucide-react
 - **Backend**: Node.js 22, Fastify 5, postgres.js (raw SQL), drizzle-kit for migrations
 - **DB**: PostgreSQL 16 with RLS. `SET LOCAL app.workspace_id` enforces tenant isolation per transaction.
 - **Auth**: Auth.js v5 (PKCE). Session token forwarded as Bearer from Next.js gateway to Railway API.

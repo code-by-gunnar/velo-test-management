@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from "react"
+import { MessageSquare, X } from "lucide-react"
 
 export interface StepComment {
   id: string
@@ -129,9 +130,7 @@ export function StepCommentIcon({
         title={hasComments ? `${allComments.length} comment(s)` : "Add step comment"}
         aria-label="Step comment"
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2v2l3-2h7a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2z" />
-        </svg>
+        <MessageSquare size={14} aria-hidden="true" />
         {hasComments && (
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cobalt border border-white" />
         )}
@@ -149,9 +148,7 @@ export function StepCommentIcon({
               className="text-gray-300 hover:text-gray-500 -mr-1"
               aria-label="Close"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M3 3l6 6M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <X size={12} aria-hidden="true" />
             </button>
           </div>
 

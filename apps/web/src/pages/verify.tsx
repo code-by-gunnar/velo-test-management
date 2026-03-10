@@ -53,7 +53,7 @@ export default function VerifyPage() {
           </p>
 
           {message && (
-            <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-pass mb-4" role="status">
+            <div className="rounded-md bg-pass-bg px-3 py-2 text-sm text-pass mb-4" role="status">
               {message}
             </div>
           )}

@@ -233,8 +233,8 @@ export default function RunDetailPage({
                     Resume Execution
                   </Button>
                   {confirmAbort ? (
-                    <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5">
-                      <span className="text-xs text-red-700">Abort this run?</span>
+                    <div className="flex items-center gap-2 rounded-md border border-fail/20 bg-fail-bg px-3 py-1.5">
+                      <span className="text-xs text-fail-text">Abort this run?</span>
                       <Button
                         variant="destructive"
                         size="sm"
@@ -375,7 +375,7 @@ export default function RunDetailPage({
                                 onClick={() =>
                                   setPopoverId((prev) => (prev === item.id ? null : item.id))
                                 }
-                                className="inline-flex items-center gap-1 rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text hover:bg-red-100"
+                                className="inline-flex items-center gap-1 rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text hover:bg-fail/10"
                               >
                                 Defect
                               </button>

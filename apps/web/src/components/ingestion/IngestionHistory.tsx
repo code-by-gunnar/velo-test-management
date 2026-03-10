@@ -27,15 +27,15 @@ const STATUS_CONFIG: Record<
 > = {
   success: {
     label: "Success",
-    className: "bg-green-50 text-green-700 border-green-200",
+    className: "bg-pass-bg text-pass-text border-pass/20",
   },
   parse_error: {
     label: "Parse error",
-    className: "bg-red-50 text-red-700 border-red-200",
+    className: "bg-fail-bg text-fail-text border-fail/20",
   },
   partial: {
     label: "Partial",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
+    className: "bg-blocked-bg text-blocked-text border-blocked/20",
   },
 }
 
@@ -102,7 +102,7 @@ export function IngestionHistory({
       {loading ? (
         <p className="text-sm text-gray-500">Loading ingestion history...</p>
       ) : error ? (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-fail">{error}</p>
       ) : runs.length === 0 ? (
         <p className="text-sm text-gray-500">
           No CI results yet. Set up your pipeline using the guide above.

@@ -9,6 +9,7 @@ import { ExecutionHistory } from "./ExecutionHistory"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SegmentedBar } from "./SegmentedBar"
 import { Button } from "@/components/ui/button"
+import { Menu, ChevronLeft, ChevronRight } from "lucide-react"
 
 export interface RunItem {
   id: string
@@ -335,9 +336,7 @@ export function ExecutionScreen({
             title="Case list"
             aria-label="Toggle case list"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <Menu size={16} aria-hidden="true" />
           </button>
 
           <span className="text-sm font-semibold text-gray-900 truncate max-w-xs">{runName}</span>
@@ -352,9 +351,7 @@ export function ExecutionScreen({
               title="Previous case"
               aria-label="Previous case"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronLeft size={14} aria-hidden="true" />
             </button>
             <span className="text-xs tabular-nums text-gray-500 min-w-[3.5rem] text-center">
               {currentIndex + 1} / {items.length}
@@ -367,9 +364,7 @@ export function ExecutionScreen({
               title="Next case"
               aria-label="Next case"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ChevronRight size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -448,9 +443,9 @@ export function ExecutionScreen({
                 {currentItem.case_title}
               </h1>
               {currentDetail?.preconditions && (
-                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5">
-                  <p className="text-xs font-medium text-amber-800 mb-0.5">Preconditions</p>
-                  <p className="text-sm text-amber-900">{currentDetail.preconditions}</p>
+                <div className="mt-3 rounded-md border border-blocked/20 bg-blocked-bg px-4 py-2.5">
+                  <p className="text-xs font-medium text-blocked-text mb-0.5">Preconditions</p>
+                  <p className="text-sm text-gray-800">{currentDetail.preconditions}</p>
                 </div>
               )}
             </div>

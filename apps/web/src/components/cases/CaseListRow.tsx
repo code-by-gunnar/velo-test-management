@@ -2,6 +2,7 @@ import { clsx } from "clsx"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { TestCase } from "@/hooks/useTestCases"
+import type { Suite } from "@/hooks/useSuiteTree"
 
 type Priority = "critical" | "high" | "medium" | "low"
 
@@ -12,7 +13,7 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
   },
   high: {
     label: "High",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
+    className: "bg-blocked-bg text-blocked-text border-blocked/20",
   },
   medium: {
     label: "Medium",
@@ -28,11 +29,22 @@ interface CaseListRowProps {
   testCase: TestCase
   index: number
   isSelected: boolean
+  showSuiteColumn: boolean
+  suites: Suite[]
   onToggleSelect: (index: number, shiftKey: boolean) => void
   onOpen: (id: string) => void
 }
 
-export function CaseListRow({ testCase, index, isSelected, onToggleSelect, onOpen }: CaseListRowProps) {
+function findSuiteName(suites: Suite[], suiteId: string): string | null {
+  for (const s of suites) {
+    if (s.id === suiteId) return s.name
+    const child = findSuiteName(s.children, suiteId)
+    if (child) return child
+  }
+  return null
+}
+
+export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suites, onToggleSelect, onOpen }: CaseListRowProps) {
   const priority = testCase.priority as Priority
   const priorityCfg = PRIORITY_CONFIG[priority]
 
@@ -87,6 +99,13 @@ export function CaseListRow({ testCase, index, isSelected, onToggleSelect, onOpe
       <td className="py-2.5 pr-4">
         <span className="text-sm text-gray-900 group-hover:text-cobalt">{testCase.title}</span>
       </td>
+
+      {/* Suite (only in All Cases view) */}
+      {showSuiteColumn && (
+        <td className="py-2.5 pr-4 text-sm text-gray-500">
+          {testCase.suite_id ? (findSuiteName(suites, testCase.suite_id) ?? "—") : "—"}
+        </td>
+      )}
 
       {/* Priority */}
       <td className="py-2.5 pr-4">

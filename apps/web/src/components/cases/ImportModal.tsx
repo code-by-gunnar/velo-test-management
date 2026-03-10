@@ -62,7 +62,7 @@ function FilePicker({ onFile, error }: FilePickerProps) {
   return (
     <div className="flex flex-col gap-4">
       <div
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-gray-300 px-6 py-12 text-center transition hover:border-cobalt hover:bg-blue-50"
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-gray-300 px-6 py-12 text-center transition hover:border-cobalt hover:bg-cobalt/5"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onClick={() => inputRef.current?.click()}
@@ -101,7 +101,7 @@ function FilePicker({ onFile, error }: FilePickerProps) {
       </p>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text">{error}</p>
       )}
     </div>
   )
@@ -153,7 +153,7 @@ function MappingStep({
           {/* Title — required */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-700">
-              Title <span className="text-red-500">*</span>
+              Title <span className="text-fail">*</span>
             </label>
             <select
               value={columnMapping.title}
@@ -172,7 +172,7 @@ function MappingStep({
           {/* Action — required */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-700">
-              Action / Step <span className="text-red-500">*</span>
+              Action / Step <span className="text-fail">*</span>
             </label>
             <select
               value={columnMapping.action}
@@ -207,7 +207,7 @@ function MappingStep({
         </div>
 
         {!canImport && (
-          <p className="mt-2 text-xs text-red-600">
+          <p className="mt-2 text-xs text-fail">
             Title and Action / Step columns are required
           </p>
         )}
@@ -363,7 +363,7 @@ export function ImportModal({
           {/* Step 3b: Done */}
           {state.status === "done" && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-2xl text-green-600">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pass-bg text-2xl text-pass">
                 ✓
               </div>
               <p className="text-base font-semibold text-gray-900">
@@ -378,7 +378,7 @@ export function ImportModal({
           {/* Step 3c: Error during import */}
           {state.status === "error" && state.file && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-fail-bg text-2xl text-fail">
                 &#10005;
               </div>
               <p className="text-sm text-gray-700">{state.error}</p>

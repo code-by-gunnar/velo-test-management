@@ -3,50 +3,64 @@
 @tailwind utilities;
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────────
-   Velo design language: Notion/Craft aesthetic — light, spatial, warm.
-   All colours sourced from PROJECT.md locked decisions.
+   Velo design language: Industrial Notebook — warm, precise, human.
+   Warm paper tones replace clinical whites. Earthy status colours replace
+   saturated Tailwind defaults.
    ─────────────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Primary */
-  --color-cobalt: #2563EB;
-  --color-cobalt-light: #DBEAFE;
-  --color-cobalt-dark: #1D4ED8;
+  --color-cobalt: #1A56DB;
+  --color-cobalt-light: #D6E4FF;
+  --color-cobalt-dark: #1442A8;
 
-  /* Backgrounds */
-  --color-mist: #F8FAFC;
-  --color-white: #FFFFFF;
-  --color-surface: #FFFFFF;
-  --color-surface-raised: #F8FAFC;
+  /* Accent */
+  --color-accent: #E8C547;
+  --color-accent-light: #FDF6D8;
+  --color-accent-dark: #C9A51E;
 
-  /* Text */
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94A3B8;
-  --color-text-disabled: #CBD5E1;
+  /* Backgrounds — warm paper tones */
+  --color-mist: #F5F3EF;
+  --color-white: #FAFAF8;
+  --color-surface: #FAFAF8;
+  --color-surface-raised: #F5F3EF;
 
-  /* Borders */
-  --color-border: #E2E8F0;
-  --color-border-strong: #CBD5E1;
+  /* Text — warm near-blacks */
+  --color-text-primary: #2D2926;
+  --color-text-secondary: #5C574E;
+  --color-text-tertiary: #8B8680;
+  --color-text-disabled: #D4D0C8;
 
-  /* Status colours (muted, warm — not saturated) */
-  --color-pass: #4ADE80;         /* muted sage green */
-  --color-pass-bg: #F0FDF4;
-  --color-pass-text: #166534;
+  /* Borders — warm stone */
+  --color-border: #E8E4DD;
+  --color-border-strong: #D4D0C8;
 
-  --color-fail: #F87171;         /* warm coral */
-  --color-fail-bg: #FEF2F2;
-  --color-fail-text: #991B1B;
+  /* Status colours — muted, earthy */
+  --color-pass: #3D9970;
+  --color-pass-bg: #EBF5F0;
+  --color-pass-text: #1B5E42;
 
-  --color-blocked: #FBBF24;      /* amber */
-  --color-blocked-bg: #FFFBEB;
-  --color-blocked-text: #92400E;
+  --color-fail: #C0392B;
+  --color-fail-bg: #FCEAE8;
+  --color-fail-text: #7B241C;
 
-  --color-skipped: #94A3B8;      /* slate */
-  --color-skipped-bg: #F1F5F9;
-  --color-skipped-text: #475569;
+  --color-blocked: #D4820C;
+  --color-blocked-bg: #FDF3E2;
+  --color-blocked-text: #8B5A08;
 
-  /* Sidebar */
+  --color-skipped: #8B8680;
+  --color-skipped-bg: #F2F1EE;
+  --color-skipped-text: #5C574E;
+
+  /* Sidebar — dark warm */
+  --color-sidebar-bg: #2D2926;
+  --color-sidebar-text: #E8E4DD;
+  --color-sidebar-muted: #8B8680;
+  --color-sidebar-hover: #3A3632;
+  --color-sidebar-active: #E8C547;
+  --color-sidebar-border: #3A3632;
+
+  /* Sidebar sizing */
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 48px;
 
@@ -66,20 +80,18 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  /* Shadows — slightly warm */
+  --shadow-sm: 0 1px 2px 0 rgb(45 41 38 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(45 41 38 / 0.06), 0 2px 4px -2px rgb(45 41 38 / 0.04);
+  --shadow-lg: 0 10px 15px -3px rgb(45 41 38 / 0.06), 0 4px 6px -4px rgb(45 41 38 / 0.04);
 
   /* Typography */
-  --font-ui: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-display), system-ui, sans-serif;
+  --font-body: var(--font-body), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-/* ─── Skeleton shimmer ───────────────────────────────────────────────────────
-   Animated gradient sweep per design spec §8.7 (1.2s loop).
-   Usage: <div className="skeleton" /> or add class to any block element.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ─── Skeleton shimmer — warm tones ──────────────────────────────────────── */
 
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
@@ -87,10 +99,27 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e9eef5 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, #F5F3EF 25%, #EBE8E2 50%, #F5F3EF 75%);
   background-size: 800px 100%;
   animation: shimmer 1.2s ease-in-out infinite;
   border-radius: 4px;
+}
+
+/* ─── Subtle noise texture for page background ───────────────────────────── */
+
+.bg-noise {
+  position: relative;
+}
+
+.bg-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
 }
 
 /* ─── Base resets ────────────────────────────────────────────────────────── */
@@ -101,8 +130,13 @@
 body {
   background-color: var(--color-mist);
   color: var(--color-text-primary);
-  font-family: var(--font-ui);
+  font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Heading font — DM Sans for display weight ─────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--font-display), system-ui, sans-serif;
 }
