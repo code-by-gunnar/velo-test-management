@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 4 — CI Ingestion
 current_plan: 04-05 complete
 status: planning
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-10T16:30:32.923Z"
+stopped_at: Completed 05-02-PLAN.md and 05-03-PLAN.md
+last_updated: "2026-03-10T16:32:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 29
-  completed_plans: 24
-  percent: 83
+  completed_plans: 25
+  percent: 86
 ---
 
 # State: Velo
@@ -40,10 +40,10 @@ progress:
 **Status:** Ready to plan
 
 **Progress:**
-[████████░░] 83%
+[████████░░] 86%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
-Phase 5 [          ] 0%   Integrations and API
+Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
 Phase 6 [          ] 0%   Team and Access Control
 
 **Overall:** 23/23 plans complete (Phase 4 fully delivered)
@@ -58,7 +58,7 @@ Phase 6 [          ] 0%   Team and Access Control
 | 2. Test Cases | 6 | 6 | Complete (all 6 plans delivered) |
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
-| 5. Integrations and API | 4 | TBD | Not started |
+| 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
 | 6. Team and Access Control | 6 | TBD | Not started |
 
 ---
@@ -150,6 +150,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | Linear auto-filing after defect commit — graceful degradation (05-03) | Linear API call happens AFTER withWorkspace transaction; defect never lost due to Linear failure |
 | CSRF state in Valkey with 10-min TTL for OAuth flows (05-03) | One-time use state tokens prevent OAuth replay attacks |
 | exactOptionalPropertyTypes requires `| undefined` on optional interface props (05-03) | TS strict mode rejects `string | undefined` assigned to `description?: string` |
+| Unified auth: requireAuth is named preHandler not global hook (05-02) | Routes opt in explicitly; avoids breaking auth routes that must work unauthenticated |
+| Rate limiter: fixed-window counter per API key with fail-open (05-02) | Simplest correct implementation; fail-open avoids blocking requests on Valkey failure |
+| v1 routes: onRoute hook rewrites /api/ to /api/v1/ (05-02) | Avoids path duplication; routes registered once, URL rewritten at registration time |
+| Project soft-delete via deleted_at column (05-02) | Preserves test cases and runs; idempotent fixup in runFixups() |
 
 ### Architecture Patterns Locked In
 
@@ -207,13 +211,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T16:30:32.915Z
+**Last session:** 2026-03-10T16:32:00.000Z
 
-**Stopped at:** Completed 05-03-PLAN.md
+**Stopped at:** Completed 05-02-PLAN.md and 05-03-PLAN.md
 
-**To resume work:** Begin Phase 5 — Integrations and API (Linear sync, REST API, webhooks).
+**To resume work:** Continue Phase 5 plans 05-04 through 05-06 (webhooks, frontend integrations).
 
-**Context summary:** Phase 4 complete. All 5 plans delivered and UAT verified. CI ingestion pipeline fully operational: JUnit XML + Allure JSON parsers, API key auth, R2 upload, frontend UI for key management and ingestion history. Post-checkpoint fixes resolved sidebar nav scope issue, ApiKeysPanel response parsing, duplicate multipart registration crash, and missing multipart plugin in test helper.
+**Context summary:** Phase 5 in progress. Plans 05-02 (unified auth + v1 routes + CRUD gaps + rate limiting) and 05-03 (Linear OAuth + API client) complete. All API routes now accessible via /api/v1/ with API key auth. Rate limiting at 100 req/min per API key. CRUD gaps closed (PATCH project, DELETE project, GET members, PATCH workspace).
 
 ---
 
