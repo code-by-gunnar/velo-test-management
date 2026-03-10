@@ -114,6 +114,21 @@ export const workspaceMembers = pgTable(
   ]
 )
 
+// ─── Workspace Invitations (tenant-scoped, Phase 6) ───────────────────────────
+
+export const workspaceInvitations = pgTable("workspace_invitations", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  role: workspaceRoleEnum("role").notNull().default("editor"),
+  // SHA-256 hash of the one-time invite token — never store the raw token
+  token_hash: text("token_hash").notNull(),
+  invited_by: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
+  expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+  accepted_at: timestamp("accepted_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Projects (tenant-scoped) ─────────────────────────────────────────────────
 
 export const projects = pgTable(

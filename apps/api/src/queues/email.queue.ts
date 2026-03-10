@@ -4,7 +4,7 @@ import { getBullMQConnectionOptions } from "../lib/valkey.js"
 export interface EmailJobData {
   to: string
   subject: string
-  type: "otp" | "password-reset" | "welcome"
+  type: "otp" | "password-reset" | "welcome" | "workspace-invite"
   payload: Record<string, unknown>
 }
 
