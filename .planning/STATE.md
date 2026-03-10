@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 3 — Test Runs and Dashboard
-current_plan: 03-05 complete (awaiting human verify)
-status: executing
-stopped_at: Completed 03-05-PLAN.md (awaiting human verify checkpoint)
-last_updated: "2026-03-10T09:45:35.166Z"
+current_plan: 03-06 complete (awaiting human verify checkpoint)
+status: checkpoint
+stopped_at: Completed 03-06-PLAN.md tasks — awaiting human verify at checkpoint:human-verify
+last_updated: "2026-03-10T09:51:00Z"
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 18
-  completed_plans: 17
-  percent: 94
+  completed_plans: 18
+  percent: 100
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[█████████░] 94%
+[██████████] 100%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -124,6 +124,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | useRunSSE subscribes one EventSource per runId; dependency key is runIds.join(',') (03-05) | Avoids per-render reconnects while reacting to run list changes |
 | Dashboard = runs page; Reports nav also points to /runs (03-05) | No separate dashboard route — runs list IS the live dashboard per DA-01 |
 | Assignees list defaults to [] in RunFilters/RunCreateModal (03-05) | No /members endpoint yet; Phase 6 RBAC will add it; UI degrades gracefully |
+| useCallback wraps fetchHistory to avoid react-hooks/set-state-in-effect (03-06) | ESLint rule forbids setState synchronously in effect body; useCallback + void fetchHistory() pattern is compliant |
+| keyboardEnabled=false when defect prompt open OR comment textarea focused (03-06) | Prevents accidental verdict submission while user types |
+| Linear integration button rendered but disabled in DefectPrompt (03-06) | Per CONTEXT.md locked decision: deferred to Phase 5; placeholder keeps UX intention visible |
+| Case steps fetched per-item on index change with cache to avoid refetch (03-06) | Each test_case_id is fetched once and cached in caseDetailCache; navigation does not re-fetch |
 
 ### Architecture Patterns Locked In
 
@@ -181,11 +185,11 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:45:35.163Z
+**Last session:** 2026-03-10T09:51:00Z
 
-**Stopped at:** Completed 03-05-PLAN.md (awaiting human verify checkpoint)
+**Stopped at:** Completed 03-06-PLAN.md tasks (Tasks 1 and 2 committed). Awaiting human verify checkpoint.
 
-**To resume work:** Run `/gsd:execute-phase 3` to continue with plan 03-05.
+**To resume work:** After verifying execution screen works end-to-end, approve the checkpoint to mark Phase 3 complete.
 
 **Context summary:** Phase 3 plan 03-04 complete — SSE real-time stream endpoint delivered. GET /api/workspaces/:wid/runs/:runId/stream uses reply.hijack() + dedicated iovalkey subscriber per connection. Initial event sends current run stats + EMA ETA. 20s heartbeat keeps Railway proxy alive. ?token= query param added to session plugin for EventSource auth. computeRunStats() and estimateTimeRemaining() pure functions in run-stats.ts with 10 unit tests all passing.
 
