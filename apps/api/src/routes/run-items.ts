@@ -1,0 +1,303 @@
+import type { FastifyPluginAsync } from "fastify"
+import { uuidv7 } from "uuidv7"
+import { withWorkspace } from "../db/tenant.js"
+
+// UUID validation (any version)
+const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isUuid(value: string): boolean {
+  return UUID_ANY_RE.test(value)
+}
+
+const VALID_VERDICT_STATUSES = ["pass", "fail", "blocked", "skipped"] as const
+type VerdictStatus = (typeof VALID_VERDICT_STATUSES)[number]
+
+function isVerdictStatus(value: string): value is VerdictStatus {
+  return (VALID_VERDICT_STATUSES as readonly string[]).includes(value)
+}
+
+// ── Run Items routes ──────────────────────────────────────────────────────────
+// Base path: /api/workspaces/:workspaceId/run-items
+// All handlers:
+//   1. Check session (401 if no userId)
+//   2. Verify request.workspaceId matches :workspaceId param (403 if mismatch)
+//   3. Use withWorkspace for every DB query — no bare sql on tenant tables
+//   4. reply.send() called AFTER withWorkspace completes (never inside)
+
+const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
+
+  // ── Auth guard ─────────────────────────────────────────────────────────────
+  fastify.addHook("preHandler", async (request, reply) => {
+    if (!request.userId) {
+      return reply.status(401).send({ error: "Unauthorized" })
+    }
+  })
+
+  // ── PATCH /run-items/:itemId — execute item (TR-02) ───────────────────────
+  // Body: { status: "pass" | "fail" | "blocked" | "skipped" }
+  // Updates status, executed_by, executed_at; recomputes run status; publishes to Valkey.
+  fastify.patch<{
+    Params: { workspaceId: string; itemId: string }
+    Body: { status: string }
+  }>(
+    "/api/workspaces/:workspaceId/run-items/:itemId",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["status"],
+          properties: {
+            status: { type: "string", enum: ["pass", "fail", "blocked", "skipped"] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId, itemId } = request.params
+      const { status } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(itemId)) {
+        return reply.status(400).send({ error: "Invalid itemId" })
+      }
+
+      if (!isVerdictStatus(status)) {
+        return reply.status(400).send({ error: "status must be pass, fail, blocked, or skipped" })
+      }
+
+      const executedBy = request.userId
+
+      const result = await withWorkspace(workspaceId, async (tx) => {
+        // 1. Update item status
+        const updateRows = await tx.unsafe(`
+          UPDATE run_items
+          SET status = '${status}',
+              executed_by = '${executedBy}',
+              executed_at = NOW(),
+              updated_at = NOW()
+          WHERE id = '${itemId}'
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          RETURNING run_id, case_title
+        `)
+
+        if (updateRows.length === 0) return null
+
+        const updated = updateRows[0] as unknown as { run_id: string; case_title: string | null }
+        const runId = updated.run_id
+        const caseTitle = updated.case_title
+
+        // 2. Compute stats for this run
+        const statsRows = await tx.unsafe(`
+          SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status = 'pass')::int AS pass,
+            COUNT(*) FILTER (WHERE status = 'fail')::int AS fail,
+            COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
+            COUNT(*) FILTER (WHERE status = 'skipped')::int AS skipped,
+            COUNT(*) FILTER (WHERE status = 'untested')::int AS untested
+          FROM run_items
+          WHERE run_id = '${runId}'
+        `)
+
+        const stats = statsRows[0] as unknown as {
+          total: number
+          pass: number
+          fail: number
+          blocked: number
+          skipped: number
+          untested: number
+        }
+
+        // 3. Recompute run status: if no untested items remain, auto-complete the run
+        await tx.unsafe(`
+          UPDATE test_runs
+          SET status = CASE
+            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = '${runId}') = 0
+              THEN 'completed'::run_status
+            ELSE 'active'::run_status
+          END,
+          completed_at = CASE
+            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = '${runId}') = 0
+              THEN NOW()
+            ELSE NULL
+          END,
+          updated_at = NOW()
+          WHERE id = '${runId}'
+        `)
+
+        return { itemId, status, runId, caseTitle, stats }
+      })
+
+      if (result === null) {
+        return reply.status(404).send({ error: "Run item not found" })
+      }
+
+      // 4. Fire-and-forget Valkey publish after transaction commits
+      // Do NOT await — client response must not be blocked by Valkey
+      fastify.valkey
+        .publish(
+          `run:${result.runId}`,
+          JSON.stringify({
+            type: "run_update",
+            runId: result.runId,
+            stats: result.stats,
+            updatedItem: {
+              id: result.itemId,
+              status: result.status,
+              caseTitle: result.caseTitle,
+            },
+          })
+        )
+        .catch(() => {
+          // Valkey publish failure must not affect response
+        })
+
+      return reply.send(result)
+    }
+  )
+
+  // ── PATCH /run-items/:itemId/comment — set case-level comment (TR-04) ─────
+  // Body: { comment: string }
+  fastify.patch<{
+    Params: { workspaceId: string; itemId: string }
+    Body: { comment: string }
+  }>(
+    "/api/workspaces/:workspaceId/run-items/:itemId/comment",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["comment"],
+          properties: {
+            comment: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId, itemId } = request.params
+      const { comment } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(itemId)) {
+        return reply.status(400).send({ error: "Invalid itemId" })
+      }
+
+      const safeComment = comment.replace(/'/g, "''")
+
+      await withWorkspace(workspaceId, async (tx) => {
+        await tx.unsafe(`
+          UPDATE run_items
+          SET comment = '${safeComment}', updated_at = NOW()
+          WHERE id = '${itemId}'
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `)
+      })
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /run-items/:itemId/step-comments — add step annotation (TR-04) ───
+  // Body: { step_order: number, comment: string }
+  fastify.post<{
+    Params: { workspaceId: string; itemId: string }
+    Body: { step_order: number; comment: string }
+  }>(
+    "/api/workspaces/:workspaceId/run-items/:itemId/step-comments",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["step_order", "comment"],
+          properties: {
+            step_order: { type: "integer", minimum: 1 },
+            comment: { type: "string", minLength: 1 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId, itemId } = request.params
+      const { step_order, comment } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(itemId)) {
+        return reply.status(400).send({ error: "Invalid itemId" })
+      }
+
+      if (!Number.isInteger(step_order) || step_order < 1) {
+        return reply.status(400).send({ error: "step_order must be a positive integer" })
+      }
+
+      if (!comment || comment.trim().length === 0) {
+        return reply.status(400).send({ error: "comment must not be empty" })
+      }
+
+      const commentId = uuidv7()
+      const safeComment = comment.replace(/'/g, "''")
+      const createdBy = request.userId
+
+      const created = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx.unsafe(`
+          INSERT INTO run_item_step_comments
+            (id, workspace_id, run_item_id, step_order, comment, created_by)
+          VALUES (
+            '${commentId}',
+            current_setting('app.workspace_id', true)::uuid,
+            '${itemId}',
+            ${step_order},
+            '${safeComment}',
+            ${createdBy ? `'${createdBy}'` : "NULL"}
+          )
+          RETURNING id, workspace_id, run_item_id, step_order, comment, created_by, created_at
+        `)
+
+        return rows[0]
+      })
+
+      return reply.status(201).send(created)
+    }
+  )
+
+  // ── GET /run-items/:itemId/step-comments — list step annotations (TR-04) ──
+  fastify.get<{
+    Params: { workspaceId: string; itemId: string }
+  }>(
+    "/api/workspaces/:workspaceId/run-items/:itemId/step-comments",
+    async (request, reply) => {
+      const { workspaceId, itemId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(itemId)) {
+        return reply.status(400).send({ error: "Invalid itemId" })
+      }
+
+      const comments = await withWorkspace(workspaceId, async (tx) => {
+        return tx.unsafe(`
+          SELECT id, workspace_id, run_item_id, step_order, comment, created_by, created_at
+          FROM run_item_step_comments
+          WHERE run_item_id = '${itemId}'
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          ORDER BY step_order, created_at
+        `)
+      })
+
+      return reply.send(comments)
+    }
+  )
+}
+
+export default runItemsRoutes
