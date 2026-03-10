@@ -8,6 +8,7 @@ import { RunCard, type RunListItem } from "@/components/runs/RunCard"
 import { RunFilters, type FilterState } from "@/components/runs/RunFilters"
 import { RunCreateModal } from "@/components/runs/RunCreateModal"
 import { useRunSSE } from "@/hooks/useRunSSE"
+import { Play } from "lucide-react"
 
 interface RunsDashboardProps {
   slug: string
@@ -124,10 +125,7 @@ export default function RunsDashboard({
             /* Empty state */
             <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                  <circle cx="14" cy="14" r="11" stroke="#D1D5DB" strokeWidth="2" />
-                  <path d="M11 9l7 5-7 5V9z" fill="#D1D5DB" />
-                </svg>
+                <Play size={28} className="text-gray-300" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-gray-900">No test runs yet</h3>

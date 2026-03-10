@@ -5,7 +5,7 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <link rel="icon" type="image/svg+xml" href="/velo-favicon.svg" />
-        <meta name="theme-color" content="#2563EB" />
+        <meta name="theme-color" content="#2D2926" />
       </Head>
       <body>
         <Main />

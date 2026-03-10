@@ -143,7 +143,7 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
               Dismiss
             </button>
           </div>
-          <p className="mb-3 text-xs text-amber-700 font-medium bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+          <p className="mb-3 text-xs text-blocked-text font-medium bg-blocked-bg border border-blocked/20 rounded px-2 py-1.5">
             This key will only be shown once. Copy it now — you will not be able to see it again.
           </p>
           <div className="flex items-center gap-2">
@@ -262,7 +262,7 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
                             Revoked
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                          <span className="inline-flex items-center rounded-full border border-pass/20 bg-pass-bg px-2 py-0.5 text-xs font-medium text-pass-text">
                             Active
                           </span>
                         )}

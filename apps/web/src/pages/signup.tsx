@@ -56,7 +56,7 @@ export default function SignupPage() {
           <p className="text-sm text-gray-500 mb-6">Get started with Velo in seconds.</p>
 
           {errors.root && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-fail-text mb-4" role="alert">
+            <div className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text mb-4" role="alert">
               {errors.root.message}
             </div>
           )}

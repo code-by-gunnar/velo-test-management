@@ -5,20 +5,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        cobalt: {
-          DEFAULT: "#2563EB",
-          light: "#DBEAFE",
-          dark: "#1D4ED8",
+        /* ── Override default gray with warm stone tones ─────────────── */
+        gray: {
+          50:  "#FAF9F7",
+          100: "#F5F3EF",
+          200: "#E8E4DD",
+          300: "#D4D0C8",
+          400: "#A39E93",
+          500: "#7A756B",
+          600: "#5C574E",
+          700: "#433F38",
+          800: "#2D2926",
+          900: "#1E1B18",
+          950: "#0F0D0B",
         },
-        mist: "#F8FAFC",
-        pass: { DEFAULT: "#4ADE80", bg: "#F0FDF4", text: "#166534" },
-        fail: { DEFAULT: "#F87171", bg: "#FEF2F2", text: "#991B1B" },
-        blocked: { DEFAULT: "#FBBF24", bg: "#FFFBEB", text: "#92400E" },
-        skipped: { DEFAULT: "#94A3B8", bg: "#F1F5F9", text: "#475569" },
+
+        /* ── Brand ──────────────────────────────────────────────────── */
+        cobalt: {
+          DEFAULT: "#1A56DB",
+          light:   "#D6E4FF",
+          dark:    "#1442A8",
+        },
+        accent: {
+          DEFAULT: "#E8C547",
+          light:   "#FDF6D8",
+          dark:    "#C9A51E",
+        },
+        mist: "#F5F3EF",
+
+        /* ── Status — muted & earthy ────────────────────────────────── */
+        pass:    { DEFAULT: "#3D9970", bg: "#EBF5F0", text: "#1B5E42" },
+        fail:    { DEFAULT: "#C0392B", bg: "#FCEAE8", text: "#7B241C" },
+        blocked: { DEFAULT: "#D4820C", bg: "#FDF3E2", text: "#8B5A08" },
+        skipped: { DEFAULT: "#8B8680", bg: "#F2F1EE", text: "#5C574E" },
       },
       fontFamily: {
-        ui: ["var(--font-inter)", "system-ui", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "ui-monospace", "monospace"],
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        body:    ["var(--font-body)", "system-ui", "sans-serif"],
+        mono:    ["var(--font-jetbrains-mono)", "ui-monospace", "monospace"],
       },
       width: {
         sidebar: "240px",

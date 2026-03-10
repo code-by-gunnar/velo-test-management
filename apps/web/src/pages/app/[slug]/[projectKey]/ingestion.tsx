@@ -34,7 +34,7 @@ export default function IngestionPage({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex max-w-3xl flex-col gap-6">
+          <div className="mx-auto w-full max-w-3xl flex-col gap-6 flex">
             <SetupGuide
               workspaceId={workspaceId}
               projectId={projectId}
