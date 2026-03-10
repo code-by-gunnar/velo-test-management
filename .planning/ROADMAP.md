@@ -28,7 +28,7 @@
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
 | 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
 | 5. Integrations and API | 6/6 | Planned | - |
-| 6. Team and Access Control | 1/5 | In Progress|  |
+| 6. Team and Access Control | 2/5 | In Progress|  |
 
 ---
 

@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 6 — Team and Access Control
-current_plan: 06-01 complete
+current_plan: 06-02 complete
 status: planning
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-10T20:16:00.000Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-10T20:26:12.448Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 34
-  completed_plans: 27
-  percent: 79
+  completed_plans: 28
+  percent: 82
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 6 — Team and Access Control
-**Current plan:** 06-01 complete
+**Current plan:** 06-02 complete
 **Status:** Ready to plan
 
 **Progress:**
-[████████░░] 79%
+[████████░░] 82%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
-Phase 6 [█░░░░░░░░░] 17%  Team and Access Control (1/6 plans complete)
+Phase 6 [██░░░░░░░░] 33%  Team and Access Control (2/6 plans complete)
 
-**Overall:** 27/34 plans complete
+**Overall:** 28/34 plans complete
 
 ---
 
@@ -59,7 +59,7 @@ Phase 6 [█░░░░░░░░░] 17%  Team and Access Control (1/6 plans
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
-| 6. Team and Access Control | 6 | 6 | In progress (06-01 Wave 0 complete) |
+| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02 complete) |
 
 ---
 
@@ -154,6 +154,9 @@ Phase 6 [█░░░░░░░░░] 17%  Team and Access Control (1/6 plans
 | Rate limiter: fixed-window counter per API key with fail-open (05-02) | Simplest correct implementation; fail-open avoids blocking requests on Valkey failure |
 | v1 routes: onRoute hook rewrites /api/ to /api/v1/ (05-02) | Avoids path duplication; routes registered once, URL rewritten at registration time |
 | Project soft-delete via deleted_at column (05-02) | Preserves test cases and runs; idempotent fixup in runFixups() |
+| Admin guard in members.ts uses bare sql (pre-RLS) not withWorkspace (06-02) | Admin check must happen before RLS context is set; withWorkspace only for the actual invitation insert |
+| Invite token iteration checks bcrypt on all pending invites for email (06-02) | Handles edge case where multiple pending invites exist for same email (e.g. after re-invite race) |
+| Email worker switch statement with default fallback for unknown types (06-02) | otp/password-reset/welcome handled upstream by email.ts lib — worker logs and skips these |
 
 ### Architecture Patterns Locked In
 
@@ -211,13 +214,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T20:18:00.000Z
+**Last session:** 2026-03-10T20:26:12.438Z
 
-**Stopped at:** Completed 06-01-PLAN.md
+**Stopped at:** Completed 06-02-PLAN.md
 
-**To resume work:** Continue Phase 6 plans 06-02 and 06-03 (invitations routes, role/deactivation routes).
+**To resume work:** Continue Phase 6 plan 06-03 (role change + member deactivation routes).
 
-**Context summary:** Phase 6 Wave 0 complete. workspace_invitations migration (0006_team_access_control.sql) with RLS policy added. workspaceInvitations Drizzle schema definition added to schema.ts. EmailJobData extended with workspace-invite type. 20 it.todo() test stubs created in members.test.ts covering USR-01 through USR-06.
+**Context summary:** Phase 6 plans 06-01 and 06-02 complete. Invitation CRUD backend done: POST/GET invitations (admin-only), POST invitations/accept (authenticated). Free tier editor cap enforced (TIER_LIMIT_EXCEEDED). Email worker extended with workspace-invite case. 14 tests passing. Next: 06-03 covers PATCH role change and PATCH deactivate with Valkey session invalidation.
 
 ---
 
