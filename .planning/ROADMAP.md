@@ -26,7 +26,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
-| 4. CI Ingestion | 0/? | Not started | - |
+| 4. CI Ingestion | 0/5 | Planning complete | - |
 | 5. Integrations and API | 0/? | Not started | - |
 | 6. Team and Access Control | 0/? | Not started | - |
 
@@ -100,12 +100,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Wave 0: Migration (step comments table + case_title column), test stubs for all TR/DA requirements
-- [ ] 03-02-PLAN.md — Wave 1: Runs CRUD API (create with snapshot, list with filters, detail, abort, rerun-failures, history)
+- [x] 03-01-PLAN.md — Wave 0: Migration (step comments table + case_title column), test stubs for all TR/DA requirements (complete 2026-03-10)
+- [x] 03-02-PLAN.md — Wave 1: Runs CRUD API (create with snapshot, list with filters, detail, abort, rerun-failures, history) (complete 2026-03-10)
 - [x] 03-03-PLAN.md — Wave 1: Run items API (execute verdict, case/step comments, defect filing) (complete 2026-03-10)
-- [ ] 03-04-PLAN.md — Wave 2: SSE endpoint with Valkey pub/sub, heartbeat, stats computation helpers
-- [ ] 03-05-PLAN.md — Wave 3: Runs dashboard page + run detail page (card grid, filters, SSE live updates, sidebar nav)
-- [ ] 03-06-PLAN.md — Wave 3: Execution screen (full-screen focus mode, P/F/B/S keyboard, defect prompt, step comments, history)
+- [x] 03-04-PLAN.md — Wave 2: SSE endpoint with Valkey pub/sub, heartbeat, stats computation helpers (complete 2026-03-10)
+- [x] 03-05-PLAN.md — Wave 3: Runs dashboard page + run detail page (card grid, filters, SSE live updates, sidebar nav) (complete 2026-03-10)
+- [x] 03-06-PLAN.md — Wave 3: Execution screen (full-screen focus mode, P/F/B/S keyboard, defect prompt, step comments, history) (complete 2026-03-10)
 
 ---
 
@@ -123,7 +123,14 @@ Plans:
 3. The JUnit XML parser handles results from pytest-junit, Maven Surefire, Gradle, Jest-junit, and Go gotestsum without returning a parse error
 4. Raw CI payloads are stored in Cloudflare R2 and are not written to PostgreSQL; a developer can retrieve the raw payload for any ingestion run for debugging
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Wave 1: Deps install, migration (api_keys + ci_ingestion_runs + run_items changes), JUnit fixtures, test stubs
+- [ ] 04-02-PLAN.md — Wave 2: TDD JUnit XML parser (all 5 variants: pytest, Surefire, Gradle, Jest-junit, gotestsum)
+- [ ] 04-03-PLAN.md — Wave 2: Allure JSON parser + Cloudflare R2 storage client
+- [ ] 04-04-PLAN.md — Wave 3: API key auth routes + ingestion REST endpoints (POST junit/allure, GET payload)
+- [ ] 04-05-PLAN.md — Wave 4: API key management UI + ingestion history page + setup guide + human verify
 
 ---
 
@@ -233,4 +240,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-10 — Phase 3 planning complete (6 plans in 4 waves)*
+*Last updated: 2026-03-10 — Phase 4 planned (5 plans, 4 waves)*
