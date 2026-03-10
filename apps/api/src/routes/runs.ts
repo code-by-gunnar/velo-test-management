@@ -1,6 +1,9 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
+import { Redis as Valkey } from "iovalkey"
 import { withWorkspace } from "../db/tenant.js"
+import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
+import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -438,6 +441,74 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.send(history)
+    }
+  )
+  // ── GET /runs/:runId/stream — SSE real-time updates (DA-01, DA-02) ─────────
+  fastify.get<{
+    Params: { workspaceId: string; runId: string }
+  }>(
+    "/api/workspaces/:workspaceId/runs/:runId/stream",
+    async (request, reply) => {
+      const { workspaceId, runId } = request.params
+
+      if (!request.userId) {
+        return reply.status(401).send({ error: "Unauthorized" })
+      }
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(runId)) {
+        return reply.status(400).send({ error: "Invalid runId" })
+      }
+
+      const res = reply.raw
+
+      // SSE headers — X-Accel-Buffering: no prevents Railway/nginx from buffering
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      })
+
+      // Fetch current run items and send initial stats event
+      const initialItems = await withWorkspace(workspaceId, async (tx) => {
+        return (await tx.unsafe(`
+          SELECT status, executed_at FROM run_items WHERE run_id = '${runId}'
+        `)) as Array<{ status: string; executed_at: string | null }>
+      })
+      const stats = computeRunStats(initialItems)
+      const eta = estimateTimeRemaining(initialItems, initialItems.length)
+      writeSSEEvent(res, { type: "run_update", runId, stats, eta })
+
+      // Dedicated subscriber connection — iovalkey enters subscriber mode on subscribe(),
+      // which locks the connection for pub/sub only. Must NOT reuse the shared valkey instance.
+      const sub = new Valkey(process.env.VALKEY_URL!, {
+        lazyConnect: false,
+        maxRetriesPerRequest: 3,
+      })
+
+      const channel = `run:${runId}`
+      await sub.subscribe(channel)
+
+      // Forward Valkey pub/sub messages as SSE data events
+      sub.on("message", (_ch: string, message: string) => {
+        res.write(`data: ${message}\n\n`)
+      })
+
+      // 20s heartbeat comment keeps Railway proxy from closing idle connections
+      const heartbeat = startHeartbeat(res, 20_000)
+
+      // Cleanup when the browser disconnects
+      request.raw.on("close", () => {
+        clearInterval(heartbeat)
+        sub.unsubscribe(channel).then(() => sub.quit()).catch(() => {})
+      })
+
+      // Tell Fastify we are managing the response ourselves
+      reply.hijack()
     }
   )
 }
