@@ -75,42 +75,30 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
 
     setState((prev) => ({ ...prev, status: "file-selected", file, error: null }))
 
-    // Client-side preview using papaparse (CSV only for preview; XLSX goes directly to server)
-    const ext = file.name.toLowerCase()
-    if (ext.endsWith(".csv")) {
-      Papa.parse<Record<string, string>>(file, {
-        header: true,
-        skipEmptyLines: true,
-        preview: 10,
-        complete: (result) => {
-          const headers = result.meta.fields ?? []
-          const mapping = detectColumnMapping(headers)
-          setState((prev) => ({
-            ...prev,
-            status: "previewing",
-            headers,
-            preview: result.data,
-            columnMapping: mapping,
-          }))
-        },
-        error: (err) => {
-          setState((prev) => ({
-            ...prev,
-            status: "error",
-            error: `Could not parse CSV: ${err.message}`,
-          }))
-        },
-      })
-    } else {
-      // XLSX: no client-side preview available — show file name, go straight to mapping step
-      setState((prev) => ({
-        ...prev,
-        status: "previewing",
-        headers: [],
-        preview: [],
-        columnMapping: EMPTY_MAPPING,
-      }))
-    }
+    // Client-side preview using papaparse
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      preview: 10,
+      complete: (result) => {
+        const headers = result.meta.fields ?? []
+        const mapping = detectColumnMapping(headers)
+        setState((prev) => ({
+          ...prev,
+          status: "previewing",
+          headers,
+          preview: result.data,
+          columnMapping: mapping,
+        }))
+      },
+      error: (err) => {
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          error: `Could not parse CSV: ${err.message}`,
+        }))
+      },
+    })
   }, [])
 
   const setColumnMapping = useCallback((mapping: ColumnMapping) => {

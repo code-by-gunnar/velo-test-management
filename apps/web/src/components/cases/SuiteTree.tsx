@@ -126,7 +126,7 @@ export function SuiteTree({
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, parent_id: null }),
+        body: JSON.stringify({ name }),
       })
       if (res.ok) {
         onSuiteCreated?.()

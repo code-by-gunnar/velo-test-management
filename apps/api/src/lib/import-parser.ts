@@ -1,5 +1,4 @@
 import Papa from "papaparse"
-import ExcelJS from "exceljs"
 
 export interface ParsedStep {
   action: string
@@ -120,16 +119,6 @@ function applyExplicitMapping(
   return result
 }
 
-function detectFileType(buffer: ArrayBuffer | Buffer): "csv" | "xlsx" | "unknown" {
-  // XLSX/ZIP magic bytes: PK\x03\x04
-  const bytes = buffer instanceof Buffer ? buffer : Buffer.from(new Uint8Array(buffer))
-  if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
-    return "xlsx"
-  }
-  // Treat everything else as CSV (text)
-  return "csv"
-}
-
 export async function parseImportBuffer(
   buffer: ArrayBuffer | Buffer,
   filename: string,
@@ -137,49 +126,20 @@ export async function parseImportBuffer(
 ): Promise<TestCaseImport[]> {
   const lower = filename.toLowerCase()
 
-  // Determine file type from extension, fall back to magic bytes if extension is missing
-  const isXlsxByExt = lower.endsWith(".xlsx") || lower.endsWith(".xls")
-  const isCsvByExt = lower.endsWith(".csv")
-  const typeByMagic = !isXlsxByExt && !isCsvByExt ? detectFileType(buffer) : null
-  const effectiveType = isXlsxByExt ? "xlsx" : isCsvByExt ? "csv" : typeByMagic
-
-  if (effectiveType === "csv") {
-    // Convert to string — works for both Buffer and ArrayBuffer
-    const text =
-      buffer instanceof Buffer
-        ? buffer.toString("utf-8")
-        : new TextDecoder().decode(buffer)
-
-    const result = Papa.parse<string[]>(text, { skipEmptyLines: true })
-    const [headerRow, ...dataRows] = result.data
-    if (!headerRow) throw new Error("Missing required column: title")
-    const cols = explicit ? applyExplicitMapping(headerRow, explicit) : detectColumns(headerRow)
-    if (cols.title === undefined) throw new Error("Missing required column: title")
-    return groupMultiRow(dataRows, cols)
+  if (!lower.endsWith(".csv")) {
+    throw new Error(`Unsupported file type — please upload a .csv file (received: "${filename}")`)
   }
 
-  if (effectiveType === "xlsx") {
-    const wb = new ExcelJS.Workbook()
-    // ExcelJS types expect legacy Buffer — cast via unknown to satisfy older @types
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await wb.xlsx.load(buffer as any)
-    const ws = wb.worksheets[0]
-    if (!ws) throw new Error("XLSX workbook contains no worksheets")
-    const rows: string[][] = []
-    ws.eachRow((row) => {
-      // ExcelJS row.values is 1-indexed (index 0 is always undefined); slice(1) removes it
-      rows.push(
-        (row.values as (ExcelJS.CellValue | undefined)[])
-          .slice(1)
-          .map((v) => (v !== null && v !== undefined ? String(v) : ""))
-      )
-    })
-    const [headerRow, ...dataRows] = rows
-    if (!headerRow) throw new Error("Missing required column: title")
-    const cols = explicit ? applyExplicitMapping(headerRow, explicit) : detectColumns(headerRow)
-    if (cols.title === undefined) throw new Error("Missing required column: title")
-    return groupMultiRow(dataRows, cols)
-  }
+  // Convert to string — works for both Buffer and ArrayBuffer
+  const text =
+    buffer instanceof Buffer
+      ? buffer.toString("utf-8")
+      : new TextDecoder().decode(buffer)
 
-  throw new Error(`Unsupported file type — please upload a .csv or .xlsx file (received: "${filename}")`)
+  const result = Papa.parse<string[]>(text, { skipEmptyLines: true })
+  const [headerRow, ...dataRows] = result.data
+  if (!headerRow) throw new Error("Missing required column: title")
+  const cols = explicit ? applyExplicitMapping(headerRow, explicit) : detectColumns(headerRow)
+  if (cols.title === undefined) throw new Error("Missing required column: title")
+  return groupMultiRow(dataRows, cols)
 }
