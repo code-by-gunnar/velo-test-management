@@ -76,12 +76,12 @@
 
 ### Team & Access Control
 
-- [ ] **USR-01**: Workspace admin can invite team members by email
-- [ ] **USR-02**: Invited user receives email with sign-up/join link (delivered via Resend)
-- [ ] **USR-03**: Workspace admin can assign roles: Admin, Editor, Viewer
-- [ ] **USR-04**: Workspace admin can deactivate a team member (revokes access immediately)
-- [ ] **USR-05**: Viewer role has unlimited seats on all plan tiers; Editor seats are capped per tier
-- [ ] **USR-06**: Plan tier limits are enforced at the API layer (cannot create project beyond Free limit without upgrade)
+- [x] **USR-01**: Workspace admin can invite team members by email
+- [x] **USR-02**: Invited user receives email with sign-up/join link (delivered via Resend)
+- [x] **USR-03**: Workspace admin can assign roles: Admin, Editor, Viewer
+- [x] **USR-04**: Workspace admin can deactivate a team member (revokes access immediately)
+- [x] **USR-05**: Viewer role has unlimited seats on all plan tiers; Editor seats are capped per tier
+- [x] **USR-06**: Plan tier limits are enforced at the API layer (cannot create project beyond Free limit without upgrade)
 
 ---
 
@@ -189,12 +189,12 @@
 | INT-02 | Phase 5 | Pending |
 | INT-03 | Phase 5 | Pending |
 | INT-04 | Phase 5 | Pending |
-| USR-01 | Phase 6 | Pending |
-| USR-02 | Phase 6 | Pending |
-| USR-03 | Phase 6 | Pending |
-| USR-04 | Phase 6 | Pending |
-| USR-05 | Phase 6 | Pending |
-| USR-06 | Phase 6 | Pending |
+| USR-01 | Phase 6 | Complete |
+| USR-02 | Phase 6 | Complete |
+| USR-03 | Phase 6 | Complete |
+| USR-04 | Phase 6 | Complete |
+| USR-05 | Phase 6 | Complete |
+| USR-06 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 48 total
