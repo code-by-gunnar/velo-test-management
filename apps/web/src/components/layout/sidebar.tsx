@@ -29,26 +29,24 @@ const NAV_ITEMS = [
   },
   {
     label: "Test Runs",
-    href: (_slug: string, _key?: string) => "#",
+    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/runs` : "#",
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
         <path d="M6 5.5l4.5 2.5L6 10.5V5.5z" fill="currentColor" />
       </svg>
     ),
-    available: false,
-    tooltip: "Coming in Phase 3",
+    available: true,
   },
   {
     label: "Reports",
-    href: (_slug: string, _key?: string) => "#",
+    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/runs` : "#",
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M2 12h2V8H2v4zm3 0h2V5H5v7zm3 0h2V2H8v10zm3 0h2V7h-2v5z" fill="currentColor" />
       </svg>
     ),
-    available: false,
-    tooltip: "Coming in Phase 3",
+    available: true,
   },
 ] as const
 
@@ -141,7 +139,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             return (
               <div
                 key={item.label}
-                title={collapsed ? `${item.label} — ${item.tooltip}` : item.tooltip}
+                title={collapsed ? `${item.label}${("tooltip" in item && item.tooltip) ? ` — ${item.tooltip as string}` : ""}` : (("tooltip" in item && item.tooltip) ? item.tooltip as string : undefined)}
                 aria-disabled="true"
                 className={clsx(
                   "flex cursor-not-allowed items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-300",

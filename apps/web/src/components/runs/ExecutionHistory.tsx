@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import type { TestStatus } from "@/components/ui/status-badge"
 
@@ -37,19 +37,27 @@ export function ExecutionHistory({ caseId, workspaceId }: ExecutionHistoryProps)
   const [showAll, setShowAll] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
 
-  useEffect(() => {
+  const fetchHistory = useCallback(async () => {
     if (!caseId || !workspaceId) return
     setLoading(true)
     setEntries([])
-    fetch(`/api/backend/workspaces/${workspaceId}/test-cases/${caseId}/history`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`History fetch failed: ${res.status}`)
-        return res.json() as Promise<HistoryEntry[]>
-      })
-      .then((data) => setEntries(data))
-      .catch(() => setEntries([]))
-      .finally(() => setLoading(false))
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/test-cases/${caseId}/history`
+      )
+      if (!res.ok) throw new Error(`History fetch failed: ${res.status}`)
+      const data = await res.json() as HistoryEntry[]
+      setEntries(data)
+    } catch {
+      setEntries([])
+    } finally {
+      setLoading(false)
+    }
   }, [caseId, workspaceId])
+
+  useEffect(() => {
+    void fetchHistory()
+  }, [fetchHistory])
 
   const visible = showAll ? entries : entries.slice(0, MAX_VISIBLE)
 
