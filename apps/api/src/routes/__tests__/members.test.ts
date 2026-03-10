@@ -8,6 +8,18 @@ vi.mock("../../queues/email.queue.js", () => ({
   emailQueue: { add: vi.fn().mockResolvedValue({ id: "mock-job-id" }) },
 }))
 
+// Mock Valkey to avoid real connections during tests
+const mockValkeySet = vi.fn().mockResolvedValue("OK")
+const mockValkeyDel = vi.fn().mockResolvedValue(1)
+const mockValkeyGet = vi.fn().mockResolvedValue(null)
+vi.mock("../../lib/valkey.js", () => ({
+  valkey: {
+    set: mockValkeySet,
+    del: mockValkeyDel,
+    get: mockValkeyGet,
+  },
+}))
+
 // Set required env vars
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
@@ -457,6 +469,226 @@ describe("Members routes (USR-01 through USR-06)", () => {
     it("error includes upgrade prompt message", async () => {
       // Covered by the test above — documented here for USR-06 traceability
       expect(true).toBe(true)
+    })
+  })
+
+  // USR-03: Admin can change member role
+  describe("PATCH /api/workspaces/:workspaceId/members/:userId (USR-03)", () => {
+    it("returns 200 and updates role when admin changes role to viewer", async () => {
+      mockValkeyDel.mockClear()
+
+      const res = await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${editorUserId}`,
+        payload: { role: "viewer" },
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { user_id: string; role: string }
+      expect(body.user_id).toBe(editorUserId)
+      expect(body.role).toBe("viewer")
+
+      // Verify DB updated
+      const rows = await sql`
+        SELECT role FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${editorUserId}::uuid
+      `
+      expect((rows[0] as { role: string }).role).toBe("viewer")
+
+      // Restore editor role for other tests
+      await sql`
+        UPDATE workspace_members SET role = 'editor', updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${editorUserId}::uuid
+      `
+    })
+
+    it("busts Valkey role cache key on success", async () => {
+      mockValkeyDel.mockClear()
+
+      await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${editorUserId}`,
+        payload: { role: "viewer" },
+      })
+
+      expect(mockValkeyDel).toHaveBeenCalledWith(
+        `member_role:${workspaceId}:${editorUserId}`
+      )
+
+      // Restore editor role
+      await sql`
+        UPDATE workspace_members SET role = 'editor', updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${editorUserId}::uuid
+      `
+    })
+
+    it("returns 403 when non-admin tries to change role", async () => {
+      const res = await editorApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${adminUserId}`,
+        payload: { role: "viewer" },
+      })
+      expect(res.statusCode).toBe(403)
+    })
+
+    it("returns 403 TIER_LIMIT_EXCEEDED when upgrading to editor at free tier cap", async () => {
+      const capWsId = uuidv7()
+      const capAdminId = uuidv7()
+      const targetUserId = uuidv7()
+
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${capAdminId}::uuid, ${`role-cap-admin-${Date.now()}@example.com`}, 'hash', true)
+      `
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${targetUserId}::uuid, ${`role-cap-target-${Date.now()}@example.com`}, 'hash', true)
+      `
+      await sql`
+        INSERT INTO workspaces (id, name, slug, plan_tier)
+        VALUES (${capWsId}::uuid, 'Role Cap WS', ${`role-cap-ws-${Date.now()}`}, 'free')
+      `
+      await sql`
+        INSERT INTO workspace_members (id, workspace_id, user_id, role)
+        VALUES (${uuidv7()}::uuid, ${capWsId}::uuid, ${capAdminId}::uuid, 'admin')
+      `
+      // Add viewer who will be the upgrade target
+      await sql`
+        INSERT INTO workspace_members (id, workspace_id, user_id, role)
+        VALUES (${uuidv7()}::uuid, ${capWsId}::uuid, ${targetUserId}::uuid, 'viewer')
+      `
+      // Fill editor cap (3 editors)
+      const editorIds: string[] = []
+      for (let i = 0; i < 3; i++) {
+        const editorId = uuidv7()
+        editorIds.push(editorId)
+        await sql`
+          INSERT INTO users (id, email, password_hash, email_verified)
+          VALUES (${editorId}::uuid, ${`role-cap-editor${i}-${Date.now()}@example.com`}, 'hash', true)
+        `
+        await sql`
+          INSERT INTO workspace_members (id, workspace_id, user_id, role)
+          VALUES (${uuidv7()}::uuid, ${capWsId}::uuid, ${editorId}::uuid, 'editor')
+        `
+      }
+
+      const capApp = buildApp(capAdminId, capWsId, "admin")
+      const { default: memberRoutes } = await import("../members.js")
+      await capApp.register(memberRoutes)
+      await capApp.ready()
+
+      const res = await capApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${capWsId}/members/${targetUserId}`,
+        payload: { role: "editor" },
+      })
+      expect(res.statusCode).toBe(403)
+      const body = res.json() as { code: string }
+      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+
+      await capApp.close()
+      for (const editorId of editorIds) {
+        await sql`DELETE FROM workspace_members WHERE user_id = ${editorId}::uuid`
+        await sql`DELETE FROM users WHERE id = ${editorId}::uuid`
+      }
+      await sql`DELETE FROM workspace_members WHERE workspace_id = ${capWsId}::uuid`
+      await sql`DELETE FROM workspaces WHERE id = ${capWsId}::uuid`
+      await sql`DELETE FROM users WHERE id IN (${capAdminId}::uuid, ${targetUserId}::uuid)`
+    })
+  })
+
+  // USR-04: Admin can deactivate a member with immediate session invalidation
+  describe("PATCH /api/workspaces/:workspaceId/members/:userId/deactivate (USR-04)", () => {
+    let deactivateTargetId: string
+
+    beforeAll(async () => {
+      deactivateTargetId = uuidv7()
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${deactivateTargetId}::uuid, ${`deactivate-target-${Date.now()}@example.com`}, 'hash', true)
+      `
+      await sql`
+        INSERT INTO workspace_members (id, workspace_id, user_id, role)
+        VALUES (${uuidv7()}::uuid, ${workspaceId}::uuid, ${deactivateTargetId}::uuid, 'viewer')
+      `
+    })
+
+    afterAll(async () => {
+      await sql`DELETE FROM workspace_members WHERE user_id = ${deactivateTargetId}::uuid`
+      await sql`DELETE FROM users WHERE id = ${deactivateTargetId}::uuid`
+    })
+
+    it("returns 200 and sets is_active=false when admin deactivates a member", async () => {
+      mockValkeySet.mockClear()
+      mockValkeyDel.mockClear()
+
+      const res = await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${deactivateTargetId}/deactivate`,
+      })
+
+      expect(res.statusCode).toBe(200)
+
+      // Verify DB updated
+      const rows = await sql`
+        SELECT is_active FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${deactivateTargetId}::uuid
+      `
+      expect((rows[0] as { is_active: boolean }).is_active).toBe(false)
+    })
+
+    it("sets Valkey blocklist key with 30-day TTL on deactivation", async () => {
+      // Re-activate for this test
+      await sql`
+        UPDATE workspace_members SET is_active = true, updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${deactivateTargetId}::uuid
+      `
+      mockValkeySet.mockClear()
+
+      await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${deactivateTargetId}/deactivate`,
+      })
+
+      expect(mockValkeySet).toHaveBeenCalledWith(
+        `deactivated:${workspaceId}:${deactivateTargetId}`,
+        "1",
+        "EX",
+        60 * 60 * 24 * 30
+      )
+    })
+
+    it("busts Valkey role cache on deactivation", async () => {
+      await sql`
+        UPDATE workspace_members SET is_active = true, updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${deactivateTargetId}::uuid
+      `
+      mockValkeyDel.mockClear()
+
+      await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${deactivateTargetId}/deactivate`,
+      })
+
+      expect(mockValkeyDel).toHaveBeenCalledWith(
+        `member_role:${workspaceId}:${deactivateTargetId}`
+      )
+    })
+
+    it("returns 403 when non-admin tries to deactivate", async () => {
+      const res = await editorApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${deactivateTargetId}/deactivate`,
+      })
+      expect(res.statusCode).toBe(403)
+    })
+
+    it("returns 400 when admin tries to deactivate themselves", async () => {
+      const res = await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${adminUserId}/deactivate`,
+      })
+      expect(res.statusCode).toBe(400)
     })
   })
 
