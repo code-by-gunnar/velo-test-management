@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 3 — Test Runs and Dashboard
-current_plan: 03-03 complete
+current_plan: 03-04 complete
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-10T09:29:06.000Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-03-10T09:36:40.027Z"
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 15
-  percent: 83
+  completed_plans: 16
+  percent: 89
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[████████░░] 78%
+[█████████░] 89%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -117,6 +117,10 @@ Phase 6 [          ] 0%   Team and Access Control
 | Valkey publish is fire-and-forget (.catch(() => {})) after withWorkspace (03-03) | Client response must not block on pub/sub latency; SSE fan-out is best-effort |
 | defects.external_id and external_url are NULL at creation (03-03) | Linear integration deferred to Phase 5; no external_url field at defect filing time |
 | Valkey mock typed as unknown as Redis in test files (03-03) | Avoids full iovalkey instantiation in tests; only publish() is exercised |
+| Dedicated iovalkey subscriber per SSE connection (03-04) | iovalkey enters subscriber mode on subscribe(); shared connection cannot be reused for pub/get/set |
+| reply.hijack() for Fastify SSE endpoint (03-04) | Prevents Fastify from finalizing response after the async handler returns; required for long-lived SSE connections |
+| ?token= query param accepted by session plugin for EventSource auth (03-04) | EventSource API cannot set custom headers; JWT must be passed via query string for SSE routes |
+| X-Accel-Buffering: no sent per-request via res.writeHead() for SSE (03-04) | Prevents Railway/nginx proxy from buffering SSE frames; must be per-request since Fastify CORS plugin does not set it globally |
 
 ### Architecture Patterns Locked In
 
@@ -174,13 +178,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:29:06.000Z
+**Last session:** 2026-03-10T09:36:40.022Z
 
-**Stopped at:** Completed 03-03-PLAN.md
+**Stopped at:** Completed 03-04-PLAN.md
 
-**To resume work:** Run `/gsd:execute-phase 3` to continue with plan 03-04.
+**To resume work:** Run `/gsd:execute-phase 3` to continue with plan 03-05.
 
-**Context summary:** Phase 3 plan 03-03 complete — Run Items and Defects API delivered. PATCH /run-items/:itemId executes verdict (pass/fail/blocked/skipped), recomputes run status aggregate, publishes to Valkey fire-and-forget for SSE. PATCH /run-items/:itemId/comment sets case-level comment. POST /run-items/:itemId/step-comments creates step annotation. POST /defects files local defect linked to run_item_id (Linear integration deferred to Phase 5). All 19 integration tests pass. Valkey mocked as unknown as Redis in test files.
+**Context summary:** Phase 3 plan 03-04 complete — SSE real-time stream endpoint delivered. GET /api/workspaces/:wid/runs/:runId/stream uses reply.hijack() + dedicated iovalkey subscriber per connection. Initial event sends current run stats + EMA ETA. 20s heartbeat keeps Railway proxy alive. ?token= query param added to session plugin for EventSource auth. computeRunStats() and estimateTimeRemaining() pure functions in run-stats.ts with 10 unit tests all passing.
 
 ---
 
