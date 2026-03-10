@@ -26,7 +26,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
-| 4. CI Ingestion | 2/5 | In Progress|  |
+| 4. CI Ingestion | 3/5 | In Progress|  |
 | 5. Integrations and API | 0/? | Not started | - |
 | 6. Team and Access Control | 0/? | Not started | - |
 
