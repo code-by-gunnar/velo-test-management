@@ -229,6 +229,8 @@ export const defects = pgTable("defects", {
   // External issue reference (Linear issue URL or ID)
   external_id: varchar("external_id", { length: 255 }),
   external_url: text("external_url"),
+  // Cached Linear issue status (e.g. "Todo", "In Progress", "Done")
+  external_status: varchar("external_status", { length: 50 }),
   title: varchar("title", { length: 500 }).notNull(),
   created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -249,6 +251,40 @@ export const apiKeys = pgTable("api_keys", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expires_at: timestamp("expires_at", { withTimezone: true }),
   revoked_at: timestamp("revoked_at", { withTimezone: true }),
+})
+
+// ─── Linear Connections (tenant-scoped, Phase 5) ────────────────────────────────
+
+export const linearConnections = pgTable("linear_connections", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  // OAuth tokens encrypted via AES-256-GCM before storage
+  access_token_enc: text("access_token_enc").notNull(),
+  refresh_token_enc: text("refresh_token_enc"),
+  linear_org_id: varchar("linear_org_id", { length: 255 }).notNull(),
+  linear_org_name: varchar("linear_org_name", { length: 255 }),
+  team_id: varchar("team_id", { length: 255 }).notNull(),
+  team_name: varchar("team_name", { length: 255 }),
+  webhook_signing_secret: text("webhook_signing_secret"),
+  connected_by: uuid("connected_by").references(() => users.id, { onDelete: "set null" }),
+  connected_at: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─── Webhooks (tenant-scoped, Phase 5) ──────────────────────────────────────────
+
+export const webhooks = pgTable("webhooks", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  project_id: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  endpoint_url: text("endpoint_url").notNull(),
+  // HMAC-SHA256 signing secret (32 bytes hex)
+  secret: varchar("secret", { length: 64 }).notNull(),
+  // Subscribed event types: 'run.completed', 'run_item.failed'
+  events: text("events").array().notNull().default([]),
+  active: boolean("active").notNull().default(true),
+  created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
 // ─── CI Ingestion Runs (tenant-scoped, Phase 4) ───────────────────────────────
