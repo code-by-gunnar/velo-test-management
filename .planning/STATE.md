@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 3 — Test Runs and Dashboard
 current_plan: 03-01 complete
 status: executing
-stopped_at: "Completed 03-01-PLAN.md (Wave 0 foundation: migration 0003, 5 test stub files)"
-last_updated: "2026-03-10T09:23:22.691Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-10T09:28:41.865Z"
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 13
-  percent: 72
+  completed_plans: 14
+  percent: 78
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[███████░░░] 72%
+[████████░░] 78%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -111,6 +111,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | POST /cases/bulk registered before /cases/:caseId wildcard (TC-05) | Fastify static-before-wildcard rule; bulk and position static segments must precede :caseId param route |
 | Bulk copy uses app-layer UUID mapping for steps (TC-05) | INSERT INTO ... SELECT without ID remapping causes steps to reference old case IDs — explicit loop with uuidv7() per step prevents orphaned refs (Pitfall 5) |
 | BulkActionBar as fixed-position overlay (TC-05) | fixed bottom-0 does not shift page content; z-30 ensures it renders above table rows and DnD drag previews |
+| result=null sentinel from withWorkspace signals 400 for no-cases case (03-02) | Checked after transaction to avoid reply.send() inside withWorkspace |
+| RLS isolation tested via route-level 403 guard in dev (03-02) | Dev velo role is superuser which bypasses RLS at DB layer; route guard is testable |
+| Rerun-failures snapshots case_title from live test_cases at creation time (03-02) | Consistent with original run creation behavior |
 
 ### Architecture Patterns Locked In
 
@@ -168,9 +171,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:23:22.688Z
+**Last session:** 2026-03-10T09:28:41.861Z
 
-**Stopped at:** Completed 03-01-PLAN.md (Wave 0 foundation: migration 0003, 5 test stub files)
+**Stopped at:** Completed 03-02-PLAN.md
 
 **To resume work:** Run `/gsd:execute-phase 2` to continue with plan 02-06.
 

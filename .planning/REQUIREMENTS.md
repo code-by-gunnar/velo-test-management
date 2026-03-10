@@ -46,19 +46,19 @@
 
 ### Test Runs
 
-- [ ] **TR-01**: User can create a named test run scoped to a project, suite selection, or milestone
+- [x] **TR-01**: User can create a named test run scoped to a project, suite selection, or milestone
 - [ ] **TR-02**: User can assign a test run to themselves or another team member
 - [ ] **TR-03**: User can execute a run one case at a time using P/F/B/S keyboard shortcuts (Pass / Fail / Blocked / Skipped)
 - [ ] **TR-04**: User can add an inline comment on any test step during execution
 - [ ] **TR-05**: User can file a defect (linked to Linear issue) directly from a failed run item
-- [ ] **TR-06**: User can see execution history for a test case across all previous runs
-- [ ] **TR-07**: User can create a new run from the failures of a previous run (rerun-failures flow)
+- [x] **TR-06**: User can see execution history for a test case across all previous runs
+- [x] **TR-07**: User can create a new run from the failures of a previous run (rerun-failures flow)
 
 ### Live Dashboard
 
 - [ ] **DA-01**: User can see a live run dashboard that updates in real time without page refresh (SSE + Valkey pub/sub per run_id)
 - [ ] **DA-02**: Dashboard shows real-time progress bar, pass rate percentage, and time-to-complete estimate
-- [ ] **DA-03**: Dashboard run list is filterable by assignee, run status, and milestone
+- [x] **DA-03**: Dashboard run list is filterable by assignee, run status, and milestone
 
 ### CI/CD Result Ingestion
 
@@ -171,16 +171,16 @@
 | TC-04 | Phase 2 | Complete |
 | TC-05 | Phase 2 | Complete |
 | TC-06 | Phase 2 | Complete |
-| TR-01 | Phase 3 | Pending |
+| TR-01 | Phase 3 | Complete |
 | TR-02 | Phase 3 | Pending |
 | TR-03 | Phase 3 | Pending |
 | TR-04 | Phase 3 | Pending |
 | TR-05 | Phase 3 | Pending |
-| TR-06 | Phase 3 | Pending |
-| TR-07 | Phase 3 | Pending |
+| TR-06 | Phase 3 | Complete |
+| TR-07 | Phase 3 | Complete |
 | DA-01 | Phase 3 | Pending |
 | DA-02 | Phase 3 | Pending |
-| DA-03 | Phase 3 | Pending |
+| DA-03 | Phase 3 | Complete |
 | IN-01 | Phase 4 | Pending |
 | IN-02 | Phase 4 | Pending |
 | IN-03 | Phase 4 | Pending |
