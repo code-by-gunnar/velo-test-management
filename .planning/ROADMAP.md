@@ -13,7 +13,7 @@
 - [x] **Phase 1: Foundation** - Deployable scaffold with CI/CD, schema, auth, workspace isolation, and base design system (completed 2026-03-08)
 - [x] **Phase 2: Test Cases** - Keyboard-first test case editor, suite hierarchy, drag-drop reorder, bulk operations, CSV import (completed 2026-03-09)
 - [x] **Phase 3: Test Runs and Dashboard** - Run creation, keyboard-driven execution, inline defect filing, live real-time dashboard (completed 2026-03-10)
-- [ ] **Phase 4: CI Ingestion** - JUnit XML and Allure JSON ingestion via REST API, R2 raw payload storage
+- [x] **Phase 4: CI Ingestion** - JUnit XML and Allure JSON ingestion via REST API, R2 raw payload storage (completed 2026-03-10)
 - [ ] **Phase 5: Integrations and API** - Linear integration, REST API with full UI parity, outbound webhooks
 - [ ] **Phase 6: Team and Access Control** - Workspace invitations, RBAC enforcement, plan tier limits
 
@@ -26,7 +26,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
-| 4. CI Ingestion | 4/5 | In Progress|  |
+| 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
 | 5. Integrations and API | 0/? | Not started | - |
 | 6. Team and Access Control | 0/? | Not started | - |
 
