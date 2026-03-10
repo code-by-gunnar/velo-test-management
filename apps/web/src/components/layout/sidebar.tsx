@@ -10,6 +10,7 @@ import {
   BarChart3,
   Download,
   Settings,
+  Settings2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -189,20 +190,40 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
           </Link>
         )}
 
-        {/* Settings */}
+        {/* Project Settings */}
+        {effectiveProjectKey && (
+          <Link
+            href={`/app/${slug}/${effectiveProjectKey}/settings`}
+            title={collapsed ? "Project Settings" : undefined}
+            className={clsx(
+              "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+              collapsed ? "justify-center px-2" : "pr-2",
+              router.asPath.includes(`/${effectiveProjectKey}/settings`)
+                ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
+                : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+            )}
+          >
+            <Settings2 size={ICON_SIZE} className="shrink-0" />
+            {!collapsed && <span>Project Settings</span>}
+          </Link>
+        )}
+
+        <div className="my-2 border-t border-gray-700" />
+
+        {/* Workspace Settings */}
         <Link
           href={`/app/${slug}/settings`}
           title={collapsed ? "Settings" : undefined}
           className={clsx(
             "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
             collapsed ? "justify-center px-2" : "pr-2",
-            router.asPath.includes("/settings")
+            router.asPath === `/app/${slug}/settings`
               ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
               : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
           )}
         >
           <Settings size={ICON_SIZE} className="shrink-0" />
-          {!collapsed && <span>Settings</span>}
+          {!collapsed && <span>Workspace Settings</span>}
         </Link>
       </nav>
 

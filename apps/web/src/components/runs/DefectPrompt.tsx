@@ -90,8 +90,8 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
           >
             Skip
           </button>
-          <span className="ml-auto text-xs text-gray-300 italic">
-            Linear integration coming soon
+          <span className="ml-auto text-xs text-gray-400">
+            Enter to file
           </span>
         </div>
       </form>
