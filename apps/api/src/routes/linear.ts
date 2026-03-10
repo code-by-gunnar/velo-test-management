@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
+import { sql } from "../db/client.js"
 import { encrypt } from "../lib/encryption.js"
 import {
   exchangeCodeForTokens,
@@ -9,24 +10,35 @@ import {
   createLinearWebhook,
 } from "../lib/linear-client.js"
 
+// Extend Fastify route config to support skipAuth flag
+declare module "fastify" {
+  interface FastifyContextConfig {
+    skipAuth?: boolean
+  }
+}
+
+// Helper: look up workspace slug by ID (non-tenant, bare sql)
+async function getWorkspaceSlug(workspaceId: string): Promise<string> {
+  const rows = await sql`SELECT slug FROM workspaces WHERE id = ${workspaceId}::uuid`
+  return (rows[0]?.slug as string) ?? "unknown"
+}
+
 // ── Linear OAuth + management routes ────────────────────────────────────────
-// Base path: /api/workspaces/:workspaceId/linear/*
-// All handlers:
-//   1. Check session (401 if no userId)
-//   2. Verify request.workspaceId matches :workspaceId param (403 if mismatch)
-//   3. Use withWorkspace for every DB query
-//   4. reply.send() called AFTER withWorkspace completes
 
 const linearRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // ── Auth guard ────────────────────────────────────────────────────────────
+  // ── Auth guard (skips routes with skipAuth config) ──────────────────────
   fastify.addHook("preHandler", async (request, reply) => {
+    if (request.routeOptions?.config?.skipAuth) return
     if (!request.userId) {
       return reply.status(401).send({ error: "Unauthorized" })
     }
   })
 
   // ── GET /linear/auth — Generate Linear OAuth authorization URL ────────────
+  // The redirect_uri is a FIXED path (not per-workspace) because Linear OAuth
+  // apps only allow specific registered callback URLs. The workspaceId is
+  // carried in the `state` parameter and validated on callback.
   fastify.get<{
     Params: { workspaceId: string }
   }>(
@@ -39,11 +51,13 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const clientId = process.env.LINEAR_CLIENT_ID
-      const redirectUri = process.env.LINEAR_REDIRECT_URI
-
-      if (!clientId || !redirectUri) {
-        return reply.status(500).send({ error: "Linear OAuth is not configured" })
+      if (!clientId) {
+        return reply.status(503).send({ error: "Linear integration is not available yet" })
       }
+
+      // Fixed callback URL — workspaceId passed via state, not the URL path
+      const apiBase = (process.env.API_URL ?? process.env.WEB_URL ?? "").replace(/\/$/, "")
+      const redirectUri = `${apiBase}/api/linear/callback`
 
       // Generate CSRF state token, store in Valkey with 10-min TTL
       const state = crypto.randomBytes(32).toString("hex")
@@ -59,7 +73,6 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         response_type: "code",
         scope: "read,write,issues:create",
         state,
-        // Pass actor to hint which Linear team to authorize
         actor: "application",
       })
 
@@ -69,29 +82,24 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── GET /linear/callback — OAuth callback handler ────────────────────────
-  // This receives the code+state from Linear after user authorizes.
-  // In practice, the frontend redirects here, and we return JSON with teams.
+  // ── GET /linear/callback — OAuth callback handler (FIXED path) ──────────
+  // Linear redirects here after user authorizes. workspaceId comes from
+  // the state parameter (stored in Valkey during /auth). This endpoint
+  // does NOT require session auth — the user may have a different cookie
+  // state after the redirect. We validate via the CSRF state token instead.
+  // After processing, redirects the browser to the frontend settings page.
   fastify.get<{
-    Params: { workspaceId: string }
     Querystring: { code?: string; state?: string; error?: string }
   }>(
-    "/api/workspaces/:workspaceId/linear/callback",
+    "/api/linear/callback",
+    { config: { skipAuth: true } },
     async (request, reply) => {
-      const { workspaceId } = request.params
       const { code, state, error: oauthError } = request.query
-
-      if (request.workspaceId !== workspaceId) {
-        return reply.status(403).send({ error: "Forbidden" })
-      }
+      const webUrl = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "")
 
       // Handle OAuth error (user denied, etc.)
-      if (oauthError) {
-        return reply.status(400).send({ error: `Linear OAuth error: ${oauthError}` })
-      }
-
-      if (!code || !state) {
-        return reply.status(400).send({ error: "Missing code or state parameter" })
+      if (oauthError || !code || !state) {
+        return reply.redirect(`${webUrl}/app?linear_error=${oauthError ?? "missing_params"}`)
       }
 
       // Validate CSRF state against Valkey
@@ -99,81 +107,71 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       const stateData = await fastify.valkey.get(stateKey)
 
       if (!stateData) {
-        return reply.status(400).send({ error: "Invalid or expired OAuth state" })
+        return reply.redirect(`${webUrl}/app?linear_error=invalid_state`)
       }
 
       // Delete state immediately (one-time use)
       await fastify.valkey.del(stateKey)
 
       const parsed = JSON.parse(stateData) as { workspaceId: string; userId: string }
-      if (parsed.workspaceId !== workspaceId) {
-        return reply.status(400).send({ error: "OAuth state workspace mismatch" })
-      }
+      const workspaceId = parsed.workspaceId
 
-      // Exchange code for tokens
-      const redirectUri = process.env.LINEAR_REDIRECT_URI
-      if (!redirectUri) {
-        return reply.status(500).send({ error: "LINEAR_REDIRECT_URI not configured" })
-      }
+      // Build the redirect URI (must match what was sent to Linear in /auth)
+      const apiBase = (process.env.API_URL ?? process.env.WEB_URL ?? "").replace(/\/$/, "")
+      const redirectUri = `${apiBase}/api/linear/callback`
 
-      const tokens = await exchangeCodeForTokens(code, redirectUri)
+      try {
+        const tokens = await exchangeCodeForTokens(code, redirectUri)
 
-      // Fetch org info + teams
-      const org = await getLinearOrganization(tokens.access_token)
-      const teams = await getLinearTeams(tokens.access_token)
+        // Fetch org info + teams
+        const org = await getLinearOrganization(tokens.access_token)
+        const teams = await getLinearTeams(tokens.access_token)
 
-      // Store encrypted tokens in linear_connections
-      const encAccessToken = encrypt(tokens.access_token)
+        // Store encrypted tokens in linear_connections
+        const encAccessToken = encrypt(tokens.access_token)
 
-      // Check for existing connection and insert
-      const result = await withWorkspace(workspaceId, async (tx) => {
-        const existing = await tx.unsafe(`
-          SELECT id FROM linear_connections
-          WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        const result = await withWorkspace(workspaceId, async (tx) => {
+          const existing = await tx.unsafe(`
+            SELECT id FROM linear_connections
+            WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+          `)
 
-        if (existing.length > 0) {
-          return "exists" as const
+          if (existing.length > 0) {
+            return "exists" as const
+          }
+
+          await tx.unsafe(`
+            INSERT INTO linear_connections (
+              id, workspace_id, access_token_enc, linear_org_id, linear_org_name,
+              team_id, team_name, connected_by
+            ) VALUES (
+              gen_random_uuid(),
+              current_setting('app.workspace_id', true)::uuid,
+              '${encAccessToken.replace(/'/g, "''")}',
+              '${org.id.replace(/'/g, "''")}',
+              '${org.name.replace(/'/g, "''")}',
+              'pending',
+              NULL,
+              '${parsed.userId}'
+            )
+          `)
+
+          return "created" as const
+        })
+
+        if (result === "exists") {
+          return reply.redirect(`${webUrl}/app?linear_error=already_connected`)
         }
 
-        await tx.unsafe(`
-          INSERT INTO linear_connections (
-            id, workspace_id, access_token_enc, linear_org_id, linear_org_name,
-            team_id, team_name, connected_by
-          ) VALUES (
-            gen_random_uuid(),
-            current_setting('app.workspace_id', true)::uuid,
-            '${encAccessToken.replace(/'/g, "''")}',
-            '${org.id.replace(/'/g, "''")}',
-            '${org.name.replace(/'/g, "''")}',
-            'pending',
-            NULL,
-            '${request.userId}'
-          )
-        `)
-
-        return "created" as const
-      })
-
-      if (result === "exists") {
-        return reply.status(409).send({
-          error: "Workspace already has a Linear connection. Disconnect first to reconnect.",
-        })
-      }
-
-      // Register webhook with Linear for inbound status sync
-      const appUrl = process.env.APP_URL ?? process.env.WEB_URL
-      if (appUrl) {
+        // Register webhook with Linear for inbound status sync
         try {
-          const apiBase = process.env.API_URL ?? `${appUrl}`
-          const webhookUrl = `${apiBase.replace(/\/$/, "")}/api/webhooks/linear`
+          const webhookUrl = `${apiBase}/api/webhooks/linear`
           const webhook = await createLinearWebhook(
             tokens.access_token,
             webhookUrl,
             ["Issue"]
           )
 
-          // Store the webhook signing secret
           await withWorkspace(workspaceId, async (tx) => {
             await tx.unsafe(`
               UPDATE linear_connections
@@ -182,46 +180,85 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
             `)
           })
         } catch (err) {
-          // Webhook registration failure is non-fatal — log and continue
-          fastify.log.warn(
-            { err, workspaceId },
-            "Linear webhook registration failed — inbound sync will not work"
-          )
+          fastify.log.warn({ err, workspaceId }, "Linear webhook registration failed")
         }
+
+        // Cache teams in Valkey for the frontend team-selection step (5 min TTL)
+        await fastify.valkey.set(
+          `linear:teams:${workspaceId}`,
+          JSON.stringify(teams),
+          "EX", 300
+        )
+
+        // Redirect back to frontend settings with success flag
+        // Frontend will detect this and show team selection
+        const slug = await getWorkspaceSlug(workspaceId)
+        return reply.redirect(`${webUrl}/app/${slug}/settings?tab=integrations&linear_callback=success`)
+      } catch (err) {
+        fastify.log.error({ err, workspaceId }, "Linear OAuth callback failed")
+        return reply.redirect(`${webUrl}/app?linear_error=exchange_failed`)
+      }
+    }
+  )
+
+  // ── GET /linear/teams — Retrieve cached teams for selection step ─────────
+  fastify.get<{
+    Params: { workspaceId: string }
+  }>(
+    "/api/workspaces/:workspaceId/linear/teams",
+    async (request, reply) => {
+      const { workspaceId } = request.params
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
       }
 
-      return reply.send({
-        connected: true,
-        org: { id: org.id, name: org.name },
-        teams,
-      })
+      const cached = await fastify.valkey.get(`linear:teams:${workspaceId}`)
+      if (!cached) {
+        return reply.status(404).send({ error: "No pending team selection" })
+      }
+
+      const teams = JSON.parse(cached) as Array<{ id: string; name: string }>
+      return reply.send({ teams })
     }
   )
 
   // ── POST /linear/team — Set the default team after OAuth ──────────────────
   fastify.post<{
     Params: { workspaceId: string }
-    Body: { team_id: string; team_name: string }
+    Body: { team_id: string; team_name?: string }
   }>(
     "/api/workspaces/:workspaceId/linear/team",
     {
       schema: {
         body: {
           type: "object",
-          required: ["team_id", "team_name"],
+          required: ["team_id"],
           properties: {
             team_id: { type: "string", minLength: 1 },
-            team_name: { type: "string", minLength: 1 },
+            team_name: { type: "string" },
           },
         },
       },
     },
     async (request, reply) => {
       const { workspaceId } = request.params
-      const { team_id, team_name } = request.body
+      const { team_id } = request.body
+      let { team_name } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      // If team_name not provided, look it up from cached teams
+      if (!team_name) {
+        const cached = await fastify.valkey.get(`linear:teams:${workspaceId}`)
+        if (cached) {
+          const teams = JSON.parse(cached) as Array<{ id: string; name: string }>
+          const match = teams.find(t => t.id === team_id)
+          team_name = match?.name ?? team_id
+        } else {
+          team_name = team_id
+        }
       }
 
       const safeTeamId = team_id.replace(/'/g, "''")
@@ -241,6 +278,9 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(404).send({ error: "No Linear connection found for this workspace" })
       }
 
+      // Clean up cached teams
+      await fastify.valkey.del(`linear:teams:${workspaceId}`)
+
       return reply.send({ updated: true, team_id, team_name })
     }
   )
@@ -259,23 +299,28 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
 
       const connection = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx.unsafe(`
-          SELECT linear_org_name, team_name, connected_by, connected_at
+          SELECT linear_org_name, team_id, team_name, connected_by, connected_at
           FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
         `)
-        return rows.length > 0 ? rows[0] : null
+        return rows.length > 0 ? rows[0] as Record<string, unknown> : null
       })
 
       if (!connection) {
         return reply.send({ connected: false })
       }
 
+      const teamId = connection.team_id as string
+      const needsTeamSelection = teamId === "pending"
+
       return reply.send({
         connected: true,
-        orgName: (connection as Record<string, unknown>).linear_org_name,
-        teamName: (connection as Record<string, unknown>).team_name,
-        connectedAt: (connection as Record<string, unknown>).connected_at,
-        connectedBy: (connection as Record<string, unknown>).connected_by,
+        org_name: connection.linear_org_name,
+        team_id: needsTeamSelection ? null : teamId,
+        team_name: needsTeamSelection ? null : connection.team_name,
+        connected_at: connection.connected_at,
+        connected_by: connection.connected_by,
+        needs_team_selection: needsTeamSelection,
       })
     }
   )
