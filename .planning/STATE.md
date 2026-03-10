@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4 — CI Ingestion
-current_plan: 04-05 complete (at checkpoint:human-verify)
-status: checkpoint
-stopped_at: "Completed 04-05-PLAN.md (at checkpoint:human-verify)"
-last_updated: "2026-03-10T12:34:03.681Z"
+current_plan: "04-05 complete"
+status: complete
+stopped_at: "Completed 04-05-PLAN.md (post-checkpoint UAT fixes applied, all tests passing)"
+last_updated: "2026-03-10T13:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 4
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 4 — CI Ingestion
-**Current plan:** 04-05 complete (at checkpoint:human-verify)
-**Status:** At checkpoint — awaiting human verification
+**Current plan:** 04-05 complete
+**Status:** Complete — Phase 4 fully delivered and verified
 
 **Progress:**
 [██████████] 100%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
-Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, checkpoint pending)
+Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 23/23 plans complete (Phase 4 checkpoint pending human verification)
+**Overall:** 23/23 plans complete (Phase 4 fully delivered)
 
 ---
 
@@ -143,6 +143,8 @@ Phase 6 [          ] 0%   Team and Access Control
 | R2 upload before parse in ingestion routes (04-04) | Raw payload stored even if parse fails; aligns with anti-pattern guidance to always persist CI payloads before destructive processing |
 | Raw API key shown once in dismissable highlighted box (04-05) | No localStorage persistence — security requirement; user must copy during creation |
 | hasApiKeys check done server-side in getServerSideProps (04-05) | Avoids client-side flash in setup guide warning banner; slightly more accurate than client fetch |
+| Ingestion nav item is standalone project-scoped link above Settings (not in NAV_ITEMS) (04-05) | Shows only when projectKey is available; avoids # fallback state that occurs with NAV_ITEMS when project context is absent |
+| ingestion.test.ts registers @fastify/multipart in buildApp() (04-05) | Missing registration caused 415 on all multipart test routes — bare Fastify() has no content-type parsers |
 
 ### Architecture Patterns Locked In
 
@@ -200,13 +202,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T12:34:03.677Z
+**Last session:** 2026-03-10T13:00:00.000Z
 
-**Stopped at:** Completed 04-05-PLAN.md (at checkpoint:human-verify)
+**Stopped at:** Completed 04-05-PLAN.md (post-checkpoint UAT fixes applied and all tests passing)
 
-**To resume work:** Execute 04-03-PLAN.md to implement Allure JSON parser.
+**To resume work:** Begin Phase 5 — Integrations and API (Linear sync, REST API, webhooks).
 
-**Context summary:** Phase 4 plan 04-02 complete — JUnit XML parser delivered. parseJUnitXml and NormalizedTestCase exported from apps/api/src/lib/junit-parser.ts. Handles all 5 CI variants (pytest-junit, Maven Surefire, Gradle, Jest-junit, Go gotestsum). 13 tests passing. Note: allure-parser.test.ts has uncommitted pre-expanded stubs in working tree (from 04-01 planning) — will be resolved by 04-03 when allure-parser.ts is implemented. IN-03 requirement delivered.
+**Context summary:** Phase 4 complete. All 5 plans delivered and UAT verified. CI ingestion pipeline fully operational: JUnit XML + Allure JSON parsers, API key auth, R2 upload, frontend UI for key management and ingestion history. Post-checkpoint fixes resolved sidebar nav scope issue, ApiKeysPanel response parsing, duplicate multipart registration crash, and missing multipart plugin in test helper.
 
 ---
 
