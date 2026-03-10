@@ -14,6 +14,8 @@ import workspaceRoutes from "./routes/workspaces.js"
 import suitesRoutes from "./routes/suites.js"
 import testCasesRoutes from "./routes/test-cases.js"
 import runsRoutes from "./routes/runs.js"
+import runItemsRoutes from "./routes/run-items.js"
+import defectsRoutes from "./routes/defects.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -82,6 +84,8 @@ await fastify.register(workspaceRoutes)
 await fastify.register(suitesRoutes)
 await fastify.register(testCasesRoutes)
 await fastify.register(runsRoutes)
+await fastify.register(runItemsRoutes)
+await fastify.register(defectsRoutes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
