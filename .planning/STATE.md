@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4 — CI Ingestion
-current_plan: 04-04 complete
-status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-03-10T12:30:00.000Z"
+current_plan: 04-05 complete (at checkpoint:human-verify)
+status: checkpoint
+stopped_at: "Completed 04-05-PLAN.md (at checkpoint:human-verify)"
+last_updated: "2026-03-10T12:34:03.681Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 23
-  completed_plans: 22
-  percent: 96
+  completed_plans: 23
+  percent: 100
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 4 — CI Ingestion
-**Current plan:** 04-04 complete
-**Status:** In progress
+**Current plan:** 04-05 complete (at checkpoint:human-verify)
+**Status:** At checkpoint — awaiting human verification
 
 **Progress:**
-[█████████░] 96%
+[██████████] 100%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
-Phase 4 [████░     ] 80%  CI Ingestion (4/5 plans complete)
+Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, checkpoint pending)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 22/23 plans complete across phases 1-4
+**Overall:** 23/23 plans complete (Phase 4 checkpoint pending human verification)
 
 ---
 
@@ -141,6 +141,8 @@ Phase 6 [          ] 0%   Team and Access Control
 | verifyApiKey uses bare sql (not withWorkspace) for api_keys lookup (04-04) | api_keys lookup is pre-authentication — workspace_id is a filter not enforced by RLS; avoids invalid UUID error when workspaceId not yet known |
 | Empty catch{} (ES2019 optional catch binding) for fire-and-forget blocks (04-04) | ESLint no-unused-vars flags _ prefixed catch bindings; bare catch{} is cleaner and supported in Node 22 |
 | R2 upload before parse in ingestion routes (04-04) | Raw payload stored even if parse fails; aligns with anti-pattern guidance to always persist CI payloads before destructive processing |
+| Raw API key shown once in dismissable highlighted box (04-05) | No localStorage persistence — security requirement; user must copy during creation |
+| hasApiKeys check done server-side in getServerSideProps (04-05) | Avoids client-side flash in setup guide warning banner; slightly more accurate than client fetch |
 
 ### Architecture Patterns Locked In
 
@@ -198,9 +200,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T12:27:02.508Z
+**Last session:** 2026-03-10T12:34:03.677Z
 
-**Stopped at:** Completed 04-04-PLAN.md
+**Stopped at:** Completed 04-05-PLAN.md (at checkpoint:human-verify)
 
 **To resume work:** Execute 04-03-PLAN.md to implement Allure JSON parser.
 
