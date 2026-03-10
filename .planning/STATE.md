@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 4 — CI Ingestion
-current_plan: 04-05 complete
+current_phase: 6 — Team and Access Control
+current_plan: 06-01 complete
 status: planning
-stopped_at: Completed 05-02-PLAN.md and 05-03-PLAN.md
-last_updated: "2026-03-10T16:32:00.000Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-10T20:16:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 29
-  completed_plans: 25
-  percent: 86
+  total_plans: 34
+  completed_plans: 27
+  percent: 79
 ---
 
 # State: Velo
@@ -35,18 +35,18 @@ progress:
 
 ## Current Position
 
-**Current phase:** 4 — CI Ingestion
-**Current plan:** 04-05 complete
+**Current phase:** 6 — Team and Access Control
+**Current plan:** 06-01 complete
 **Status:** Ready to plan
 
 **Progress:**
-[████████░░] 86%
+[████████░░] 79%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
-Phase 6 [          ] 0%   Team and Access Control
+Phase 6 [█░░░░░░░░░] 17%  Team and Access Control (1/6 plans complete)
 
-**Overall:** 23/23 plans complete (Phase 4 fully delivered)
+**Overall:** 27/34 plans complete
 
 ---
 
@@ -59,7 +59,7 @@ Phase 6 [          ] 0%   Team and Access Control
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
-| 6. Team and Access Control | 6 | TBD | Not started |
+| 6. Team and Access Control | 6 | 6 | In progress (06-01 Wave 0 complete) |
 
 ---
 
@@ -211,13 +211,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T16:32:00.000Z
+**Last session:** 2026-03-10T20:18:00.000Z
 
-**Stopped at:** Completed 05-02-PLAN.md and 05-03-PLAN.md
+**Stopped at:** Completed 06-01-PLAN.md
 
-**To resume work:** Continue Phase 5 plans 05-04 through 05-06 (webhooks, frontend integrations).
+**To resume work:** Continue Phase 6 plans 06-02 and 06-03 (invitations routes, role/deactivation routes).
 
-**Context summary:** Phase 5 in progress. Plans 05-02 (unified auth + v1 routes + CRUD gaps + rate limiting) and 05-03 (Linear OAuth + API client) complete. All API routes now accessible via /api/v1/ with API key auth. Rate limiting at 100 req/min per API key. CRUD gaps closed (PATCH project, DELETE project, GET members, PATCH workspace).
+**Context summary:** Phase 6 Wave 0 complete. workspace_invitations migration (0006_team_access_control.sql) with RLS policy added. workspaceInvitations Drizzle schema definition added to schema.ts. EmailJobData extended with workspace-invite type. 20 it.todo() test stubs created in members.test.ts covering USR-01 through USR-06.
 
 ---
 
