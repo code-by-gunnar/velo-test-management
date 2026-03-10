@@ -29,6 +29,13 @@
       "when": 1741593600000,
       "tag": "0003_run_item_step_comments",
       "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773144000000,
+      "tag": "0004_ci_ingestion_tables",
+      "breakpoints": true
     }
   ]
 }

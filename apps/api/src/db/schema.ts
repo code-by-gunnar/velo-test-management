@@ -167,6 +167,8 @@ export const testCases = pgTable("test_cases", {
   priority: testPriorityEnum("priority").notNull().default("medium"),
   // Gap-based integer position within its suite
   position: integer("position").notNull().default(0),
+  // Nullable — set when matched by CI ingestion parser for external ID mapping
+  external_id: varchar("external_id", { length: 255 }),
   created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -206,11 +208,14 @@ export const runItems = pgTable("run_items", {
   id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
   workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   run_id: uuid("run_id").notNull().references(() => testRuns.id, { onDelete: "cascade" }),
-  test_case_id: uuid("test_case_id").notNull().references(() => testCases.id, { onDelete: "cascade" }),
+  // Nullable — CI-ingested run items may not map to an existing test case
+  test_case_id: uuid("test_case_id").references(() => testCases.id, { onDelete: "cascade" }),
   status: testStatusEnum("status").notNull().default("untested"),
   comment: text("comment"),
   executed_by: uuid("executed_by").references(() => users.id, { onDelete: "set null" }),
   executed_at: timestamp("executed_at", { withTimezone: true }),
+  // "manual" (human-created) | "ci" (ingested from CI pipeline)
+  source: varchar("source", { length: 10 }).notNull().default("manual"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -228,4 +233,42 @@ export const defects = pgTable("defects", {
   created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─── API Keys (tenant-scoped, Phase 4) ────────────────────────────────────────
+
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  // First 8 chars of the raw key — safe to store for lookup (e.g. "velo_abc")
+  key_prefix: varchar("key_prefix", { length: 10 }).notNull(),
+  // SHA-256 hex digest of the raw key — used for constant-time comparison
+  key_hash: varchar("key_hash", { length: 64 }).notNull(),
+  created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expires_at: timestamp("expires_at", { withTimezone: true }),
+  revoked_at: timestamp("revoked_at", { withTimezone: true }),
+})
+
+// ─── CI Ingestion Runs (tenant-scoped, Phase 4) ───────────────────────────────
+
+export const ciIngestionRuns = pgTable("ci_ingestion_runs", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  project_id: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  // Linked test run (nullable — may not be linked if parsing fails)
+  run_id: uuid("run_id").references(() => testRuns.id, { onDelete: "set null" }),
+  // API key that submitted this ingestion (nullable — if key later deleted)
+  api_key_id: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+  // "junit" | "allure"
+  format: varchar("format", { length: 20 }).notNull(),
+  // Cloudflare R2 object key for the raw uploaded payload
+  r2_key: text("r2_key").notNull(),
+  // "pending" | "processing" | "completed" | "failed"
+  status: varchar("status", { length: 20 }).notNull(),
+  total_tests: integer("total_tests"),
+  matched_tests: integer("matched_tests"),
+  error_message: text("error_message"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
