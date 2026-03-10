@@ -4,22 +4,26 @@ import { auth } from "@/auth"
 import { AppLayout } from "@/components/layout/app-layout"
 import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel"
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel"
+import { TeamPanel } from "@/components/settings/TeamPanel"
 import { clsx } from "clsx"
 
 interface SettingsProps {
   slug: string
   workspaceId: string
+  userRole: string | null
+  userId: string | null
 }
 
 const TABS = [
   { key: "general", label: "General" },
+  { key: "team", label: "Team" },
   { key: "api-keys", label: "API Keys" },
   { key: "integrations", label: "Integrations" },
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]
 
-export default function SettingsPage({ slug, workspaceId }: SettingsProps) {
+export default function SettingsPage({ slug, workspaceId, userRole, userId }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("general")
 
   return (
@@ -66,6 +70,14 @@ export default function SettingsPage({ slug, workspaceId }: SettingsProps) {
               </div>
             )}
 
+            {activeTab === "team" && (
+              <TeamPanel
+                workspaceId={workspaceId}
+                userRole={userRole}
+                userId={userId ?? undefined}
+              />
+            )}
+
             {activeTab === "api-keys" && (
               <ApiKeysPanel workspaceId={workspaceId} />
             )}
@@ -87,6 +99,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     props: {
       slug: context.params?.slug as string,
       workspaceId: session.user.workspace_id ?? "",
+      userRole: session.user.role ?? null,
+      userId: session.user.id ?? null,
     },
   }
 }
