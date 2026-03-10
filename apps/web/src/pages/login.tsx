@@ -36,7 +36,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push("/onboarding")
+    const next = typeof router.query.next === "string" ? router.query.next : "/onboarding"
+    router.push(next)
   }
 
   return (
