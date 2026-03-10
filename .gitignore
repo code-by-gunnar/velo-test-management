@@ -10,3 +10,4 @@ coverage/
 .vscode/
 claude.nd
 .vercel
+.mcp.json

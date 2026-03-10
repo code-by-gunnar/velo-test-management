@@ -225,6 +225,11 @@ export function CaseList({
                   <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Title
                   </th>
+                  {!selectedSuite && (
+                    <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Suite
+                    </th>
+                  )}
                   <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Priority
                   </th>
@@ -244,6 +249,8 @@ export function CaseList({
                       testCase={tc}
                       index={index}
                       isSelected={selectedIds.has(tc.id)}
+                      showSuiteColumn={!selectedSuite}
+                      suites={suites}
                       onToggleSelect={toggleSelect}
                       onOpen={onOpenCase}
                     />

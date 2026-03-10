@@ -21,9 +21,10 @@ describe("emailQueue", () => {
       payload: { code: "123456" },
     })
     expect(job.id).toBeDefined()
+    expect(job.name).toBe("test-otp")
 
-    // Clean up
-    await job.remove()
+    // Don't remove — a running worker may already hold the lock.
+    // The queue's removeOnComplete policy handles cleanup.
   })
 
   it("can get queue stats", async () => {
