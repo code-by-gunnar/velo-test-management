@@ -328,6 +328,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
           SELECT id, name, project_key, description, created_at
           FROM projects
           WHERE workspace_id = ${workspaceId}::uuid
+            AND deleted_at IS NULL
           ORDER BY created_at ASC
         `
       )
@@ -335,6 +336,170 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send(projects)
     }
   )
+
+  // ── PATCH /api/workspaces/:workspaceId — update workspace name ────────────
+  fastify.patch<{
+    Params: { workspaceId: string }
+    Body: { name: string }
+  }>("/api/workspaces/:workspaceId", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: { type: "string", minLength: 2, maxLength: 255 },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const userId = request.userId
+    const { workspaceId } = request.params
+    const { name } = request.body
+
+    if (request.workspaceId !== workspaceId) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
+
+    // Verify user is admin
+    const member = await sql`
+      SELECT role FROM workspace_members
+      WHERE workspace_id = ${workspaceId}::uuid
+        AND user_id = ${userId}::uuid
+        AND is_active = true
+    `
+    if (member.length === 0 || member[0]?.role !== "admin") {
+      return reply.status(403).send({ error: "Admin access required" })
+    }
+
+    await sql`
+      UPDATE workspaces
+      SET name = ${name}, updated_at = NOW()
+      WHERE id = ${workspaceId}::uuid
+    `
+
+    return reply.send({ id: workspaceId, name })
+  })
+
+  // ── PATCH /api/workspaces/:workspaceId/projects/:projectId — update project ─
+  fastify.patch<{
+    Params: { workspaceId: string; projectId: string }
+    Body: { name?: string; project_key?: string }
+  }>("/api/workspaces/:workspaceId/projects/:projectId", {
+    schema: {
+      body: {
+        type: "object",
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 255 },
+          project_key: { type: "string", minLength: 1, maxLength: 20, pattern: "^[a-z0-9-]+$" },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { workspaceId, projectId } = request.params
+    const { name, project_key } = request.body
+
+    if (request.workspaceId !== workspaceId) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
+
+    if (!name && !project_key) {
+      return reply.status(400).send({ error: "At least one of name or project_key required" })
+    }
+
+    // If changing project_key, check uniqueness within workspace
+    if (project_key) {
+      const existing = await withWorkspace(workspaceId, async (tx) =>
+        tx`SELECT id FROM projects
+           WHERE workspace_id = ${workspaceId}::uuid
+             AND project_key = ${project_key}
+             AND id != ${projectId}::uuid
+             AND deleted_at IS NULL`
+      )
+      if (existing.length > 0) {
+        return reply.status(409).send({ error: "Project key already used in this workspace", field: "project_key" })
+      }
+    }
+
+    const result = await withWorkspace(workspaceId, async (tx) => {
+      // Build SET clause dynamically
+      const sets: string[] = ["updated_at = NOW()"]
+      if (name) sets.push(`name = '${name.replace(/'/g, "''")}'`)
+      if (project_key) sets.push(`project_key = '${project_key.replace(/'/g, "''")}'`)
+
+      const rows = await tx.unsafe(`
+        UPDATE projects
+        SET ${sets.join(", ")}
+        WHERE id = '${projectId}'
+          AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          AND deleted_at IS NULL
+        RETURNING id, name, project_key, description
+      `)
+      return rows.length > 0 ? rows[0] : null
+    })
+
+    if (!result) {
+      return reply.status(404).send({ error: "Project not found" })
+    }
+
+    return reply.send(result)
+  })
+
+  // ── DELETE /api/workspaces/:workspaceId/projects/:projectId — soft delete ──
+  fastify.delete<{
+    Params: { workspaceId: string; projectId: string }
+  }>("/api/workspaces/:workspaceId/projects/:projectId", async (request, reply) => {
+    const { workspaceId, projectId } = request.params
+
+    if (request.workspaceId !== workspaceId) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
+
+    const result = await withWorkspace(workspaceId, async (tx) => {
+      const rows = await tx.unsafe(`
+        UPDATE projects
+        SET deleted_at = NOW(), updated_at = NOW()
+        WHERE id = '${projectId}'
+          AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          AND deleted_at IS NULL
+        RETURNING id
+      `)
+      return rows.length > 0 ? "ok" : "not_found"
+    })
+
+    if (result === "not_found") {
+      return reply.status(404).send({ error: "Project not found" })
+    }
+
+    return reply.status(204).send()
+  })
+
+  // ── GET /api/workspaces/:workspaceId/members — read-only member list ───────
+  fastify.get<{
+    Params: { workspaceId: string }
+  }>("/api/workspaces/:workspaceId/members", async (request, reply) => {
+    const { workspaceId } = request.params
+
+    if (request.workspaceId !== workspaceId) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
+
+    const members = await withWorkspace(workspaceId, async (tx) => {
+      return tx.unsafe(`
+        SELECT
+          wm.user_id,
+          u.email,
+          wm.role,
+          wm.created_at AS joined_at
+        FROM workspace_members wm
+        INNER JOIN users u ON u.id = wm.user_id
+        WHERE wm.workspace_id = current_setting('app.workspace_id', true)::uuid
+          AND wm.is_active = true
+        ORDER BY wm.created_at ASC
+      `)
+    })
+
+    return reply.send(members)
+  })
 }
 
 export default workspaceRoutes
