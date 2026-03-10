@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import valkeyPlugin from "./plugins/valkey.plugin.js"
 import sessionPlugin from "./plugins/session.plugin.js"
+import authPlugin from "./plugins/auth.plugin.js"
 import authRoutes from "./routes/auth.js"
 import workspaceRoutes from "./routes/workspaces.js"
 import suitesRoutes from "./routes/suites.js"
@@ -19,6 +20,7 @@ import defectsRoutes from "./routes/defects.js"
 import apiKeyRoutes from "./routes/api-keys.js"
 import ingestionRoutes from "./routes/ingestion.js"
 import linearRoutes from "./routes/linear.js"
+import v1Routes from "./routes/v1.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -85,6 +87,7 @@ await fastify.register(cookie)
 await fastify.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB limit
 await fastify.register(valkeyPlugin)
 await fastify.register(sessionPlugin)
+await fastify.register(authPlugin)
 await fastify.register(authRoutes)
 await fastify.register(workspaceRoutes)
 await fastify.register(suitesRoutes)
@@ -95,6 +98,7 @@ await fastify.register(defectsRoutes)
 await fastify.register(apiKeyRoutes)
 await fastify.register(ingestionRoutes)
 await fastify.register(linearRoutes)
+await fastify.register(v1Routes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
