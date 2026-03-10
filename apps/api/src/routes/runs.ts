@@ -4,6 +4,7 @@ import { Redis as Valkey } from "iovalkey"
 import { withWorkspace } from "../db/tenant.js"
 import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
+import { fireWebhookEvent } from "../queues/webhook.queue.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -288,15 +289,15 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       const result = await withWorkspace(workspaceId, async (tx) => {
         // Check current status
         const rows = await tx.unsafe(`
-          SELECT status FROM test_runs
+          SELECT status, project_id, name FROM test_runs
           WHERE id = '${runId}'
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
         `)
 
-        if (rows.length === 0) return "not_found"
+        if (rows.length === 0) return { outcome: "not_found" as const }
 
-        const current = (rows[0] as unknown as { status: string }).status
-        if (current !== "active") return "not_active"
+        const run = rows[0] as unknown as { status: string; project_id: string; name: string }
+        if (run.status !== "active") return { outcome: "not_active" as const }
 
         await tx.unsafe(`
           UPDATE test_runs
@@ -305,11 +306,47 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
         `)
 
-        return "ok"
+        // Get stats for webhook payload
+        const statsRows = await tx.unsafe(`
+          SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status = 'pass')::int AS pass,
+            COUNT(*) FILTER (WHERE status = 'fail')::int AS fail,
+            COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
+            COUNT(*) FILTER (WHERE status = 'skipped')::int AS skipped
+          FROM run_items
+          WHERE run_id = '${runId}'
+        `)
+
+        const stats = statsRows[0] as unknown as {
+          total: number; pass: number; fail: number; blocked: number; skipped: number
+        }
+
+        return {
+          outcome: "ok" as const,
+          projectId: run.project_id,
+          runName: run.name,
+          stats,
+        }
       })
 
-      if (result === "not_found") return reply.status(404).send({ error: "Run not found" })
-      if (result === "not_active") return reply.status(400).send({ error: "Run is not active" })
+      if (result.outcome === "not_found") return reply.status(404).send({ error: "Run not found" })
+      if (result.outcome === "not_active") return reply.status(400).send({ error: "Run is not active" })
+
+      // Fire run.completed webhook on abort (fire-and-forget)
+      if (result.outcome === "ok") {
+        fireWebhookEvent(workspaceId, result.projectId, "run.completed", {
+          run_id: runId,
+          run_name: result.runName,
+          total: result.stats.total,
+          passed: result.stats.pass,
+          failed: result.stats.fail,
+          blocked: result.stats.blocked,
+          skipped: result.stats.skipped,
+          completed_at: new Date().toISOString(),
+          aborted: true,
+        }).catch(() => {})
+      }
 
       return reply.send({ status: "aborted" })
     }

@@ -146,6 +146,43 @@ export async function createLinearIssue(
   return data.issueCreate.issue
 }
 
+// ── Create webhook subscription ──────────────────────────────────────────────
+
+export interface LinearWebhookResponse {
+  id: string
+  enabled: boolean
+  secret: string
+}
+
+export async function createLinearWebhook(
+  accessToken: string,
+  url: string,
+  resourceTypes: string[]
+): Promise<LinearWebhookResponse> {
+  const data = await linearGraphQL<{
+    webhookCreate: { success: boolean; webhook: LinearWebhookResponse }
+  }>(
+    accessToken,
+    `mutation CreateWebhook($url: String!, $resourceTypes: [String!]!) {
+      webhookCreate(input: { url: $url, resourceTypes: $resourceTypes, allPublicTeams: true }) {
+        success
+        webhook {
+          id
+          enabled
+          secret
+        }
+      }
+    }`,
+    { url, resourceTypes }
+  )
+
+  if (!data.webhookCreate.success) {
+    throw new Error("Linear webhook creation failed")
+  }
+
+  return data.webhookCreate.webhook
+}
+
 // ── Get issue status ────────────────────────────────────────────────────────
 
 export async function getLinearIssueStatus(
