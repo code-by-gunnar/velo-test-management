@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4 — CI Ingestion
-current_plan: 04-03 complete
+current_plan: 04-04 complete
 status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-10T12:18:00.000Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-03-10T12:30:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 23
-  completed_plans: 21
-  percent: 91
+  completed_plans: 22
+  percent: 96
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 4 — CI Ingestion
-**Current plan:** 04-03 complete
+**Current plan:** 04-04 complete
 **Status:** In progress
 
 **Progress:**
-[█████████░] 91%
+[█████████░] 96%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
-Phase 4 [███░░     ] 60%  CI Ingestion (3/5 plans complete)
+Phase 4 [████░     ] 80%  CI Ingestion (4/5 plans complete)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 21/23 plans complete across phases 1-4
+**Overall:** 22/23 plans complete across phases 1-4
 
 ---
 
@@ -138,6 +138,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | R2 client uses lazy initialization — getR2Client() throws only on first call if env vars missing (04-03) | Safe to import r2.ts in test environments without R2 credentials configured |
 | r2Enabled() exported as explicit guard (04-03) | Ingestion routes can degrade gracefully when R2 not configured in local dev |
 | Allure classname is null (04-03) | Allure has no direct classname field; fullName carries the qualified test name |
+| verifyApiKey uses bare sql (not withWorkspace) for api_keys lookup (04-04) | api_keys lookup is pre-authentication — workspace_id is a filter not enforced by RLS; avoids invalid UUID error when workspaceId not yet known |
+| Empty catch{} (ES2019 optional catch binding) for fire-and-forget blocks (04-04) | ESLint no-unused-vars flags _ prefixed catch bindings; bare catch{} is cleaner and supported in Node 22 |
+| R2 upload before parse in ingestion routes (04-04) | Raw payload stored even if parse fails; aligns with anti-pattern guidance to always persist CI payloads before destructive processing |
 
 ### Architecture Patterns Locked In
 
@@ -195,9 +198,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T12:17:23.733Z
+**Last session:** 2026-03-10T12:27:02.508Z
 
-**Stopped at:** Completed 04-03-PLAN.md
+**Stopped at:** Completed 04-04-PLAN.md
 
 **To resume work:** Execute 04-03-PLAN.md to implement Allure JSON parser.
 
