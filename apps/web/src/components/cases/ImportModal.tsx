@@ -76,14 +76,14 @@ function FilePicker({ onFile, error }: FilePickerProps) {
         <div className="text-4xl text-gray-300">&#8679;</div>
         <div>
           <p className="text-sm font-medium text-gray-700">
-            Drop your CSV or Excel file here
+            Drop your CSV file here
           </p>
           <p className="mt-1 text-xs text-gray-400">or click to browse — Max 5MB</p>
         </div>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,.xlsx,.xls"
+          accept=".csv"
           className="hidden"
           onChange={handleInputChange}
         />
@@ -131,7 +131,6 @@ function MappingStep({
   rowCount,
 }: MappingStepProps) {
   const canImport = columnMapping.title.length > 0 && columnMapping.action.length > 0
-  const isXlsx = fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls")
 
   const updateField =
     (field: keyof ColumnMapping) => (e: ChangeEvent<HTMLSelectElement>) => {
@@ -156,24 +155,18 @@ function MappingStep({
             <label className="text-xs font-medium text-gray-700">
               Title <span className="text-red-500">*</span>
             </label>
-            {isXlsx ? (
-              <p className="rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-500">
-                Auto-detected from file
-              </p>
-            ) : (
-              <select
-                value={columnMapping.title}
-                onChange={updateField("title")}
-                className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
-              >
-                <option value="">-- select --</option>
-                {headers.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              value={columnMapping.title}
+              onChange={updateField("title")}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+            >
+              <option value="">-- select --</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Action — required */}
@@ -181,58 +174,46 @@ function MappingStep({
             <label className="text-xs font-medium text-gray-700">
               Action / Step <span className="text-red-500">*</span>
             </label>
-            {isXlsx ? (
-              <p className="rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-500">
-                Auto-detected from file
-              </p>
-            ) : (
-              <select
-                value={columnMapping.action}
-                onChange={updateField("action")}
-                className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
-              >
-                <option value="">-- select --</option>
-                {headers.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              value={columnMapping.action}
+              onChange={updateField("action")}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+            >
+              <option value="">-- select --</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Expected — optional */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-700">Expected Result</label>
-            {isXlsx ? (
-              <p className="rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-500">
-                Auto-detected from file
-              </p>
-            ) : (
-              <select
-                value={columnMapping.expected}
-                onChange={updateField("expected")}
-                className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
-              >
-                <option value="">-- (none) --</option>
-                {headers.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              value={columnMapping.expected}
+              onChange={updateField("expected")}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+            >
+              <option value="">-- (none) --</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {!canImport && !isXlsx && (
+        {!canImport && (
           <p className="mt-2 text-xs text-red-600">
             Title and Action / Step columns are required
           </p>
         )}
       </div>
 
-      {/* Preview table (CSV only) */}
+      {/* Preview table */}
       {preview.length > 0 && (
         <div className="overflow-auto rounded-lg border border-gray-200">
           <table className="min-w-full text-xs">
@@ -267,12 +248,6 @@ function MappingStep({
         </div>
       )}
 
-      {isXlsx && (
-        <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          XLSX files: column mapping is detected automatically by the server.
-        </p>
-      )}
-
       <div className="flex items-center justify-between pt-2">
         <Button variant="secondary" size="sm" onClick={onBack}>
           Back
@@ -281,7 +256,7 @@ function MappingStep({
           variant="primary"
           size="sm"
           onClick={onImport}
-          disabled={!canImport && !isXlsx}
+          disabled={!canImport}
         >
           Import{rowCount > 0 ? ` ${rowCount} rows` : ""}
         </Button>

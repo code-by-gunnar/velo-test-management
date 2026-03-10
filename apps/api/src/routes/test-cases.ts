@@ -646,9 +646,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── POST /cases/import — CSV/XLSX file upload (TC-06) ────────────────────
+  // ── POST /cases/import — CSV file upload (TC-06) ────────────────────────
   // IMPORTANT: registered BEFORE /cases/:caseId wildcard to avoid routing conflict.
-  // Accepts multipart/form-data with a "file" field (.csv or .xlsx).
+  // Accepts multipart/form-data with a "file" field (.csv only).
   // Parses server-side with parseImportBuffer (pure function).
   // Inserts test cases + steps atomically per case.
   fastify.post<{

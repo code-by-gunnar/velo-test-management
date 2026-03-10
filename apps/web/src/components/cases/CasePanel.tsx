@@ -119,13 +119,13 @@ export function CasePanel({
   const onSubmit = async (values: CaseFormValues) => {
     setIsSaving(true)
     try {
-      const body = {
-        suite_id: selectedSuiteId,
+      const body: Record<string, unknown> = {
         title: values.title,
-        preconditions: values.preconditions || undefined,
         priority: values.priority,
         steps,
       }
+      if (selectedSuiteId) body.suite_id = selectedSuiteId
+      if (values.preconditions) body.preconditions = values.preconditions
 
       const url = caseId
         ? `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`

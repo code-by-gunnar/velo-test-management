@@ -7,7 +7,7 @@ import { parseImportBuffer } from "../import-parser.js"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = path.resolve(__dirname, "../../routes/__tests__/fixtures")
 
-// TC-06: CSV and XLSX import parser unit tests
+// TC-06: CSV import parser unit tests
 describe("parseImportFile — CSV", () => {
   it("parses a CSV with Title/Action/Expected columns into test cases with steps", async () => {
     const buffer = readFileSync(path.join(FIXTURES_DIR, "import-sample.csv"))
@@ -79,24 +79,11 @@ describe("parseImportFile — CSV", () => {
   })
 })
 
-describe("parseImportFile — XLSX", () => {
-  it("parses an XLSX workbook into the same structure as CSV", async () => {
-    const buffer = readFileSync(path.join(FIXTURES_DIR, "import-sample.xlsx"))
-    const result = await parseImportBuffer(buffer, "import-sample.xlsx")
-    expect(Array.isArray(result)).toBe(true)
-    expect(result.length).toBeGreaterThan(0)
-    for (const tc of result) {
-      expect(typeof tc.title).toBe("string")
-      expect(Array.isArray(tc.steps)).toBe(true)
-    }
-  })
-
-  it("preserves step structure from XLSX multi-row format", async () => {
-    const buffer = readFileSync(path.join(FIXTURES_DIR, "import-sample.xlsx"))
-    const result = await parseImportBuffer(buffer, "import-sample.xlsx")
-    // XLSX fixture: "Login test" has 3 steps
-    const loginCase = result.find((tc) => tc.title === "Login test")
-    expect(loginCase).toBeDefined()
-    expect(loginCase!.steps.length).toBe(3)
+describe("parseImportFile — rejects non-CSV", () => {
+  it("throws a clear error for .xlsx files", async () => {
+    const buffer = Buffer.from("dummy")
+    await expect(parseImportBuffer(buffer, "test.xlsx")).rejects.toThrow(
+      'Unsupported file type — please upload a .csv file (received: "test.xlsx")'
+    )
   })
 })
