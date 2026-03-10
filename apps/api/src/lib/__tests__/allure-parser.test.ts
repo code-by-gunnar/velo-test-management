@@ -23,7 +23,6 @@ describe("parseAllureJson", () => {
     })
     const results = parseAllureJson(single)
     expect(results).toHaveLength(1)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const result = results[0]!
     expect(result.name).toBe("User can log in")
     expect(result.fullName).toBe("com.example.LoginTest#testLogin")
@@ -104,7 +103,6 @@ describe("parseAllureJson", () => {
   it("classname is null for Allure results (no direct classname field)", () => {
     const input = JSON.stringify({ uuid: "1", name: "test", status: "passed" })
     const results = parseAllureJson(input)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(results[0]!.classname).toBeNull()
   })
 })
