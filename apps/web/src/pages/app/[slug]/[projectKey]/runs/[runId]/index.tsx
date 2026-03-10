@@ -7,6 +7,7 @@ import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
 import { useRunSSE } from "@/hooks/useRunSSE"
+import { DefectBadge } from "@/components/runs/DefectBadge"
 import type { RunListItem } from "@/components/runs/RunCard"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ interface RunItem {
   defect_title: string | null
   defect_external_id: string | null
   defect_external_url: string | null
+  defect_external_status: string | null
 }
 
 interface RunDetail extends RunListItem {
@@ -369,22 +371,28 @@ export default function RunDetailPage({
                             </span>
                           )}
                           {hasDefect && (
-                            <div className="relative">
+                            <div className="relative flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   setPopoverId((prev) => (prev === item.id ? null : item.id))
-                                }
+                                }}
                                 className="inline-flex items-center gap-1 rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text hover:bg-fail/10"
                               >
                                 Defect
                               </button>
+                              <DefectBadge
+                                externalUrl={item.defect_external_url}
+                                externalStatus={item.defect_external_status}
+                                externalId={item.defect_external_id}
+                              />
                               {popoverId === item.id && (
                                 <div className="absolute left-0 top-7 z-10 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
                                   <button
                                     type="button"
                                     className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-                                    onClick={() => setPopoverId(null)}
+                                    onClick={(e) => { e.stopPropagation(); setPopoverId(null) }}
                                     aria-label="Close"
                                   >
                                     &#10005;
@@ -397,6 +405,7 @@ export default function RunDetailPage({
                                       href={item.defect_external_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
                                       className="mt-1 block text-xs text-cobalt underline hover:no-underline"
                                     >
                                       {item.defect_external_id ?? "View in tracker"}
