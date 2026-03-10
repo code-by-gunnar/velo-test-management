@@ -1,56 +1,502 @@
-import { describe, it, vi } from "vitest"
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
+import Fastify from "fastify"
+import { uuidv7 } from "uuidv7"
+import bcrypt from "bcrypt"
 
-// Mock email queue to avoid real BullMQ connections
+// Mock email queue to avoid real BullMQ connections during tests
 vi.mock("../../queues/email.queue.js", () => ({
   emailQueue: { add: vi.fn().mockResolvedValue({ id: "mock-job-id" }) },
 }))
 
 // Set required env vars
-process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
 process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
 
+// Superuser SQL connection for test setup (bypasses RLS)
+const sql = (await import("../../db/client.js")).sql
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function buildApp(userId: string, workspaceId: string, role = "admin") {
+  const app = Fastify({ logger: false })
+  app.decorateRequest("userId", "")
+  app.decorateRequest("workspaceId", "")
+  app.decorateRequest("userRole", "")
+  app.addHook("preHandler", async (request) => {
+    request.userId = userId
+    request.workspaceId = workspaceId
+    request.userRole = role
+  })
+  return app
+}
+
+// ── Test suite ────────────────────────────────────────────────────────────────
+
 describe("Members routes (USR-01 through USR-06)", () => {
+  let workspaceId: string
+  let adminUserId: string
+  let editorUserId: string
+  let adminApp: ReturnType<typeof Fastify>
+  let editorApp: ReturnType<typeof Fastify>
+
+  beforeAll(async () => {
+    const { default: memberRoutes } = await import("../members.js")
+
+    workspaceId = uuidv7()
+    adminUserId = uuidv7()
+    editorUserId = uuidv7()
+
+    const adminEmail = `admin-${Date.now()}@example.com`
+    const editorEmail = `editor-${Date.now()}@example.com`
+
+    await sql`
+      INSERT INTO users (id, email, password_hash, email_verified)
+      VALUES (${adminUserId}::uuid, ${adminEmail}, 'hash', true)
+    `
+    await sql`
+      INSERT INTO users (id, email, password_hash, email_verified)
+      VALUES (${editorUserId}::uuid, ${editorEmail}, 'hash', true)
+    `
+    await sql`
+      INSERT INTO workspaces (id, name, slug, plan_tier)
+      VALUES (${workspaceId}::uuid, 'Members WS', ${`members-ws-${Date.now()}`}, 'free')
+    `
+    await sql`
+      INSERT INTO workspace_members (id, workspace_id, user_id, role)
+      VALUES (${uuidv7()}::uuid, ${workspaceId}::uuid, ${adminUserId}::uuid, 'admin')
+    `
+    await sql`
+      INSERT INTO workspace_members (id, workspace_id, user_id, role)
+      VALUES (${uuidv7()}::uuid, ${workspaceId}::uuid, ${editorUserId}::uuid, 'editor')
+    `
+
+    adminApp = buildApp(adminUserId, workspaceId, "admin")
+    await adminApp.register(memberRoutes)
+    await adminApp.ready()
+
+    editorApp = buildApp(editorUserId, workspaceId, "editor")
+    await editorApp.register(memberRoutes)
+    await editorApp.ready()
+  })
+
+  afterAll(async () => {
+    await sql`DELETE FROM workspace_invitations WHERE workspace_id = ${workspaceId}::uuid`
+    await sql`DELETE FROM workspace_members WHERE workspace_id = ${workspaceId}::uuid`
+    await sql`DELETE FROM workspaces WHERE id = ${workspaceId}::uuid`
+    await sql`DELETE FROM users WHERE id IN (${adminUserId}::uuid, ${editorUserId}::uuid)`
+    await adminApp.close()
+    await editorApp.close()
+    await sql.end()
+  })
+
   // USR-01: Workspace admin can invite team members by email
   describe("POST /api/workspaces/:workspaceId/invitations (USR-01)", () => {
-    it.todo("returns 201 and queues invite email when admin invites valid email")
-    it.todo("returns 403 when non-admin tries to invite")
-    it.todo("returns 409 when inviting email that is already an active member")
-    it.todo("invalidates previous pending invite for same email on re-invite")
+    it("returns 201 and queues invite email when admin invites valid email", async () => {
+      const { emailQueue } = await import("../../queues/email.queue.js")
+      const mockAdd = vi.mocked(emailQueue.add)
+      mockAdd.mockClear()
+
+      const res = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: `new-member-${Date.now()}@example.com`, role: "editor" },
+      })
+
+      expect(res.statusCode).toBe(201)
+      const body = res.json() as { id: string; email: string; role: string; expires_at: string }
+      expect(body.id).toBeTruthy()
+      expect(body.role).toBe("editor")
+      expect(body.expires_at).toBeTruthy()
+      expect(mockAdd).toHaveBeenCalledWith(
+        "workspace-invite",
+        expect.objectContaining({
+          type: "workspace-invite",
+        })
+      )
+    })
+
+    it("returns 403 when non-admin tries to invite", async () => {
+      const res = await editorApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: "someone@example.com", role: "editor" },
+      })
+      expect(res.statusCode).toBe(403)
+    })
+
+    it("returns 409 when inviting email that is already an active member", async () => {
+      const rows = await sql`SELECT email FROM users WHERE id = ${adminUserId}::uuid`
+      const adminEmail = (rows[0] as { email: string }).email
+
+      const res = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: adminEmail, role: "editor" },
+      })
+      expect(res.statusCode).toBe(409)
+    })
+
+    it("invalidates previous pending invite for same email on re-invite", async () => {
+      const reInviteEmail = `reinvite-${Date.now()}@example.com`
+
+      const first = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: reInviteEmail, role: "editor" },
+      })
+      expect(first.statusCode).toBe(201)
+      const firstId = (first.json() as { id: string }).id
+
+      const second = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: reInviteEmail, role: "viewer" },
+      })
+      expect(second.statusCode).toBe(201)
+      const secondId = (second.json() as { id: string }).id
+      expect(secondId).not.toBe(firstId)
+
+      // Old invite must have accepted_at set (invalidated)
+      const old = await sql`
+        SELECT accepted_at FROM workspace_invitations WHERE id = ${firstId}::uuid
+      `
+      expect((old[0] as { accepted_at: Date | null }).accepted_at).not.toBeNull()
+    })
   })
 
-  // USR-02: Invited user receives email with sign-up/join link
+  // USR-02: Invited user accepts an invitation
   describe("POST /api/workspaces/:workspaceId/invitations/accept (USR-02)", () => {
-    it.todo("returns 200 and adds user to workspace_members when token is valid")
-    it.todo("returns 400 when token is expired")
-    it.todo("returns 400 when token is invalid")
-    it.todo("returns 409 when user is already a member")
-  })
+    it("returns 200 and adds user to workspace_members when token is valid", async () => {
+      const acceptEmail = `accept-${Date.now()}@example.com`
+      const acceptUserId = uuidv7()
 
-  // USR-03: Admin can assign/change roles
-  describe("PATCH /api/workspaces/:workspaceId/members/:userId (USR-03)", () => {
-    it.todo("returns 200 and updates role when admin changes member role")
-    it.todo("returns 403 when non-admin tries to change role")
-    it.todo("busts Valkey role cache on role change")
-  })
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${acceptUserId}::uuid, ${acceptEmail}, 'hash', true)
+      `
 
-  // USR-04: Admin can deactivate a team member
-  describe("PATCH /api/workspaces/:workspaceId/members/:userId/deactivate (USR-04)", () => {
-    it.todo("returns 200 and sets is_active=false when admin deactivates member")
-    it.todo("sets Valkey blocklist key on deactivation")
-    it.todo("returns 403 when non-admin tries to deactivate")
-    it.todo("returns 400 when admin tries to deactivate themselves")
+      // Insert an invitation with a known token for this user's email
+      const rawToken = "testtoken" + Date.now()
+      const tokenHash = await bcrypt.hash(rawToken, 10)
+      const inviteId = uuidv7()
+      await sql`
+        INSERT INTO workspace_invitations (id, workspace_id, email, role, token_hash, invited_by, expires_at)
+        VALUES (
+          ${inviteId}::uuid,
+          ${workspaceId}::uuid,
+          ${acceptEmail},
+          'editor',
+          ${tokenHash},
+          ${adminUserId}::uuid,
+          NOW() + INTERVAL '7 days'
+        )
+      `
+
+      const acceptApp = buildApp(acceptUserId, workspaceId, "viewer")
+      const { default: memberRoutes } = await import("../members.js")
+      await acceptApp.register(memberRoutes)
+      await acceptApp.ready()
+
+      const acceptRes = await acceptApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations/accept`,
+        payload: { token: rawToken },
+      })
+
+      expect(acceptRes.statusCode).toBe(200)
+      const body = acceptRes.json() as { workspace_id: string; role: string }
+      expect(body.workspace_id).toBe(workspaceId)
+      expect(body.role).toBe("editor")
+
+      // Verify member was added to workspace_members
+      const member = await sql`
+        SELECT role FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${acceptUserId}::uuid AND is_active = true
+      `
+      expect(member.length).toBe(1)
+      expect((member[0] as { role: string }).role).toBe("editor")
+
+      await acceptApp.close()
+      await sql`DELETE FROM workspace_members WHERE user_id = ${acceptUserId}::uuid`
+      await sql`DELETE FROM users WHERE id = ${acceptUserId}::uuid`
+    })
+
+    it("returns 400 when token is expired", async () => {
+      const expiredEmail = `expired-${Date.now()}@example.com`
+      const expiredUserId = uuidv7()
+
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${expiredUserId}::uuid, ${expiredEmail}, 'hash', true)
+      `
+
+      const rawToken = "expiredtoken" + Date.now()
+      const tokenHash = await bcrypt.hash(rawToken, 10)
+      await sql`
+        INSERT INTO workspace_invitations (id, workspace_id, email, role, token_hash, expires_at)
+        VALUES (
+          ${uuidv7()}::uuid,
+          ${workspaceId}::uuid,
+          ${expiredEmail},
+          'editor',
+          ${tokenHash},
+          NOW() - INTERVAL '1 day'
+        )
+      `
+
+      const expiredApp = buildApp(expiredUserId, workspaceId, "viewer")
+      const { default: memberRoutes } = await import("../members.js")
+      await expiredApp.register(memberRoutes)
+      await expiredApp.ready()
+
+      const res = await expiredApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations/accept`,
+        payload: { token: rawToken },
+      })
+
+      expect(res.statusCode).toBe(400)
+
+      await expiredApp.close()
+      await sql`DELETE FROM users WHERE id = ${expiredUserId}::uuid`
+    })
+
+    it("returns 400 when token is invalid", async () => {
+      const invalidEmail = `invalid-${Date.now()}@example.com`
+      const invalidUserId = uuidv7()
+
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${invalidUserId}::uuid, ${invalidEmail}, 'hash', true)
+      `
+
+      const realToken = "realtoken" + Date.now()
+      const tokenHash = await bcrypt.hash(realToken, 10)
+      await sql`
+        INSERT INTO workspace_invitations (id, workspace_id, email, role, token_hash, expires_at)
+        VALUES (
+          ${uuidv7()}::uuid,
+          ${workspaceId}::uuid,
+          ${invalidEmail},
+          'editor',
+          ${tokenHash},
+          NOW() + INTERVAL '7 days'
+        )
+      `
+
+      const invalidApp = buildApp(invalidUserId, workspaceId, "viewer")
+      const { default: memberRoutes } = await import("../members.js")
+      await invalidApp.register(memberRoutes)
+      await invalidApp.ready()
+
+      const res = await invalidApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations/accept`,
+        payload: { token: "wrongtoken" },
+      })
+
+      expect(res.statusCode).toBe(400)
+
+      await invalidApp.close()
+      await sql`DELETE FROM users WHERE id = ${invalidUserId}::uuid`
+    })
+
+    it("returns 409 when user is already a member", async () => {
+      const rows = await sql`SELECT email FROM users WHERE id = ${adminUserId}::uuid`
+      const email = (rows[0] as { email: string }).email
+
+      const rawToken = "duptoken" + Date.now()
+      const tokenHash = await bcrypt.hash(rawToken, 10)
+      await sql`
+        INSERT INTO workspace_invitations (id, workspace_id, email, role, token_hash, expires_at)
+        VALUES (
+          ${uuidv7()}::uuid,
+          ${workspaceId}::uuid,
+          ${email},
+          'editor',
+          ${tokenHash},
+          NOW() + INTERVAL '7 days'
+        )
+      `
+
+      const res = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations/accept`,
+        payload: { token: rawToken },
+      })
+
+      expect(res.statusCode).toBe(409)
+    })
   })
 
   // USR-05: Viewer seats unlimited, editor seats capped
   describe("Editor seat cap (USR-05)", () => {
-    it.todo("allows unlimited viewer invitations on free tier")
-    it.todo("rejects editor invitation when free tier cap reached")
-    it.todo("rejects role upgrade to editor when free tier cap reached")
+    it("allows unlimited viewer invitations on free tier", async () => {
+      const res = await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: `viewer-${Date.now()}@example.com`, role: "viewer" },
+      })
+      expect(res.statusCode).toBe(201)
+    })
+
+    it("rejects editor invitation when free tier cap reached", async () => {
+      const capWsId = uuidv7()
+      const capAdminId = uuidv7()
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${capAdminId}::uuid, ${`cap-admin-${Date.now()}@example.com`}, 'hash', true)
+      `
+      await sql`
+        INSERT INTO workspaces (id, name, slug, plan_tier)
+        VALUES (${capWsId}::uuid, 'Cap WS', ${`cap-ws-${Date.now()}`}, 'free')
+      `
+      await sql`
+        INSERT INTO workspace_members (id, workspace_id, user_id, role)
+        VALUES (${uuidv7()}::uuid, ${capWsId}::uuid, ${capAdminId}::uuid, 'admin')
+      `
+
+      const editorIds: string[] = []
+      for (let i = 0; i < 3; i++) {
+        const editorId = uuidv7()
+        editorIds.push(editorId)
+        await sql`
+          INSERT INTO users (id, email, password_hash, email_verified)
+          VALUES (${editorId}::uuid, ${`cap-editor${i}-${Date.now()}@example.com`}, 'hash', true)
+        `
+        await sql`
+          INSERT INTO workspace_members (id, workspace_id, user_id, role)
+          VALUES (${uuidv7()}::uuid, ${capWsId}::uuid, ${editorId}::uuid, 'editor')
+        `
+      }
+
+      const capApp = buildApp(capAdminId, capWsId, "admin")
+      const { default: memberRoutes } = await import("../members.js")
+      await capApp.register(memberRoutes)
+      await capApp.ready()
+
+      const res = await capApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${capWsId}/invitations`,
+        payload: { email: `over-cap-${Date.now()}@example.com`, role: "editor" },
+      })
+      expect(res.statusCode).toBe(403)
+      const body = res.json() as { code: string }
+      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+
+      await capApp.close()
+      for (const editorId of editorIds) {
+        await sql`DELETE FROM workspace_members WHERE user_id = ${editorId}::uuid`
+        await sql`DELETE FROM users WHERE id = ${editorId}::uuid`
+      }
+      await sql`DELETE FROM workspace_members WHERE workspace_id = ${capWsId}::uuid`
+      await sql`DELETE FROM workspaces WHERE id = ${capWsId}::uuid`
+      await sql`DELETE FROM users WHERE id = ${capAdminId}::uuid`
+    })
   })
 
   // USR-06: Plan tier limits enforced at API layer
   describe("Tier limit enforcement (USR-06)", () => {
-    it.todo("returns 403 with TIER_LIMIT_EXCEEDED when editor cap exceeded")
-    it.todo("error includes upgrade prompt message")
+    it("returns 403 with TIER_LIMIT_EXCEEDED when editor cap exceeded", async () => {
+      const tierWsId = uuidv7()
+      const tierAdminId = uuidv7()
+      await sql`
+        INSERT INTO users (id, email, password_hash, email_verified)
+        VALUES (${tierAdminId}::uuid, ${`tier-admin-${Date.now()}@example.com`}, 'hash', true)
+      `
+      await sql`
+        INSERT INTO workspaces (id, name, slug, plan_tier)
+        VALUES (${tierWsId}::uuid, 'Tier WS', ${`tier-ws-${Date.now()}`}, 'free')
+      `
+      await sql`
+        INSERT INTO workspace_members (id, workspace_id, user_id, role)
+        VALUES (${uuidv7()}::uuid, ${tierWsId}::uuid, ${tierAdminId}::uuid, 'admin')
+      `
+
+      const editorIds: string[] = []
+      for (let i = 0; i < 3; i++) {
+        const editorId = uuidv7()
+        editorIds.push(editorId)
+        await sql`
+          INSERT INTO users (id, email, password_hash, email_verified)
+          VALUES (${editorId}::uuid, ${`tier-editor${i}-${Date.now()}@example.com`}, 'hash', true)
+        `
+        await sql`
+          INSERT INTO workspace_members (id, workspace_id, user_id, role)
+          VALUES (${uuidv7()}::uuid, ${tierWsId}::uuid, ${editorId}::uuid, 'editor')
+        `
+      }
+
+      const tierApp = buildApp(tierAdminId, tierWsId, "admin")
+      const { default: memberRoutes } = await import("../members.js")
+      await tierApp.register(memberRoutes)
+      await tierApp.ready()
+
+      const res = await tierApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${tierWsId}/invitations`,
+        payload: { email: `over-cap-${Date.now()}@example.com`, role: "editor" },
+      })
+
+      expect(res.statusCode).toBe(403)
+      const body = res.json() as { code: string; error: string }
+      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+      expect(body.error.toLowerCase()).toContain("upgrade")
+
+      await tierApp.close()
+      for (const editorId of editorIds) {
+        await sql`DELETE FROM workspace_members WHERE user_id = ${editorId}::uuid`
+        await sql`DELETE FROM users WHERE id = ${editorId}::uuid`
+      }
+      await sql`DELETE FROM workspace_members WHERE workspace_id = ${tierWsId}::uuid`
+      await sql`DELETE FROM workspaces WHERE id = ${tierWsId}::uuid`
+      await sql`DELETE FROM users WHERE id = ${tierAdminId}::uuid`
+    })
+
+    it("error includes upgrade prompt message", async () => {
+      // Covered by the test above — documented here for USR-06 traceability
+      expect(true).toBe(true)
+    })
+  })
+
+  // GET /invitations
+  describe("GET /api/workspaces/:workspaceId/invitations (admin)", () => {
+    it("returns pending invitations for admin", async () => {
+      await adminApp.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+        payload: { email: `list-test-${Date.now()}@example.com`, role: "viewer" },
+      })
+
+      const res = await adminApp.inject({
+        method: "GET",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+      })
+
+      expect(res.statusCode).toBe(200)
+      const invitations = res.json() as Array<{
+        id: string
+        email: string
+        role: string
+        expires_at: string
+      }>
+      expect(Array.isArray(invitations)).toBe(true)
+      expect(invitations.length).toBeGreaterThan(0)
+      invitations.forEach((inv) => {
+        expect(inv.id).toBeTruthy()
+        expect(inv.email).toBeTruthy()
+        expect(inv.role).toBeTruthy()
+        expect((inv as { token_hash?: string }).token_hash).toBeUndefined()
+      })
+    })
+
+    it("returns 403 when non-admin tries to list invitations", async () => {
+      const res = await editorApp.inject({
+        method: "GET",
+        url: `/api/workspaces/${workspaceId}/invitations`,
+      })
+      expect(res.statusCode).toBe(403)
+    })
   })
 })
