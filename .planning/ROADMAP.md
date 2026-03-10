@@ -27,7 +27,7 @@
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
 | 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
-| 5. Integrations and API | 0/? | Not started | - |
+| 5. Integrations and API | 6/6 | Planned | - |
 | 6. Team and Access Control | 0/? | Not started | - |
 
 ---
@@ -148,7 +148,15 @@ Plans:
 3. Every resource readable and writable via the Velo UI is also readable and writable via the REST API with the same authorisation rules
 4. A project admin can configure a webhook endpoint and verify that it receives a payload when a run completes, a case fails, or a milestone is reached
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Wave 0: Migration (linear_connections, webhooks tables, defects.external_status), test stubs for all INT-01–INT-04 requirements
+- [ ] 05-02-PLAN.md — Wave 1: Unified auth middleware (session + API key), /api/v1/ route prefix, CRUD gaps (PATCH project, DELETE project, GET members, PATCH workspace), Valkey rate limiting
+- [ ] 05-03-PLAN.md — Wave 2: Linear OAuth flow (connect/disconnect/team select), token encryption, auto-file defects to Linear
+- [ ] 05-04-PLAN.md — Wave 3: Linear inbound webhook for status sync, outbound webhook CRUD + BullMQ delivery, event triggers (run.completed, run_item.failed)
+- [ ] 05-05-PLAN.md — Wave 4: Frontend — Integrations settings (Linear connect), DefectBadge, webhook config UI, project settings page
+- [ ] 05-06-PLAN.md — Wave 5: Human verification UAT for all INT-01 through INT-04
 
 ---
 
@@ -240,4 +248,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-10 — Phase 4 planned (5 plans, 4 waves)*
+*Last updated: 2026-03-10 — Phase 5 planned (6 plans, 5 waves)*
