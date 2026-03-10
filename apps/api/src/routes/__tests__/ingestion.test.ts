@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
 import Fastify from "fastify"
+import multipart from "@fastify/multipart"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import path from "node:path"
@@ -33,6 +34,8 @@ const allureJson = readFileSync(path.join(fixturesDir, "allure-result.json"), "u
 
 function buildApp(userId: string, workspaceId: string) {
   const app = Fastify({ logger: false })
+  // Register multipart plugin — required for /ingest/junit and /ingest/allure multipart routes
+  void app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } })
   app.decorateRequest("userId", userId)
   app.decorateRequest("workspaceId", workspaceId)
   app.decorateRequest("userRole", "admin")

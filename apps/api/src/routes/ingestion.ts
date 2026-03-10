@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from "fastify"
-import multipart from "@fastify/multipart"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { parseJUnitXml } from "../lib/junit-parser.js"
@@ -32,11 +31,6 @@ function mapStatus(status: "pass" | "fail" | "skipped"): string {
 //  5. reply.send() called OUTSIDE withWorkspace (per CLAUDE.md rule)
 
 const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
-  // Register @fastify/multipart with higher limit scoped to this plugin
-  // (Fastify encapsulation means this overrides the global 5MB limit for these routes)
-  await fastify.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } })
-
-
 
   // ── POST /ingest/junit ─────────────────────────────────────────────────────
   fastify.post<{
