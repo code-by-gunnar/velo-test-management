@@ -6,7 +6,7 @@ if (!process.env.RESEND_API_KEY) {
 
 export const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = process.env.FROM_EMAIL ?? "noreply@velo.app"
+const FROM = process.env.FROM_EMAIL ?? "Velo <noreply@runvelo.app>"
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   if (process.env.NODE_ENV === "development") {
