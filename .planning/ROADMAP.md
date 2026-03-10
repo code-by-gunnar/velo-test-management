@@ -28,7 +28,7 @@
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
 | 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
 | 5. Integrations and API | 6/6 | Planned | - |
-| 6. Team and Access Control | 0/? | Not started | - |
+| 6. Team and Access Control | 0/5 | Planned | - |
 
 ---
 
@@ -175,7 +175,14 @@ Plans:
 4. Viewer seats are unlimited on all plan tiers; Editor seats are capped per tier and the API rejects editor-seat creation once the cap is reached
 5. The Free tier limits (3 editors, 1 project, 500 test cases) are enforced at the API layer; a request that would exceed a limit returns a clear error with an upgrade prompt
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Wave 0: Migration (workspace_invitations table), schema.ts update, email queue type extension, test stubs for USR-01–USR-06
+- [ ] 06-02-PLAN.md — Wave 1: Invitation CRUD routes (create, accept, list pending), email worker extension, tier enforcement (editor seat cap)
+- [ ] 06-03-PLAN.md — Wave 2: Role change route, member deactivation route, Valkey blocklist in session plugin for immediate invalidation
+- [ ] 06-04-PLAN.md — Wave 3: Frontend Team tab in settings (member list, invite form, role dropdown, deactivate), accept-invite page
+- [ ] 06-05-PLAN.md — Wave 4: Human verification UAT for all USR-01 through USR-06
 
 ---
 
@@ -248,4 +255,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-10 — Phase 5 planned (6 plans, 5 waves)*
+*Last updated: 2026-03-10 — Phase 6 planned (5 plans, 5 waves)*
