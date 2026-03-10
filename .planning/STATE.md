@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 3 — Test Runs and Dashboard
-current_plan: 03-04 complete
+current_plan: 03-05 complete (awaiting human verify)
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-03-10T09:36:40.027Z"
+stopped_at: Completed 03-05-PLAN.md (awaiting human verify checkpoint)
+last_updated: "2026-03-10T09:45:35.166Z"
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 16
-  percent: 89
+  completed_plans: 17
+  percent: 94
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** In progress
 
 **Progress:**
-[█████████░] 89%
+[█████████░] 94%
 Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
 Phase 3 [          ] 0%   Test Runs and Dashboard
 Phase 4 [          ] 0%   CI Ingestion
@@ -121,6 +121,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | reply.hijack() for Fastify SSE endpoint (03-04) | Prevents Fastify from finalizing response after the async handler returns; required for long-lived SSE connections |
 | ?token= query param accepted by session plugin for EventSource auth (03-04) | EventSource API cannot set custom headers; JWT must be passed via query string for SSE routes |
 | X-Accel-Buffering: no sent per-request via res.writeHead() for SSE (03-04) | Prevents Railway/nginx proxy from buffering SSE frames; must be per-request since Fastify CORS plugin does not set it globally |
+| useRunSSE subscribes one EventSource per runId; dependency key is runIds.join(',') (03-05) | Avoids per-render reconnects while reacting to run list changes |
+| Dashboard = runs page; Reports nav also points to /runs (03-05) | No separate dashboard route — runs list IS the live dashboard per DA-01 |
+| Assignees list defaults to [] in RunFilters/RunCreateModal (03-05) | No /members endpoint yet; Phase 6 RBAC will add it; UI degrades gracefully |
 
 ### Architecture Patterns Locked In
 
@@ -178,9 +181,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:36:40.022Z
+**Last session:** 2026-03-10T09:45:35.163Z
 
-**Stopped at:** Completed 03-04-PLAN.md
+**Stopped at:** Completed 03-05-PLAN.md (awaiting human verify checkpoint)
 
 **To resume work:** Run `/gsd:execute-phase 3` to continue with plan 03-05.
 
