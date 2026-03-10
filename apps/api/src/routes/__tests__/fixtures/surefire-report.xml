@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.LoginTest" tests="3" errors="1" failures="1" skipped="1" time="2.456">
+  <testcase classname="com.example.LoginTest" name="testSuccessfulLogin" time="0.512"/>
+  <testcase classname="com.example.LoginTest" name="testInvalidCredentials" time="0.378">
+    <failure message="Expected status 401 but got 200" type="org.opentest4j.AssertionFailedError">
+org.opentest4j.AssertionFailedError: Expected status 401 but got 200
+	at com.example.LoginTest.testInvalidCredentials(LoginTest.java:67)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    </failure>
+  </testcase>
+  <testcase classname="com.example.LoginTest" name="testSessionExpiry" time="0.892">
+    <error message="Connection refused: localhost:8080" type="java.net.ConnectException">
+java.net.ConnectException: Connection refused: localhost:8080
+	at com.example.LoginTest.testSessionExpiry(LoginTest.java:103)
+    </error>
+  </testcase>
+  <testcase classname="com.example.LoginTest" name="testOAuthRedirect" time="0.674">
+    <skipped/>
+  </testcase>
+  <system-out><![CDATA[
+=== LoginTest output ===
+Starting test suite: LoginTest
+Test environment: staging
+Database connection: OK
+  ]]></system-out>
+</testsuite>

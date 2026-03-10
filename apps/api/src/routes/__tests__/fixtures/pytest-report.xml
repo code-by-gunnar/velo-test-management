@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" tests="3" errors="0" failures="1" skipped="1" time="1.234">
+    <testcase classname="tests.test_login.TestLogin" name="test_successful_login" time="0.312">
+      <system-out>Login with valid credentials succeeded.</system-out>
+    </testcase>
+    <testcase classname="tests.test_login.TestLogin" name="test_invalid_password_returns_401" time="0.287">
+      <failure message="AssertionError: assert 200 == 401">
+E       AssertionError: assert 200 == 401
+E        +  where 200 = &lt;Response [200]&gt;.status_code
+
+tests/test_login.py:45: AssertionError
+      </failure>
+      <system-out>Making request with invalid credentials...</system-out>
+    </testcase>
+    <testcase classname="tests.test_login.TestLogin" name="test_oauth_login_flow" time="0.635">
+      <skipped message="OAuth provider not configured in CI environment" type="pytest.skip"/>
+    </testcase>
+  </testsuite>
+</testsuites>
