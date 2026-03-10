@@ -73,7 +73,6 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         response_type: "code",
         scope: "read,write,issues:create",
         state,
-        actor: "application",
       })
 
       const url = `https://linear.app/oauth/authorize?${params.toString()}`
