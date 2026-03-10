@@ -3,7 +3,7 @@ import Image from "next/image"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
-import { useState } from "react"
+import { useCallback, useSyncExternalStore } from "react"
 
 interface SidebarProps {
   slug: string
@@ -40,13 +40,14 @@ const NAV_ITEMS = [
   },
   {
     label: "Reports",
-    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/runs` : "#",
+    href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/reports` : "#",
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M2 12h2V8H2v4zm3 0h2V5H5v7zm3 0h2V2H8v10zm3 0h2V7h-2v5z" fill="currentColor" />
       </svg>
     ),
-    available: true,
+    available: false,
+    tooltip: "Coming in a future phase",
   },
 ] as const
 
@@ -54,24 +55,32 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
 
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false
-    return localStorage.getItem(STORAGE_KEY) === "true"
-  })
+  const subscribeStorage = useCallback((cb: () => void) => {
+    window.addEventListener("storage", cb)
+    return () => window.removeEventListener("storage", cb)
+  }, [])
 
-  // Persist the last known projectKey so project-scoped nav links work on
-  // pages that don't have a projectKey (e.g. Settings).
-  const effectiveProjectKey = projectKey ?? (
-    typeof window !== "undefined" ? (localStorage.getItem(PROJECT_KEY_STORAGE) ?? undefined) : undefined
+  const collapsed = useSyncExternalStore(
+    subscribeStorage,
+    () => localStorage.getItem(STORAGE_KEY) === "true",
+    () => false,
   )
-  if (typeof window !== "undefined" && projectKey) {
+
+  const storedProjectKey = useSyncExternalStore(
+    subscribeStorage,
+    () => localStorage.getItem(PROJECT_KEY_STORAGE),
+    () => null,
+  )
+
+  if (projectKey && typeof window !== "undefined") {
     localStorage.setItem(PROJECT_KEY_STORAGE, projectKey)
   }
 
+  const effectiveProjectKey = projectKey ?? storedProjectKey ?? undefined
+
   const toggleCollapsed = () => {
-    const next = !collapsed
-    setCollapsed(next)
-    localStorage.setItem(STORAGE_KEY, String(next))
+    localStorage.setItem(STORAGE_KEY, String(!collapsed))
+    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }))
   }
 
   const displayName = session?.user?.name ?? session?.user?.email ?? ""

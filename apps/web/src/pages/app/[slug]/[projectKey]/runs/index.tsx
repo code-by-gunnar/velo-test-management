@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
@@ -42,7 +42,13 @@ export default function RunsDashboard({
 
   const liveStatsMap = useRunSSE(activeRunIds, apiUrl, sseToken, workspaceId)
 
+  const abortRef = useRef<AbortController | null>(null)
+
   const fetchRuns = useCallback(async (f: FilterState) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setIsFiltering(true)
     try {
       const params = new URLSearchParams({ project_id: projectId })
@@ -50,16 +56,17 @@ export default function RunsDashboard({
       if (f.assigned_to) params.set("assigned_to", f.assigned_to)
 
       const res = await fetch(
-        `/api/backend/workspaces/${workspaceId}/runs?${params.toString()}`
+        `/api/backend/workspaces/${workspaceId}/runs?${params.toString()}`,
+        { signal: controller.signal }
       )
       if (res.ok) {
         const data = await res.json() as RunListItem[]
         setRuns(data)
       }
-    } catch {
-      // Keep current runs on error
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return
     } finally {
-      setIsFiltering(false)
+      if (!controller.signal.aborted) setIsFiltering(false)
     }
   }, [workspaceId, projectId])
 

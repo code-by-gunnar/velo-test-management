@@ -28,8 +28,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req.cookies["__Secure-authjs.session-token"] ??
     req.cookies["authjs.session-token"]
 
-  const forwardHeaders: Record<string, string> = {
-    "content-type": (req.headers["content-type"] as string) ?? "application/json",
+  const forwardHeaders: Record<string, string> = {}
+  if (rawBody.length > 0) {
+    forwardHeaders["content-type"] = (req.headers["content-type"] as string) ?? "application/json"
   }
   if (token) {
     forwardHeaders["authorization"] = `Bearer ${token}`

@@ -105,7 +105,30 @@ export function RunCreateModal({
         throw new Error(data.error ?? "Failed to create run")
       }
 
-      const created = await res.json() as RunListItem
+      const data = await res.json() as {
+        id: string
+        name: string
+        status: string
+        assigned_to: string | null
+        item_count: number
+      }
+      const created: RunListItem = {
+        id: data.id,
+        name: data.name,
+        status: data.status,
+        assigned_to: data.assigned_to,
+        assigned_to_name: null,
+        created_by_name: null,
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        created_at: new Date().toISOString(),
+        total_items: data.item_count,
+        pass_count: 0,
+        fail_count: 0,
+        blocked_count: 0,
+        skipped_count: 0,
+        untested_count: data.item_count,
+      }
       onCreated(created)
       onClose()
     } catch (err) {

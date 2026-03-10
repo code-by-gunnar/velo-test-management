@@ -76,6 +76,7 @@ export default function RunDetailPage({
   const [run, setRun] = useState<RunDetail | null>(initialRun)
   const [items, setItems] = useState<RunItem[]>(initialRun?.items ?? [])
   const [isAborting, setIsAborting] = useState(false)
+  const [confirmAbort, setConfirmAbort] = useState(false)
   const [isRerunning, setIsRerunning] = useState(false)
   const [popoverId, setPopoverId] = useState<string | null>(null)
 
@@ -110,7 +111,6 @@ export default function RunDetailPage({
 
   const handleAbort = async () => {
     if (!run) return
-    if (!window.confirm("Abort this run? This cannot be undone.")) return
 
     setIsAborting(true)
     try {
@@ -120,11 +120,20 @@ export default function RunDetailPage({
       )
       if (res.ok) {
         setRun((prev) => prev ? { ...prev, status: "aborted" } : prev)
+      } else {
+        // Run may have been completed/aborted by another action — refresh state
+        const detailRes = await fetch(`/api/backend/workspaces/${workspaceId}/runs/${runId}`)
+        if (detailRes.ok) {
+          const data = await detailRes.json() as { run: RunDetail; items: RunItem[] }
+          setRun({ ...data.run, items: data.items })
+          setItems(data.items)
+        }
       }
     } catch {
-      // Ignore
+      // Ignore network errors
     } finally {
       setIsAborting(false)
+      setConfirmAbort(false)
     }
   }
 
@@ -223,14 +232,35 @@ export default function RunDetailPage({
                   >
                     Resume Execution
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => void handleAbort()}
-                    disabled={isAborting}
-                  >
-                    {isAborting ? "Aborting…" : "Abort Run"}
-                  </Button>
+                  {confirmAbort ? (
+                    <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5">
+                      <span className="text-xs text-red-700">Abort this run?</span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void handleAbort()}
+                        disabled={isAborting}
+                      >
+                        {isAborting ? "Aborting…" : "Confirm"}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setConfirmAbort(false)}
+                        disabled={isAborting}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setConfirmAbort(true)}
+                    >
+                      Abort Run
+                    </Button>
+                  )}
                 </>
               )}
               {isCompleted && hasFailures && (
@@ -294,7 +324,7 @@ export default function RunDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
+                {items.map((item, idx) => {
                   const itemStatus = ITEM_STATUS_MAP[item.status] ?? "untested"
                   const hasDefect = !!item.defect_id
                   const hasComment = !!item.comment
@@ -302,7 +332,13 @@ export default function RunDetailPage({
                   return (
                     <tr
                       key={item.id}
-                      className="border-b border-gray-100 hover:bg-gray-50"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => void router.push(`/app/${slug}/${projectKey}/runs/${runId}/execute?item=${idx}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") void router.push(`/app/${slug}/${projectKey}/runs/${runId}/execute?item=${idx}`)
+                      }}
+                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                     >
                       {/* Case title */}
                       <td className="py-3 pl-6 pr-4">

@@ -17,10 +17,12 @@ const BLOCKED_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"])
 
 interface UseKeyboardExecutionOptions {
   onVerdict: (verdict: Verdict) => void
+  onPrev?: () => void
+  onNext?: () => void
   enabled: boolean
 }
 
-export function useKeyboardExecution({ onVerdict, enabled }: UseKeyboardExecutionOptions): void {
+export function useKeyboardExecution({ onVerdict, onPrev, onNext, enabled }: UseKeyboardExecutionOptions): void {
   useEffect(() => {
     if (!enabled) return
 
@@ -31,6 +33,18 @@ export function useKeyboardExecution({ onVerdict, enabled }: UseKeyboardExecutio
       if (BLOCKED_TAGS.has(target.tagName)) return
       if (target.isContentEditable) return
 
+      // Arrow key navigation
+      if (e.key === "ArrowLeft") {
+        e.preventDefault()
+        onPrev?.()
+        return
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault()
+        onNext?.()
+        return
+      }
+
       const verdict = KEY_MAP[e.key]
       if (!verdict) return
 
@@ -40,5 +54,5 @@ export function useKeyboardExecution({ onVerdict, enabled }: UseKeyboardExecutio
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [enabled, onVerdict])
+  }, [enabled, onVerdict, onPrev, onNext])
 }
