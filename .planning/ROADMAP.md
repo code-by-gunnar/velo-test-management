@@ -25,7 +25,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
-| 3. Test Runs and Dashboard | 2/6 | In Progress|  |
+| 3. Test Runs and Dashboard | 3/6 | In Progress|  |
 | 4. CI Ingestion | 0/? | Not started | - |
 | 5. Integrations and API | 0/? | Not started | - |
 | 6. Team and Access Control | 0/? | Not started | - |
@@ -102,7 +102,7 @@ Plans:
 Plans:
 - [ ] 03-01-PLAN.md — Wave 0: Migration (step comments table + case_title column), test stubs for all TR/DA requirements
 - [ ] 03-02-PLAN.md — Wave 1: Runs CRUD API (create with snapshot, list with filters, detail, abort, rerun-failures, history)
-- [ ] 03-03-PLAN.md — Wave 1: Run items API (execute verdict, case/step comments, defect filing)
+- [x] 03-03-PLAN.md — Wave 1: Run items API (execute verdict, case/step comments, defect filing) (complete 2026-03-10)
 - [ ] 03-04-PLAN.md — Wave 2: SSE endpoint with Valkey pub/sub, heartbeat, stats computation helpers
 - [ ] 03-05-PLAN.md — Wave 3: Runs dashboard page + run detail page (card grid, filters, SSE live updates, sidebar nav)
 - [ ] 03-06-PLAN.md — Wave 3: Execution screen (full-screen focus mode, P/F/B/S keyboard, defect prompt, step comments, history)
