@@ -5,6 +5,7 @@ import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
 import { emailQueue } from "../queues/email.queue.js"
+import { valkey } from "../lib/valkey.js"
 
 // Free tier limits — mirrors workspaces.ts constant
 const FREE_TIER_LIMITS = {
@@ -260,6 +261,135 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.send(result)
+    }
+  )
+
+  // ── PATCH /api/workspaces/:workspaceId/members/:userId ───────────────────
+  // Admin changes a member's role (USR-03).
+  fastify.patch<{
+    Params: { workspaceId: string; userId: string }
+    Body: { role: "admin" | "editor" | "viewer" }
+  }>(
+    "/api/workspaces/:workspaceId/members/:userId",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["role"],
+          properties: {
+            role: { type: "string", enum: ["admin", "editor", "viewer"] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const callerId = request.userId
+      const { workspaceId, userId: targetUserId } = request.params
+      const { role } = request.body
+
+      // Admin guard — use bare sql (pre-RLS context)
+      const memberRows = await sql`
+        SELECT wm.role, w.plan_tier
+        FROM workspace_members wm
+        INNER JOIN workspaces w ON w.id = wm.workspace_id
+        WHERE wm.workspace_id = ${workspaceId}::uuid
+          AND wm.user_id = ${callerId}::uuid
+          AND wm.is_active = true
+      `
+      if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
+        return reply.status(403).send({ error: "Admin access required" })
+      }
+
+      const planTier = (memberRows[0] as { plan_tier: string }).plan_tier
+
+      // Editor seat cap — only for free tier upgrading to editor
+      if (role === "editor" && planTier === "free") {
+        const countRows = await sql`
+          SELECT COUNT(*) AS n
+          FROM workspace_members
+          WHERE workspace_id = ${workspaceId}::uuid
+            AND role = 'editor'
+            AND is_active = true
+        `
+        const editorCount = parseInt((countRows[0] as { n: string }).n ?? "0")
+        if (editorCount >= FREE_TIER_LIMITS.max_editors) {
+          return reply.status(403).send({
+            error: `Free tier allows ${FREE_TIER_LIMITS.max_editors} editors. Upgrade to Starter to add more.`,
+            code: "TIER_LIMIT_EXCEEDED",
+            limit: "max_editors",
+          })
+        }
+      }
+
+      // Update role in DB (bare sql — admin operation on workspace_members directly)
+      const updated = await sql`
+        UPDATE workspace_members
+        SET role = ${role}, updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid
+          AND user_id = ${targetUserId}::uuid
+          AND is_active = true
+        RETURNING user_id, role
+      `
+
+      if (updated.length === 0) {
+        return reply.status(404).send({ error: "Member not found or inactive" })
+      }
+
+      // Bust Valkey role cache so new role takes effect within 60s
+      await valkey.del(`member_role:${workspaceId}:${targetUserId}`)
+
+      const row = updated[0] as { user_id: string; role: string }
+      return reply.send({ user_id: row.user_id, role: row.role })
+    }
+  )
+
+  // ── PATCH /api/workspaces/:workspaceId/members/:userId/deactivate ─────────
+  // Admin deactivates a member with immediate session invalidation (USR-04).
+  fastify.patch<{
+    Params: { workspaceId: string; userId: string }
+  }>(
+    "/api/workspaces/:workspaceId/members/:userId/deactivate",
+    async (request, reply) => {
+      const callerId = request.userId
+      const { workspaceId, userId: targetUserId } = request.params
+
+      // Admin guard — use bare sql (pre-RLS context)
+      const memberRows = await sql`
+        SELECT role FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid
+          AND user_id = ${callerId}::uuid
+          AND is_active = true
+      `
+      if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
+        return reply.status(403).send({ error: "Admin access required" })
+      }
+
+      // Prevent self-deactivation
+      if (callerId === targetUserId) {
+        return reply.status(400).send({ error: "You cannot deactivate your own account" })
+      }
+
+      // Set Valkey blocklist BEFORE returning 200 (atomic ordering)
+      // 30-day TTL covers max JWT lifetime — deactivated users are rejected on next request
+      await valkey.set(
+        `deactivated:${workspaceId}:${targetUserId}`,
+        "1",
+        "EX",
+        60 * 60 * 24 * 30
+      )
+
+      // Update is_active in DB
+      await sql`
+        UPDATE workspace_members
+        SET is_active = false, updated_at = NOW()
+        WHERE workspace_id = ${workspaceId}::uuid
+          AND user_id = ${targetUserId}::uuid
+      `
+
+      // Bust Valkey role cache
+      await valkey.del(`member_role:${workspaceId}:${targetUserId}`)
+
+      return reply.send({ deactivated: true })
     }
   )
 
