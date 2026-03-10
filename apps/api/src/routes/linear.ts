@@ -6,6 +6,7 @@ import {
   exchangeCodeForTokens,
   getLinearOrganization,
   getLinearTeams,
+  createLinearWebhook,
 } from "../lib/linear-client.js"
 
 // UUID validation (any version)
@@ -165,6 +166,35 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(409).send({
           error: "Workspace already has a Linear connection. Disconnect first to reconnect.",
         })
+      }
+
+      // Register webhook with Linear for inbound status sync
+      const appUrl = process.env.APP_URL ?? process.env.WEB_URL
+      if (appUrl) {
+        try {
+          const apiBase = process.env.API_URL ?? `${appUrl}`
+          const webhookUrl = `${apiBase.replace(/\/$/, "")}/api/webhooks/linear`
+          const webhook = await createLinearWebhook(
+            tokens.access_token,
+            webhookUrl,
+            ["Issue"]
+          )
+
+          // Store the webhook signing secret
+          await withWorkspace(workspaceId, async (tx) => {
+            await tx.unsafe(`
+              UPDATE linear_connections
+              SET webhook_signing_secret = '${webhook.secret.replace(/'/g, "''")}'
+              WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+            `)
+          })
+        } catch (err) {
+          // Webhook registration failure is non-fatal — log and continue
+          fastify.log.warn(
+            { err, workspaceId },
+            "Linear webhook registration failed — inbound sync will not work"
+          )
+        }
       }
 
       return reply.send({

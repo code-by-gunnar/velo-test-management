@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { fireWebhookEvent } from "../queues/webhook.queue.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -112,6 +113,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         // 3. Recompute run status: if no untested items remain, auto-complete the run
+        const isComplete = stats.untested === 0
         await tx.unsafe(`
           UPDATE test_runs
           SET status = CASE
@@ -128,7 +130,13 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
           WHERE id = '${runId}'
         `)
 
-        return { itemId, status, runId, caseTitle, stats }
+        // 4. Fetch project_id and run name for webhook payloads
+        const runRows = await tx.unsafe(`
+          SELECT project_id, name FROM test_runs WHERE id = '${runId}'
+        `)
+        const run = runRows[0] as unknown as { project_id: string; name: string }
+
+        return { itemId, status, runId, caseTitle, stats, projectId: run.project_id, runName: run.name, isComplete }
       })
 
       if (result === null) {
@@ -154,6 +162,33 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
         .catch(() => {
           // Valkey publish failure must not affect response
         })
+
+      // 5. Fire webhook events (fire-and-forget — do not await)
+      // run_item.failed: fires on every fail verdict
+      if (result.status === "fail") {
+        fireWebhookEvent(workspaceId, result.projectId, "run_item.failed", {
+          run_id: result.runId,
+          run_item_id: result.itemId,
+          test_case_title: result.caseTitle,
+          verdict: "fail",
+          executed_by: executedBy,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {})
+      }
+
+      // run.completed: fires when all items have verdicts (no untested remaining)
+      if (result.isComplete) {
+        fireWebhookEvent(workspaceId, result.projectId, "run.completed", {
+          run_id: result.runId,
+          run_name: result.runName,
+          total: result.stats.total,
+          passed: result.stats.pass,
+          failed: result.stats.fail,
+          blocked: result.stats.blocked,
+          skipped: result.stats.skipped,
+          completed_at: new Date().toISOString(),
+        }).catch(() => {})
+      }
 
       return reply.send(result)
     }
