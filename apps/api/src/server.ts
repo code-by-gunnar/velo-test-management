@@ -18,6 +18,7 @@ import runItemsRoutes from "./routes/run-items.js"
 import defectsRoutes from "./routes/defects.js"
 import apiKeyRoutes from "./routes/api-keys.js"
 import ingestionRoutes from "./routes/ingestion.js"
+import linearRoutes from "./routes/linear.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -93,6 +94,7 @@ await fastify.register(runItemsRoutes)
 await fastify.register(defectsRoutes)
 await fastify.register(apiKeyRoutes)
 await fastify.register(ingestionRoutes)
+await fastify.register(linearRoutes)
 
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
