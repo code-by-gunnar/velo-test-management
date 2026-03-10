@@ -69,7 +69,7 @@
 
 ### Integrations
 
-- [ ] **INT-01**: User can create a Linear issue directly from a failed run item in Velo (one-way create)
+- [x] **INT-01**: User can create a Linear issue directly from a failed run item in Velo (one-way create)
 - [ ] **INT-02**: Velo displays the current Linear issue status back in the run view (two-way sync; idempotency key prevents sync loops)
 - [ ] **INT-03**: REST API provides full parity with the UI (all resources readable and writable via API)
 - [ ] **INT-04**: Webhooks fire on: run complete, case fail, milestone reached (configurable endpoint per project)
@@ -185,7 +185,7 @@
 | IN-02 | Phase 4 | Complete |
 | IN-03 | Phase 4 | Complete |
 | IN-04 | Phase 4 | Complete |
-| INT-01 | Phase 5 | Pending |
+| INT-01 | Phase 5 | Complete |
 | INT-02 | Phase 5 | Pending |
 | INT-03 | Phase 5 | Pending |
 | INT-04 | Phase 5 | Pending |

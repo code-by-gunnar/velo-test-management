@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 4 — CI Ingestion
 current_plan: 04-05 complete
 status: planning
-stopped_at: Completed 04-05-PLAN.md (post-checkpoint UAT fixes applied and all tests passing)
-last_updated: "2026-03-10T13:40:35.689Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-10T16:30:32.923Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
-  percent: 100
+  total_plans: 29
+  completed_plans: 24
+  percent: 83
 ---
 
 # State: Velo
@@ -40,7 +40,7 @@ progress:
 **Status:** Ready to plan
 
 **Progress:**
-[██████████] 100%
+[████████░░] 83%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [          ] 0%   Integrations and API
@@ -145,6 +145,11 @@ Phase 6 [          ] 0%   Team and Access Control
 | hasApiKeys check done server-side in getServerSideProps (04-05) | Avoids client-side flash in setup guide warning banner; slightly more accurate than client fetch |
 | Ingestion nav item is standalone project-scoped link above Settings (not in NAV_ITEMS) (04-05) | Shows only when projectKey is available; avoids # fallback state that occurs with NAV_ITEMS when project context is absent |
 | ingestion.test.ts registers @fastify/multipart in buildApp() (04-05) | Missing registration caused 415 on all multipart test routes — bare Fastify() has no content-type parsers |
+| Native fetch for Linear API — no @linear/sdk (05-03) | Node 22 built-in fetch sufficient; zero dependencies for GraphQL client |
+| AES-256-GCM encryption for OAuth tokens with ENCRYPTION_KEY env var (05-03) | Tokens must never be stored in plaintext; env-based key allows rotation |
+| Linear auto-filing after defect commit — graceful degradation (05-03) | Linear API call happens AFTER withWorkspace transaction; defect never lost due to Linear failure |
+| CSRF state in Valkey with 10-min TTL for OAuth flows (05-03) | One-time use state tokens prevent OAuth replay attacks |
+| exactOptionalPropertyTypes requires `| undefined` on optional interface props (05-03) | TS strict mode rejects `string | undefined` assigned to `description?: string` |
 
 ### Architecture Patterns Locked In
 
@@ -202,9 +207,9 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T13:00:00.000Z
+**Last session:** 2026-03-10T16:30:32.915Z
 
-**Stopped at:** Completed 04-05-PLAN.md (post-checkpoint UAT fixes applied and all tests passing)
+**Stopped at:** Completed 05-03-PLAN.md
 
 **To resume work:** Begin Phase 5 — Integrations and API (Linear sync, REST API, webhooks).
 
