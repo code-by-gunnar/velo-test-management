@@ -1,0 +1,69 @@
+[
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "User can log in with valid credentials",
+    "fullName": "com.example.auth.AuthIntegrationTest#testSuccessfulLogin",
+    "status": "passed",
+    "start": 1705312200000,
+    "stop": 1705312200512,
+    "labels": [
+      { "name": "suite", "value": "AuthIntegrationTest" },
+      { "name": "feature", "value": "Authentication" },
+      { "name": "story", "value": "Login" },
+      { "name": "severity", "value": "critical" }
+    ]
+  },
+  {
+    "uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "name": "Login returns 401 for wrong password",
+    "fullName": "com.example.auth.AuthIntegrationTest#testInvalidPassword",
+    "status": "failed",
+    "statusDetails": {
+      "message": "Expected: <401>\n     but: was <200>",
+      "trace": "org.hamcrest.AssertionError: \nExpected: <401>\n     but: was <200>\n\tat com.example.auth.AuthIntegrationTest.testInvalidPassword(AuthIntegrationTest.java:89)\n\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"
+    },
+    "start": 1705312200600,
+    "stop": 1705312200998,
+    "labels": [
+      { "name": "suite", "value": "AuthIntegrationTest" },
+      { "name": "feature", "value": "Authentication" },
+      { "name": "story", "value": "Login" },
+      { "name": "severity", "value": "critical" }
+    ]
+  },
+  {
+    "uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "name": "Session token is refreshed before expiry",
+    "fullName": "com.example.auth.AuthIntegrationTest#testTokenRefresh",
+    "status": "broken",
+    "statusDetails": {
+      "message": "NullPointerException: tokenRefreshService is null",
+      "trace": "java.lang.NullPointerException: tokenRefreshService is null\n\tat com.example.auth.AuthIntegrationTest.testTokenRefresh(AuthIntegrationTest.java:134)\n\tat java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)"
+    },
+    "start": 1705312201100,
+    "stop": 1705312201245,
+    "labels": [
+      { "name": "suite", "value": "AuthIntegrationTest" },
+      { "name": "feature", "value": "Authentication" },
+      { "name": "story", "value": "Session Management" },
+      { "name": "severity", "value": "normal" }
+    ]
+  },
+  {
+    "uuid": "d4e5f6a7-b8c9-0123-def0-234567890123",
+    "name": "OAuth provider login redirects correctly",
+    "fullName": "com.example.auth.AuthIntegrationTest#testOAuthRedirect",
+    "status": "skipped",
+    "statusDetails": {
+      "message": "Skipped: OAuth provider not configured in CI"
+    },
+    "start": 1705312201300,
+    "stop": 1705312201302,
+    "labels": [
+      { "name": "suite", "value": "AuthIntegrationTest" },
+      { "name": "feature", "value": "Authentication" },
+      { "name": "story", "value": "OAuth" },
+      { "name": "severity", "value": "normal" }
+    ]
+  }
+]

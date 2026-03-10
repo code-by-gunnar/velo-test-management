@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="3" failures="1" errors="0" time="4.521">
+  <testsuite name="AuthService &gt; login" tests="3" failures="1" errors="0" skipped="1" time="4.521" timestamp="2024-01-15T10:30:00">
+    <testcase classname="AuthService &gt; login" name="returns JWT token for valid credentials" time="1.234"/>
+    <testcase classname="AuthService &gt; login" name="throws UnauthorizedException for wrong password" time="0.876">
+      <failure message="Expected mock to have been called with UnauthorizedException">
+● AuthService › login › throws UnauthorizedException for wrong password
+
+  expect(jest.fn()).toHaveBeenCalledWith(expect.any(UnauthorizedException))
+
+  Expected mock to have been called with:
+    - UnauthorizedException
+
+  But it was called with:
+    - Error: Invalid credentials
+
+    at Object.&lt;anonymous&gt; (src/auth/auth.service.spec.ts:67:25)
+      </failure>
+    </testcase>
+    <testcase classname="AuthService &gt; login" name="handles OAuth provider callback" time="2.411">
+      <skipped/>
+    </testcase>
+  </testsuite>
+</testsuites>

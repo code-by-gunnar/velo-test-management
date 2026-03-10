@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.api.UserServiceTest" tests="4" errors="1" failures="1" skipped="1" time="3.178">
+  <testcase classname="com.example.api.UserServiceTest" name="getUserByIdReturnsUser" time="0.445"/>
+  <testcase classname="com.example.api.UserServiceTest" name="getUserByIdThrowsForUnknownId" time="0.389">
+    <failure message="Expected UserNotFoundException but no exception was thrown" type="org.opentest4j.AssertionFailedError">
+org.opentest4j.AssertionFailedError: Expected UserNotFoundException but no exception was thrown
+	at com.example.api.UserServiceTest.getUserByIdThrowsForUnknownId(UserServiceTest.java:78)
+    </failure>
+  </testcase>
+  <testcase classname="com.example.api.UserServiceTest" name="updateUserEmailSendsVerification" time="1.122">
+    <error message="EmailService unavailable in test environment" type="java.lang.RuntimeException">
+java.lang.RuntimeException: EmailService unavailable in test environment
+	at com.example.api.UserServiceTest.updateUserEmailSendsVerification(UserServiceTest.java:134)
+    </error>
+  </testcase>
+  <testcase classname="com.example.api.UserServiceTest" name="deleteUserRemovesFromDatabase" time="1.222">
+    <skipped message="Destructive tests disabled in CI"/>
+  </testcase>
+  <system-out><![CDATA[
+UserServiceTest: Spring context loaded in 2.1s
+Mock beans: EmailService, AuditLogger
+  ]]></system-out>
+</testsuite>

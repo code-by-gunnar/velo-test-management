@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="3" failures="1" errors="0" time="0.847">
+  <testsuite name="github.com/org/repo/pkg/auth" tests="3" failures="1" errors="0" skipped="1" time="0.847">
+    <testcase classname="github.com/org/repo/pkg/auth" name="TestLogin" time="0.312"/>
+    <testcase classname="github.com/org/repo/pkg/auth" name="TestLoginInvalidPassword" time="0.298">
+      <failure message="got status 200, want 401">
+--- FAIL: TestLoginInvalidPassword (0.30s)
+    auth_test.go:54: got status 200, want 401
+FAIL
+FAIL    github.com/org/repo/pkg/auth    0.298s
+      </failure>
+    </testcase>
+    <testcase classname="github.com/org/repo/pkg/auth" name="TestLoginOAuthFlow" time="0.237">
+      <skipped message="SKIP: OAuth integration tests require external provider (set OAUTH_ENABLED=1)"/>
+    </testcase>
+  </testsuite>
+</testsuites>
