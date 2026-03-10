@@ -40,6 +40,9 @@ async function runFixups() {
          ON test_cases (project_id, suite_id, position)
          WHERE deleted_at IS NULL`
     )
+    await fixupClient.unsafe(
+      `ALTER TABLE run_items ADD COLUMN IF NOT EXISTS case_title VARCHAR(500)`
+    )
     console.log("Schema fixups complete")
   } finally {
     await fixupClient.end()
