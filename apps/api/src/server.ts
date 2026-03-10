@@ -142,6 +142,10 @@ await fastify.register(linearRoutes)
 await fastify.register(webhookRoutes)
 await fastify.register(v1Routes)
 
+fastify.get("/robots.txt", async (_request, reply) => {
+  return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")
+})
+
 fastify.get("/health", async () => {
   // Ping Valkey — returns "PONG" if healthy
   const valkeyPing = await fastify.valkey.ping().catch(() => "ERROR")
