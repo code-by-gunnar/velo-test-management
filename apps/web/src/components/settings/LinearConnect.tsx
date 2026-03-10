@@ -46,6 +46,14 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
       if (data.connected && data.team_id) {
         setState("connected")
       } else if (data.connected && data.needs_team_selection) {
+        // Fetch cached teams for selection
+        try {
+          const teamsRes = await fetch(`/api/backend/workspaces/${workspaceId}/linear/teams`)
+          if (teamsRes.ok) {
+            const teamsData = await teamsRes.json() as { teams: Array<{ id: string; name: string }> }
+            setStatus({ ...data, teams: teamsData.teams })
+          }
+        } catch { /* teams fetch failed — still show selection state */ }
         setState("team-selection")
       } else {
         setState("disconnected")
