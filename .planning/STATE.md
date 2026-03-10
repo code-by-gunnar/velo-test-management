@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 3 — Test Runs and Dashboard
-current_plan: 03-01 complete
+current_plan: 03-03 complete
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-03-10T09:28:41.865Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-03-10T09:29:06.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 18
-  completed_plans: 14
-  percent: 78
+  completed_plans: 15
+  percent: 83
 ---
 
 # State: Velo
@@ -36,7 +36,7 @@ progress:
 ## Current Position
 
 **Current phase:** 3 — Test Runs and Dashboard
-**Current plan:** 03-01 complete
+**Current plan:** 03-03 complete
 **Status:** In progress
 
 **Progress:**
@@ -114,6 +114,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | result=null sentinel from withWorkspace signals 400 for no-cases case (03-02) | Checked after transaction to avoid reply.send() inside withWorkspace |
 | RLS isolation tested via route-level 403 guard in dev (03-02) | Dev velo role is superuser which bypasses RLS at DB layer; route guard is testable |
 | Rerun-failures snapshots case_title from live test_cases at creation time (03-02) | Consistent with original run creation behavior |
+| Valkey publish is fire-and-forget (.catch(() => {})) after withWorkspace (03-03) | Client response must not block on pub/sub latency; SSE fan-out is best-effort |
+| defects.external_id and external_url are NULL at creation (03-03) | Linear integration deferred to Phase 5; no external_url field at defect filing time |
+| Valkey mock typed as unknown as Redis in test files (03-03) | Avoids full iovalkey instantiation in tests; only publish() is exercised |
 
 ### Architecture Patterns Locked In
 
@@ -171,13 +174,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:28:41.861Z
+**Last session:** 2026-03-10T09:29:06.000Z
 
-**Stopped at:** Completed 03-02-PLAN.md
+**Stopped at:** Completed 03-03-PLAN.md
 
-**To resume work:** Run `/gsd:execute-phase 2` to continue with plan 02-06.
+**To resume work:** Run `/gsd:execute-phase 3` to continue with plan 03-04.
 
-**Context summary:** Phase 2 plan 02-05 complete — bulk operations delivered. POST /cases/bulk endpoint handles move (UPDATE suite_id), copy (app-layer UUID mapping per step — Pitfall 5 prevention), and delete (soft-delete). BulkActionBar component (fixed bottom-0 overlay) with suite picker dropdown (depth indentation, Root option, click-outside-to-close). CaseList wired: onMove/onCopy/onDelete POST to bulk endpoint, clear selection, refetch. CasesPage passes flatList as suites prop to CaseList. TC-05 integration tests written (need DB to run). Both API and web typecheck pass.
+**Context summary:** Phase 3 plan 03-03 complete — Run Items and Defects API delivered. PATCH /run-items/:itemId executes verdict (pass/fail/blocked/skipped), recomputes run status aggregate, publishes to Valkey fire-and-forget for SSE. PATCH /run-items/:itemId/comment sets case-level comment. POST /run-items/:itemId/step-comments creates step annotation. POST /defects files local defect linked to run_item_id (Linear integration deferred to Phase 5). All 19 integration tests pass. Valkey mocked as unknown as Redis in test files.
 
 ---
 
