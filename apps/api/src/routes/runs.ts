@@ -466,11 +466,17 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       const res = reply.raw
 
       // SSE headers — X-Accel-Buffering: no prevents Railway/nginx from buffering
+      // CORS headers must be set manually because reply.hijack() bypasses Fastify plugins
+      const origin = request.headers.origin
+      const allowedOrigins = [process.env.WEB_URL ?? "http://localhost:3000", "http://localhost:3000"]
+      const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": corsOrigin,
+        "Access-Control-Allow-Credentials": "true",
       })
 
       // Fetch current run items and send initial stats event

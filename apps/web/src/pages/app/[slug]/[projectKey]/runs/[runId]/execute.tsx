@@ -11,6 +11,7 @@ interface ExecutePageProps {
   workspaceId: string
   projectId: string
   items: RunItem[]
+  startIndex: number | null
 }
 
 export default function ExecutePage({
@@ -21,6 +22,7 @@ export default function ExecutePage({
   workspaceId,
   projectId,
   items,
+  startIndex,
 }: ExecutePageProps) {
   return (
     <ExecutionScreen
@@ -31,6 +33,7 @@ export default function ExecutePage({
       items={items}
       slug={slug}
       projectKey={projectKey}
+      startIndex={startIndex}
     />
   )
 }
@@ -93,14 +96,20 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         status: string
         items: RunItem[]
       }
-      runName = run.name
-      items = run.items ?? []
+      runName = run.name ?? ""
+      items = (run.items ?? []).map((item) => ({
+        ...item,
+        case_title: item.case_title ?? "",
+      }))
     }
   } catch {
     // items stays empty
   }
 
   return {
-    props: { slug, projectKey, runId, runName, workspaceId, projectId, items },
+    props: JSON.parse(JSON.stringify({
+      slug, projectKey, runId, runName, workspaceId, projectId, items,
+      startIndex: context.query.item ? parseInt(context.query.item as string, 10) : null,
+    })),
   }
 }
