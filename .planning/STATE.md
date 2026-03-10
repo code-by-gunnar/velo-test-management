@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 4 — CI Ingestion
-current_plan: 04-01 complete
+current_plan: 04-02 complete
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-10T12:09:15.401Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-10T12:18:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 23
-  completed_plans: 19
-  percent: 83
+  completed_plans: 20
+  percent: 87
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 4 — CI Ingestion
-**Current plan:** 04-01 complete
+**Current plan:** 04-02 complete
 **Status:** In progress
 
 **Progress:**
-[████████░░] 83%
+[█████████░] 87%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
-Phase 4 [█░░░░     ] 20%  CI Ingestion (1/5 plans complete)
+Phase 4 [██░░░     ] 40%  CI Ingestion (2/5 plans complete)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 19/23 plans complete across phases 1-4
+**Overall:** 20/23 plans complete across phases 1-4
 
 ---
 
@@ -132,6 +132,8 @@ Phase 6 [          ] 0%   Team and Access Control
 | source VARCHAR(10) DEFAULT 'manual' added to run_items (04-01) | Distinguishes human-executed items from CI-ingested ones for filtering and display |
 | test_cases.external_id added nullable (04-01) | Set when CI parser matches a case by name for future auto-mapping; deferred to plan 04-02 |
 | single-test-junit.xml fixture created for isArray edge case (04-01) | fast-xml-parser does not auto-wrap single child nodes in arrays; explicit isArray config required in parser |
+| ALWAYS_ARRAY_PATHS covers both bare testsuite.testcase and wrapped testsuites.testsuite.testcase (04-02) | Both forms needed: Surefire/Gradle use bare root, pytest/Jest/gotestsum use testsuites wrapper |
+| durationMs returns null (not 0) when time attribute absent (04-02) | Distinguishes "no timing data" from "ran in 0ms" for accurate CI result display |
 
 ### Architecture Patterns Locked In
 
@@ -189,13 +191,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T12:09:15.398Z
+**Last session:** 2026-03-10T12:16:04.682Z
 
-**Stopped at:** Completed 04-01-PLAN.md
+**Stopped at:** Completed 04-02-PLAN.md
 
-**To resume work:** Execute 04-02-PLAN.md to implement JUnit and Allure parsers.
+**To resume work:** Execute 04-03-PLAN.md to implement Allure JSON parser.
 
-**Context summary:** Phase 4 plan 04-01 complete — CI ingestion Wave 0 foundation delivered. fast-xml-parser, @aws-sdk/client-s3, @aws-sdk/s3-request-presigner installed. Migration 0004_ci_ingestion_tables.sql creates api_keys and ci_ingestion_runs tables with RLS workspace_isolation policies. run_items.test_case_id made nullable, source column added. test_cases.external_id column added. 7 fixture files created for all 5 JUnit XML variants + Allure JSON + single-test edge case. 4 test stub files define the IN-01 through IN-04 test contract with 32 it.todo stubs. All 104 existing tests still pass.
+**Context summary:** Phase 4 plan 04-02 complete — JUnit XML parser delivered. parseJUnitXml and NormalizedTestCase exported from apps/api/src/lib/junit-parser.ts. Handles all 5 CI variants (pytest-junit, Maven Surefire, Gradle, Jest-junit, Go gotestsum). 13 tests passing. Note: allure-parser.test.ts has uncommitted pre-expanded stubs in working tree (from 04-01 planning) — will be resolved by 04-03 when allure-parser.ts is implemented. IN-03 requirement delivered.
 
 ---
 
