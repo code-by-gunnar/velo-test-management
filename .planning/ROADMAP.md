@@ -25,7 +25,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-03-08 |
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
-| 3. Test Runs and Dashboard | 0/? | Not started | - |
+| 3. Test Runs and Dashboard | 1/6 | In Progress|  |
 | 4. CI Ingestion | 0/? | Not started | - |
 | 5. Integrations and API | 0/? | Not started | - |
 | 6. Team and Access Control | 0/? | Not started | - |
@@ -97,7 +97,15 @@ Plans:
 5. The run dashboard updates in real time as results are recorded — no page refresh required; the progress bar, pass rate percentage, and time-to-complete estimate all update live
 6. A user can create a new run that contains only the failures from a previous run (rerun-failures flow)
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0: Migration (step comments table + case_title column), test stubs for all TR/DA requirements
+- [ ] 03-02-PLAN.md — Wave 1: Runs CRUD API (create with snapshot, list with filters, detail, abort, rerun-failures, history)
+- [ ] 03-03-PLAN.md — Wave 1: Run items API (execute verdict, case/step comments, defect filing)
+- [ ] 03-04-PLAN.md — Wave 2: SSE endpoint with Valkey pub/sub, heartbeat, stats computation helpers
+- [ ] 03-05-PLAN.md — Wave 3: Runs dashboard page + run detail page (card grid, filters, SSE live updates, sidebar nav)
+- [ ] 03-06-PLAN.md — Wave 3: Execution screen (full-screen focus mode, P/F/B/S keyboard, defect prompt, step comments, history)
 
 ---
 
@@ -225,4 +233,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-08*
-*Last updated: 2026-03-09 — Phase 2 plan 02-01 complete (Wave 0 foundation)*
+*Last updated: 2026-03-10 — Phase 3 planning complete (6 plans in 4 waves)*
