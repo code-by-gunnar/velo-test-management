@@ -1,11 +1,18 @@
 import React from "react"
+import Image from "next/image"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/router"
+import { Button, Card, FormField, Input } from "@/components/ui"
 
 export default function VerifyPage() {
   const router = useRouter()
   const email = (router.query.email as string) ?? ""
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<{ code: string }>()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<{ code: string }>()
   const [message, setMessage] = React.useState("")
 
   const onSubmit = async ({ code }: { code: string }) => {
@@ -21,8 +28,6 @@ export default function VerifyPage() {
       return
     }
 
-    // OTP verified — redirect to login with a success message.
-    // For Phase 1: the user must sign in with their password after verification.
     router.push("/login?verified=1")
   }
 
@@ -36,31 +41,56 @@ export default function VerifyPage() {
   }
 
   return (
-    <main style={{ maxWidth: 400, margin: "80px auto", padding: 24 }}>
-      <h1>Check your inbox</h1>
-      <p>We sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your account.</p>
-      {message && <p role="status">{message}</p>}
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div>
-          <label htmlFor="code">Verification code</label>
-          <input
-            id="code"
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="123456"
-            {...register("code", {
-              required: "Code is required",
-              pattern: { value: /^\d{6}$/, message: "Must be 6 digits" },
-            })}
-          />
-          {errors.code && <p role="alert">{errors.code.message}</p>}
+    <div className="flex min-h-screen items-center justify-center bg-mist p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex justify-center">
+          <Image src="/velo-mark-cobalt.svg" alt="Velo" width={48} height={48} />
         </div>
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Verifying..." : "Verify"}
-        </button>
-      </form>
-      <button type="button" onClick={resend}>Resend code</button>
-    </main>
+        <Card padding="lg">
+          <h1 className="text-xl font-semibold text-gray-900 mb-1">Check your inbox</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            We sent a 6-digit code to <strong className="text-gray-700">{email}</strong>. Enter it below to verify your account.
+          </p>
+
+          {message && (
+            <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-pass mb-4" role="status">
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <FormField label="Verification code" htmlFor="code" error={errors.code?.message}>
+              <Input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                error={errors.code?.message}
+                {...register("code", {
+                  required: "Code is required",
+                  pattern: { value: /^\d{6}$/, message: "Must be 6 digits" },
+                })}
+              />
+            </FormField>
+
+            <Button type="submit" variant="primary" size="lg" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? "Verifying..." : "Verify"}
+            </Button>
+          </form>
+
+          <p className="mt-4 text-center text-sm text-gray-500">
+            Did not receive it?{" "}
+            <button
+              type="button"
+              onClick={resend}
+              className="text-cobalt hover:underline focus:outline-none"
+            >
+              Resend code
+            </button>
+          </p>
+        </Card>
+      </div>
+    </div>
   )
 }

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
@@ -95,9 +96,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       )}>
         {!collapsed && (
           <>
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cobalt text-[11px] font-bold text-white tracking-wide">
-              V
-            </div>
+            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={28} height={28} className="shrink-0" />
             <span className="flex-1 truncate text-sm font-semibold text-gray-900">Velo</span>
           </>
         )}

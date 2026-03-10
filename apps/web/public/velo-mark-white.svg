@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Velo Mark — White</title>
+  <g transform="rotate(-52 25.5 27)">
+    <rect x="11" y="20" width="29" height="14" rx="7" fill="#FFFFFF"/>
+  </g>
+  <g transform="rotate(-52 38.5 37)">
+    <rect x="24" y="30" width="29" height="14" rx="7" fill="#FFFFFF"/>
+  </g>
+  <!-- Gap inherits background colour — no fill needed -->
+</svg>
