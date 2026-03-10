@@ -109,7 +109,7 @@ export async function getLinearTeams(
 export interface CreateLinearIssueParams {
   teamId: string
   title: string
-  description?: string
+  description?: string | undefined
 }
 
 export interface LinearIssue {
