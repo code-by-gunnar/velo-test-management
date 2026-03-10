@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 6 — Team and Access Control
-current_plan: 06-03 complete
+current_plan: 06-04 complete
 status: planning
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-03-10T20:33:29.524Z"
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-03-10T20:42:56.909Z"
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 34
-  completed_plans: 29
-  percent: 85
+  completed_plans: 30
+  percent: 88
 ---
 
 # State: Velo
@@ -36,17 +36,17 @@ progress:
 ## Current Position
 
 **Current phase:** 6 — Team and Access Control
-**Current plan:** 06-02 complete
-**Status:** Ready to plan
+**Current plan:** 06-04 complete
+**Status:** In progress
 
 **Progress:**
-[█████████░] 85%
+[█████████░] 88%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
 Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
-Phase 6 [███░░░░░░░] 50%  Team and Access Control (3/6 plans complete)
+Phase 6 [██████░░░░] 67%  Team and Access Control (4/6 plans complete)
 
-**Overall:** 29/34 plans complete
+**Overall:** 30/34 plans complete
 
 ---
 
@@ -59,7 +59,7 @@ Phase 6 [███░░░░░░░] 50%  Team and Access Control (3/6 plans
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
-| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02, 06-03 complete) |
+| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02, 06-03, 06-04 complete) |
 
 ---
 
@@ -160,6 +160,8 @@ Phase 6 [███░░░░░░░] 50%  Team and Access Control (3/6 plans
 | Valkey blocklist key pattern for deactivation: deactivated:{wid}:{uid} with 30-day TTL (06-03) | SET before DB update (atomic ordering); 30 days covers max JWT lifetime |
 | Session plugin checks Valkey blocklist after JWT decode — fail-open on Valkey errors (06-03) | DB membership check in routes is secondary guard; preHandler failure must not block all auth |
 | valkey imported directly in session.plugin.ts (not fastify.valkey decoration) (06-03) | Plugin load order not guaranteed; direct import avoids decorator-not-found error in tests |
+| Promise chain (.then/.catch) for fetch inside useEffect (accept-invite, 06-04) | setState called in callback not effect body — avoids react-hooks/set-state-in-effect ESLint rule |
+| useRef(false) startedRef guards one-shot effect (06-04) | Prevents double-invoke in React 18 strict mode for the accept-invite POST |
 
 ### Architecture Patterns Locked In
 
@@ -217,13 +219,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T20:33:29.518Z
+**Last session:** 2026-03-10T20:42:56.902Z
 
-**Stopped at:** Completed 06-03-PLAN.md
+**Stopped at:** Completed 06-04-PLAN.md
 
-**To resume work:** Continue Phase 6 plan 06-04.
+**To resume work:** Continue Phase 6 plan 06-05.
 
-**Context summary:** Phase 6 plans 06-01, 06-02, 06-03 complete. Invitation CRUD done (USR-01, USR-02). Role management done: PATCH role change with free tier editor cap (USR-03). Member deactivation with Valkey blocklist + immediate session invalidation (USR-04). Session plugin checks deactivated:{wid}:{uid} key on every request. 23 members tests passing, 172 total. Next: 06-04 covers remaining Phase 6 plans.
+**Context summary:** Phase 6 plans 06-01 through 06-04 complete. Invitation CRUD done (USR-01, USR-02). Role management + frontend (USR-03). Member deactivation with Valkey blocklist + immediate session invalidation (USR-04). TeamPanel component built with invite form, pending invites, member list with role dropdown and deactivate-with-confirm. Accept-invite landing page handles token acceptance, auth redirect, and error states. Next: 06-05 covers remaining Phase 6 plans.
 
 ---
 
