@@ -3,7 +3,7 @@ import { Resend } from "resend"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import type { EmailJobData } from "./email.queue.js"
 
-const FROM = "Velo <noreply@velo.app>"
+const FROM = process.env.FROM_EMAIL ?? "Velo <noreply@runvelo.app>"
 
 function getResend(): Resend {
   if (!process.env.RESEND_API_KEY) {
