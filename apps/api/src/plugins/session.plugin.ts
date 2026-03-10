@@ -56,7 +56,12 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
     const cookieToken =
       request.cookies?.["__Secure-authjs.session-token"] ??
       request.cookies?.["authjs.session-token"]
-    const token = bearerToken ?? cookieToken
+
+    // SSE routes: EventSource cannot set custom headers, so also accept token from
+    // query parameter (?token=...). Only used by the /stream endpoint.
+    const queryToken = (request.query as Record<string, string | undefined>)?.token
+
+    const token = bearerToken ?? cookieToken ?? queryToken ?? null
     if (!token) return
 
     // Try the HTTPS key first (production), fall back to plain (dev)
