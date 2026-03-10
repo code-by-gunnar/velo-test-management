@@ -2,6 +2,7 @@ import fp from "fastify-plugin"
 import type { FastifyPluginAsync } from "fastify"
 import { hkdfSync } from "crypto"
 import { jwtDecrypt } from "jose"
+import { valkey } from "../lib/valkey.js"
 
 // Extend FastifyRequest with session data
 declare module "fastify" {
@@ -87,6 +88,23 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
       request.userId = id
       request.workspaceId = (payload["workspace_id"] as string | null | undefined) ?? null
       request.userRole = (payload["role"] as string | null | undefined) ?? null
+    }
+
+    // Check deactivation blocklist (USR-04: immediate session invalidation)
+    if (id && request.workspaceId) {
+      try {
+        const isBlocked = await valkey.get(`deactivated:${request.workspaceId}:${id}`)
+        if (isBlocked) {
+          // Clear session context — requireAuth will return 401
+          request.userId = ""
+          request.workspaceId = null
+          request.userRole = null
+          return
+        }
+      } catch {
+        // Fail open: if Valkey is down, allow the request through.
+        // The membership check in individual routes is the secondary guard.
+      }
     }
   })
 }
