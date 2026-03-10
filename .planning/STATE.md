@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 3 — Test Runs and Dashboard
-current_plan: 03-06 complete (awaiting human verify checkpoint)
-status: checkpoint
-stopped_at: Completed 03-06-PLAN.md tasks — awaiting human verify at checkpoint:human-verify
-last_updated: "2026-03-10T09:51:00Z"
+current_phase: 4 — CI Ingestion
+current_plan: 04-01 complete
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-10T12:09:15.401Z"
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_plans: 23
+  completed_plans: 19
+  percent: 83
 ---
 
 # State: Velo
@@ -35,19 +35,18 @@ progress:
 
 ## Current Position
 
-**Current phase:** 3 — Test Runs and Dashboard
-**Current plan:** 03-03 complete
+**Current phase:** 4 — CI Ingestion
+**Current plan:** 04-01 complete
 **Status:** In progress
 
 **Progress:**
-[██████████] 100%
-Phase 2 [█         ] 17%  Test Cases (1/6 plans complete — 02-01 Wave 0)
-Phase 3 [          ] 0%   Test Runs and Dashboard
-Phase 4 [          ] 0%   CI Ingestion
+[████████░░] 83%
+Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
+Phase 4 [█░░░░     ] 20%  CI Ingestion (1/5 plans complete)
 Phase 5 [          ] 0%   Integrations and API
 Phase 6 [          ] 0%   Team and Access Control
 
-**Overall:** 18/18 Phase 1 requirements + TC-01–TC-06 stubs (Wave 0 complete)
+**Overall:** 19/23 plans complete across phases 1-4
 
 ---
 
@@ -56,9 +55,9 @@ Phase 6 [          ] 0%   Team and Access Control
 | Phase | Requirements | Plans | Status |
 |-------|-------------|-------|--------|
 | 1. Foundation | 18 | 6 | Complete (all 18 requirements delivered) |
-| 2. Test Cases | 6 | TBD | In progress (02-01 Wave 0 complete) |
-| 3. Test Runs and Dashboard | 10 | TBD | Not started |
-| 4. CI Ingestion | 4 | TBD | Not started |
+| 2. Test Cases | 6 | 6 | Complete (all 6 plans delivered) |
+| 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
+| 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | TBD | Not started |
 | 6. Team and Access Control | 6 | TBD | Not started |
 
@@ -128,6 +127,11 @@ Phase 6 [          ] 0%   Team and Access Control
 | keyboardEnabled=false when defect prompt open OR comment textarea focused (03-06) | Prevents accidental verdict submission while user types |
 | Linear integration button rendered but disabled in DefectPrompt (03-06) | Per CONTEXT.md locked decision: deferred to Phase 5; placeholder keeps UX intention visible |
 | Case steps fetched per-item on index change with cache to avoid refetch (03-06) | Each test_case_id is fetched once and cached in caseDetailCache; navigation does not re-fetch |
+| api_keys uses key_prefix (8 chars) + key_hash (SHA-256 hex) pattern (04-01) | Prefix enables fast partial index lookup on active keys; hash enables constant-time comparison without storing raw key |
+| run_items.test_case_id made nullable (04-01) | CI-ingested run items may not map to an existing manual test case; orphan items stored with NULL test_case_id |
+| source VARCHAR(10) DEFAULT 'manual' added to run_items (04-01) | Distinguishes human-executed items from CI-ingested ones for filtering and display |
+| test_cases.external_id added nullable (04-01) | Set when CI parser matches a case by name for future auto-mapping; deferred to plan 04-02 |
+| single-test-junit.xml fixture created for isArray edge case (04-01) | fast-xml-parser does not auto-wrap single child nodes in arrays; explicit isArray config required in parser |
 
 ### Architecture Patterns Locked In
 
@@ -185,13 +189,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T09:51:00Z
+**Last session:** 2026-03-10T12:09:15.398Z
 
-**Stopped at:** Completed 03-06-PLAN.md tasks (Tasks 1 and 2 committed). Awaiting human verify checkpoint.
+**Stopped at:** Completed 04-01-PLAN.md
 
-**To resume work:** After verifying execution screen works end-to-end, approve the checkpoint to mark Phase 3 complete.
+**To resume work:** Execute 04-02-PLAN.md to implement JUnit and Allure parsers.
 
-**Context summary:** Phase 3 plan 03-04 complete — SSE real-time stream endpoint delivered. GET /api/workspaces/:wid/runs/:runId/stream uses reply.hijack() + dedicated iovalkey subscriber per connection. Initial event sends current run stats + EMA ETA. 20s heartbeat keeps Railway proxy alive. ?token= query param added to session plugin for EventSource auth. computeRunStats() and estimateTimeRemaining() pure functions in run-stats.ts with 10 unit tests all passing.
+**Context summary:** Phase 4 plan 04-01 complete — CI ingestion Wave 0 foundation delivered. fast-xml-parser, @aws-sdk/client-s3, @aws-sdk/s3-request-presigner installed. Migration 0004_ci_ingestion_tables.sql creates api_keys and ci_ingestion_runs tables with RLS workspace_isolation policies. run_items.test_case_id made nullable, source column added. test_cases.external_id column added. 7 fixture files created for all 5 JUnit XML variants + Allure JSON + single-test edge case. 4 test stub files define the IN-01 through IN-04 test contract with 32 it.todo stubs. All 104 existing tests still pass.
 
 ---
 

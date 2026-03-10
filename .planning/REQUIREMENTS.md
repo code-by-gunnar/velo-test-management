@@ -62,10 +62,10 @@
 
 ### CI/CD Result Ingestion
 
-- [ ] **IN-01**: CI pipeline can push JUnit XML results to Velo via REST API endpoint; results are auto-mapped to test cases by name or external ID
-- [ ] **IN-02**: CI pipeline can push Allure JSON results to Velo; results are auto-mapped to test cases
-- [ ] **IN-03**: JUnit XML parser handles the 5 most common CI variants (pytest-junit, Surefire/Maven, Gradle, Jest-junit, Go gotestsum) without error
-- [ ] **IN-04**: Raw CI payloads are stored in Cloudflare R2 (not in PostgreSQL) for debugging and audit
+- [x] **IN-01**: CI pipeline can push JUnit XML results to Velo via REST API endpoint; results are auto-mapped to test cases by name or external ID
+- [x] **IN-02**: CI pipeline can push Allure JSON results to Velo; results are auto-mapped to test cases
+- [x] **IN-03**: JUnit XML parser handles the 5 most common CI variants (pytest-junit, Surefire/Maven, Gradle, Jest-junit, Go gotestsum) without error
+- [x] **IN-04**: Raw CI payloads are stored in Cloudflare R2 (not in PostgreSQL) for debugging and audit
 
 ### Integrations
 
@@ -181,10 +181,10 @@
 | DA-01 | Phase 3 | Complete |
 | DA-02 | Phase 3 | Complete |
 | DA-03 | Phase 3 | Complete |
-| IN-01 | Phase 4 | Pending |
-| IN-02 | Phase 4 | Pending |
-| IN-03 | Phase 4 | Pending |
-| IN-04 | Phase 4 | Pending |
+| IN-01 | Phase 4 | Complete |
+| IN-02 | Phase 4 | Complete |
+| IN-03 | Phase 4 | Complete |
+| IN-04 | Phase 4 | Complete |
 | INT-01 | Phase 5 | Pending |
 | INT-02 | Phase 5 | Pending |
 | INT-03 | Phase 5 | Pending |
