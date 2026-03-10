@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
 import Fastify from "fastify"
 import { uuidv7 } from "uuidv7"
+import type { Redis } from "iovalkey"
 import runsRoutes from "../runs.js"
 import runItemsRoutes from "../run-items.js"
 
@@ -24,9 +25,8 @@ function buildApp(userId: string, workspaceId: string) {
     request.userRole = "editor"
   })
   // Mock valkey.publish so run-items route can fire-and-forget without a real Valkey
-  app.decorate("valkey", {
-    publish: vi.fn().mockResolvedValue(1),
-  })
+  // Cast through unknown: the mock only needs publish(); full Redis type not required in tests
+  app.decorate("valkey", { publish: vi.fn().mockResolvedValue(1) } as unknown as Redis)
   return app
 }
 
