@@ -188,14 +188,17 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       const userEmail = (userRows[0] as { email: string }).email
 
       // Look up pending invitations for this workspace + email (not yet accepted)
-      const invitations = await sql`
-        SELECT id, token_hash, role, expires_at
-        FROM workspace_invitations
-        WHERE workspace_id = ${workspaceId}::uuid
-          AND email = ${userEmail}
-          AND accepted_at IS NULL
-        ORDER BY created_at DESC
-      `
+      // Use withWorkspace to satisfy RLS policy on workspace_invitations
+      const invitations = await withWorkspace(workspaceId, async (tx) => {
+        return tx`
+          SELECT id, token_hash, role, expires_at
+          FROM workspace_invitations
+          WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+            AND email = ${userEmail}
+            AND accepted_at IS NULL
+          ORDER BY created_at DESC
+        `
+      })
 
       if (invitations.length === 0) {
         return reply.status(400).send({ error: "No valid invitation found for your email address" })
