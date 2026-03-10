@@ -1,20 +1,13 @@
 import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
-import { encrypt, decrypt } from "../lib/encryption.js"
+import { encrypt } from "../lib/encryption.js"
 import {
   exchangeCodeForTokens,
   getLinearOrganization,
   getLinearTeams,
   createLinearWebhook,
 } from "../lib/linear-client.js"
-
-// UUID validation (any version)
-const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isUuid(value: string): boolean {
-  return UUID_ANY_RE.test(value)
-}
 
 // ── Linear OAuth + management routes ────────────────────────────────────────
 // Base path: /api/workspaces/:workspaceId/linear/*
