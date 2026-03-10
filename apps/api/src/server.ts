@@ -57,6 +57,40 @@ async function runFixups() {
     await fixupClient.unsafe(
       `ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL`
     )
+    // Phase 6: workspace_invitations table (migration 0006 journal entry without SQL)
+    await fixupClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS workspace_invitations (
+        id UUID PRIMARY KEY,
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        email VARCHAR(255) NOT NULL,
+        role workspace_role NOT NULL DEFAULT 'editor',
+        token_hash TEXT NOT NULL,
+        invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        accepted_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspace_invitations ENABLE ROW LEVEL SECURITY
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspace_invitations FORCE ROW LEVEL SECURITY
+    `)
+    await fixupClient.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = 'workspace_invitations' AND policyname = 'workspace_isolation'
+        ) THEN
+          CREATE POLICY workspace_isolation ON workspace_invitations
+            USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
+        END IF;
+      END $$
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_invitations_workspace_email
+        ON workspace_invitations (workspace_id, email)
+    `)
     console.log("Schema fixups complete")
   } finally {
     await fixupClient.end()
