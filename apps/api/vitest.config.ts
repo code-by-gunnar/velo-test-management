@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config"
 
-process.loadEnvFile(".env")
+try { process.loadEnvFile(".env") } catch { /* CI has no .env file */ }
 
 export default defineConfig({
   test: {
