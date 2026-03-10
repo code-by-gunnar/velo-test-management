@@ -1,6 +1,5 @@
 import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
-import type postgres from "postgres"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { sql } from "../db/client.js"
@@ -22,8 +21,7 @@ function isUuid(value: string): boolean {
 // bare sql with workspace_id as a filter, not RLS).
 
 export async function verifyApiKey(
-  rawKey: string,
-  _sql?: postgres.Sql
+  rawKey: string
 ): Promise<{ workspaceId: string; keyId: string } | null> {
   if (!rawKey || rawKey.length < 8) return null
 
