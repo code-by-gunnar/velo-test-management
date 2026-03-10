@@ -3,7 +3,7 @@ import { clsx } from "clsx"
 import type { InputHTMLAttributes, LabelHTMLAttributes } from "react"
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  error?: string
+  error?: string | undefined
 }
 
 export function Input({ className, error, ...props }: InputProps) {
@@ -37,7 +37,7 @@ export function Label({ className, children, ...props }: LabelHTMLAttributes<HTM
 interface FormFieldProps {
   label: string
   htmlFor: string
-  error?: string
+  error?: string | undefined
   children: React.ReactNode
 }
 

@@ -9,6 +9,10 @@ export const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.FROM_EMAIL ?? "noreply@velo.app"
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    process.stdout.write(`\n[dev] OTP for ${to}: ${code}\n\n`)
+    return
+  }
   const { error } = await resend.emails.send({
     from: FROM,
     to,

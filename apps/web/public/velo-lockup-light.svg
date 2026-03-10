@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 48" width="192" height="48">
+  <title>Velo Lockup — Light</title>
+  <!-- Mark at 48px: scale 0.75, shift down 0 -->
+  <g transform="scale(0.75) translate(0 0)">
+    <g transform="rotate(-52 25.5 27)">
+      <rect x="11" y="20" width="29" height="14" rx="7" fill="#2563EB"/>
+    </g>
+    <g transform="rotate(-52 38.5 37)">
+      <rect x="24" y="30" width="29" height="14" rx="7" fill="#2563EB"/>
+    </g>
+    <ellipse cx="32" cy="32" rx="5.5" ry="4.5" fill="white" transform="rotate(-52 32 32)"/>
+  </g>
+  <!-- Wordmark: Inter 800, 30px, slate -->
+  <text
+    x="52" y="33"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
+    font-weight="800"
+    font-size="30"
+    letter-spacing="-1"
+    fill="#1E293B"
+  >velo</text>
+</svg>

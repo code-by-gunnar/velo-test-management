@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
-      <div className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <div className={`${inter.variable} ${jetbrainsMono.variable} font-ui`}>
         <Component {...pageProps} />
       </div>
     </SessionProvider>
