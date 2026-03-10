@@ -1,6 +1,7 @@
 import { Worker } from "bullmq"
 import { Resend } from "resend"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
+import { workspaceInviteEmail } from "../lib/email-templates.js"
 import type { EmailJobData } from "./email.queue.js"
 
 const FROM = process.env.FROM_EMAIL ?? "Velo <noreply@runvelo.app>"
@@ -39,6 +40,7 @@ export const emailWorker = new Worker<EmailJobData>(
           from: FROM,
           to,
           subject,
+          html: workspaceInviteEmail(inviterName, workspaceName, inviteUrl),
           text: `${inviterName} has invited you to join the ${workspaceName} workspace on Velo.\n\nAccept your invitation:\n${inviteUrl}\n\nThis invitation expires in 7 days.`,
         })
         break

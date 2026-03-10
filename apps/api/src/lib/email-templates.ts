@@ -1,0 +1,110 @@
+// Branded HTML email templates — Industrial Notebook design language
+// All styles are inlined for maximum email client compatibility.
+
+const COBALT = "#1A56DB"
+const WARM_BG = "#F5F3EF"
+const CARD_BG = "#FAFAF8"
+const TEXT_PRIMARY = "#2D2926"
+const TEXT_SECONDARY = "#6B6560"
+const BORDER = "#E8E4DE"
+
+// Velo mark as inline SVG data URI (cobalt double-pill)
+const LOGO_DATA_URI = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 48' width='192' height='48'%3E%3Cg transform='scale(0.75) translate(0 0)'%3E%3Cg transform='rotate(-52 25.5 27)'%3E%3Crect x='11' y='20' width='29' height='14' rx='7' fill='%231A56DB'/%3E%3C/g%3E%3Cg transform='rotate(-52 38.5 37)'%3E%3Crect x='24' y='30' width='29' height='14' rx='7' fill='%231A56DB'/%3E%3C/g%3E%3C/g%3E%3Ctext x='52' y='33' font-family='Inter,system-ui,-apple-system,sans-serif' font-weight='800' font-size='30' letter-spacing='-1' fill='%232D2926'%3Evelo%3C/text%3E%3C/svg%3E`
+
+function layout(content: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:${WARM_BG};font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${WARM_BG};padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding:0 0 32px;">
+              <img src="${LOGO_DATA_URI}" alt="Velo" width="120" height="30" style="display:block;" />
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:40px 36px;">
+              ${content}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:24px 0 0;">
+              <p style="margin:0;font-size:12px;color:${TEXT_SECONDARY};line-height:18px;">
+                Velo — Test management for teams that ship fast
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+function heading(text: string): string {
+  return `<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:${TEXT_PRIMARY};line-height:28px;">${text}</h1>`
+}
+
+function paragraph(text: string): string {
+  return `<p style="margin:0 0 16px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">${text}</p>`
+}
+
+function button(text: string, url: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr>
+      <td style="background-color:${COBALT};border-radius:6px;">
+        <a href="${url}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">${text}</a>
+      </td>
+    </tr>
+  </table>`
+}
+
+function codeBlock(code: string): string {
+  return `<div style="margin:24px 0;padding:20px;background-color:${WARM_BG};border:1px solid ${BORDER};border-radius:6px;text-align:center;">
+    <span style="font-family:'JetBrains Mono','SF Mono',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:${COBALT};">${code}</span>
+  </div>`
+}
+
+function muted(text: string): string {
+  return `<p style="margin:0;font-size:13px;color:${TEXT_SECONDARY};line-height:20px;">${text}</p>`
+}
+
+// ── Templates ──────────────────────────────────────────────────────────────
+
+export function otpEmail(code: string): string {
+  return layout(
+    heading("Verification code") +
+    paragraph("Enter this code to verify your email address.") +
+    codeBlock(code) +
+    muted("This code expires in 15 minutes. If you didn't request this, you can safely ignore this email.")
+  )
+}
+
+export function passwordResetEmail(resetUrl: string): string {
+  return layout(
+    heading("Reset your password") +
+    paragraph("We received a request to reset your password. Click the button below to choose a new one.") +
+    button("Reset Password", resetUrl) +
+    muted("This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.")
+  )
+}
+
+export function workspaceInviteEmail(
+  inviterName: string,
+  workspaceName: string,
+  inviteUrl: string
+): string {
+  return layout(
+    heading(`Join ${workspaceName} on Velo`) +
+    paragraph(`<strong style="color:${TEXT_PRIMARY};">${inviterName}</strong> has invited you to collaborate on the <strong style="color:${TEXT_PRIMARY};">${workspaceName}</strong> workspace.`) +
+    button("Accept Invitation", inviteUrl) +
+    muted("This invitation expires in 7 days.")
+  )
+}
