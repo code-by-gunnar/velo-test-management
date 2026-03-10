@@ -19,6 +19,7 @@ import runItemsRoutes from "./routes/run-items.js"
 import defectsRoutes from "./routes/defects.js"
 import apiKeyRoutes from "./routes/api-keys.js"
 import ingestionRoutes from "./routes/ingestion.js"
+import memberRoutes from "./routes/members.js"
 import linearRoutes from "./routes/linear.js"
 import linearWebhookRoutes from "./routes/linear-webhook.js"
 import webhookRoutes from "./routes/webhooks.js"
@@ -101,6 +102,7 @@ await fastify.register(runsRoutes)
 await fastify.register(runItemsRoutes)
 await fastify.register(defectsRoutes)
 await fastify.register(apiKeyRoutes)
+await fastify.register(memberRoutes)
 await fastify.register(ingestionRoutes)
 await fastify.register(linearRoutes)
 await fastify.register(webhookRoutes)
