@@ -245,9 +245,9 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
     <div className="flex flex-col gap-4">
       {/* Secret one-time display */}
       {rawSecret && (
-        <div className="rounded-lg border border-cobalt/30 bg-cobalt/5 p-4">
+        <div className="rounded-lg border border-primary/30 bg-primary-selected p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-cobalt">Webhook created</p>
+            <p className="text-sm font-semibold text-primary">Webhook created</p>
             <button
               type="button"
               onClick={() => { setRawSecret(null); setSecretCopied(false) }}
@@ -310,7 +310,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
                   }
                 }}
                 autoFocus
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div className="mb-3">
@@ -322,7 +322,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
                       type="checkbox"
                       checked={newEvents.includes(evt.key)}
                       onChange={() => toggleEvent(newEvents, evt.key, setNewEvents)}
-                      className="rounded border-gray-300 text-cobalt focus:ring-cobalt"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                     {evt.label}
                   </label>
@@ -387,7 +387,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
                             type="url"
                             value={editUrl}
                             onChange={(e) => setEditUrl(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                            className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                         </td>
                         <td className="py-2.5 pr-4">
@@ -398,7 +398,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
                                   type="checkbox"
                                   checked={editEvents.includes(evt.key)}
                                   onChange={() => toggleEvent(editEvents, evt.key, setEditEvents)}
-                                  className="rounded border-gray-300 text-cobalt focus:ring-cobalt"
+                                  className="rounded border-gray-300 text-primary focus:ring-primary"
                                 />
                                 {evt.label}
                               </label>

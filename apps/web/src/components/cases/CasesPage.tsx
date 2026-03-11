@@ -76,7 +76,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
   return (
     <div className="flex h-full flex-row overflow-hidden">
       {/* Left panel: Suite tree */}
-      <div className="w-56 shrink-0 border-r border-gray-200 bg-white" style={{ minWidth: 220 }}>
+      <div className="shrink-0 border-r border-gray-200 bg-white" style={{ width: 200 }}>
         <SuiteTree
           tree={tree}
           isLoading={suitesLoading}

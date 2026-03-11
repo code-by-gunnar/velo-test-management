@@ -158,13 +158,13 @@ export function SuiteTree({
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Suites</span>
+      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3">
+        <span className="text-xs font-semibold uppercase text-gray-500" style={{ fontSize: 12, letterSpacing: '0.5px' }}>Suites</span>
         <button
           type="button"
           onClick={startCreate}
           disabled={!canEdit}
-          className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-gray-600"
+          className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-primary"
           title={canEdit ? "New suite" : "Editor access required"}
           aria-label="New suite"
         >
@@ -173,7 +173,7 @@ export function SuiteTree({
       </div>
 
       {/* Tree */}
-      <div className="flex-1 overflow-y-auto p-1">
+      <div className="flex-1 overflow-y-auto px-2 py-1">
         {isLoading ? (
           // Skeleton shimmer while suites load
           <div className="space-y-1 px-1 pt-1">
@@ -190,11 +190,12 @@ export function SuiteTree({
           type="button"
           onClick={() => onSelect(null)}
           className={clsx(
-            "flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-left transition-colors",
+            "flex w-full items-center gap-2 rounded-md px-2 text-sm text-left transition-colors",
             selected === null
-              ? "bg-cobalt/10 text-cobalt font-medium"
-              : "text-gray-700 hover:bg-gray-100"
+              ? "bg-primary-selected text-primary font-medium"
+              : "text-gray-800 hover:bg-gray-100"
           )}
+          style={{ height: 32, padding: '6px 8px' }}
         >
           <span className="text-gray-400">◈</span>
           <span>All Cases</span>
@@ -211,7 +212,7 @@ export function SuiteTree({
               onKeyDown={handleKeyDown}
               onBlur={cancelCreate}
               placeholder="Suite name…"
-              className="w-full rounded border border-cobalt bg-white px-2 py-0.5 text-sm focus:outline-none"
+              className="w-full rounded border border-primary bg-white px-2 py-0.5 text-sm focus:outline-none"
             />
           </div>
         )}

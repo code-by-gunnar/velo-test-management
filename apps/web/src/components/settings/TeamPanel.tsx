@@ -33,7 +33,7 @@ function RoleBadge({ role }: { role: string }) {
     <span
       className={clsx(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        role === "admin" && "border border-cobalt/20 bg-cobalt/10 text-cobalt",
+        role === "admin" && "border border-primary/20 bg-primary-selected text-primary",
         role === "editor" && "border border-blue-200 bg-blue-50 text-blue-700",
         role === "viewer" && "border border-gray-200 bg-gray-50 text-gray-500"
       )}
@@ -227,7 +227,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleInvite()
                 }}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div>
@@ -238,7 +238,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
                 id="invite-role"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "admin" | "editor" | "viewer")}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -353,7 +353,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
                               )
                             }
                             disabled={changingRoleFor === member.user_id}
-                            className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt disabled:opacity-50"
+                            className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                           >
                             {ROLE_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>

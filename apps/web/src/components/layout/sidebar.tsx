@@ -14,6 +14,7 @@ import {
   Settings2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -24,7 +25,7 @@ interface SidebarProps {
 const STORAGE_KEY = "velo:sidebar-collapsed"
 const PROJECT_KEY_STORAGE = "velo:last-project-key"
 
-const ICON_SIZE = 16
+const ICON_SIZE = 18
 
 const NAV_ITEMS = [
   {
@@ -89,26 +90,26 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        "flex h-screen shrink-0 flex-col bg-gray-800 transition-all duration-200",
-        collapsed ? "w-12" : "w-60"
+        "flex h-screen shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-200",
+        collapsed ? "w-sidebar-collapsed" : "w-sidebar"
       )}
       aria-label="Main navigation"
     >
       {/* Workspace header */}
       <div className={clsx(
-        "flex h-12 shrink-0 items-center border-b border-gray-700",
+        "flex h-12 shrink-0 items-center border-b border-gray-200",
         collapsed ? "justify-center px-1" : "gap-2.5 px-3"
       )}>
         {!collapsed && (
           <>
             <Image src="/velo-mark-cobalt.svg" alt="Velo" width={28} height={28} className="shrink-0" />
-            <span className="flex-1 truncate text-sm font-semibold text-gray-100 font-display">Velo</span>
+            <span className="flex-1 truncate text-base font-bold text-gray-900 font-display">Velo</span>
           </>
         )}
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition-colors"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -116,22 +117,23 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         </button>
       </div>
 
-      {/* Project context pill — shown when inside a project */}
-      {!collapsed && effectiveProjectKey && (
-        <div className="border-b border-gray-700 px-3 py-2">
-          <div className="flex items-center gap-2 rounded-md bg-gray-700/50 px-2 py-1.5">
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent/20 text-[10px] font-bold text-accent">
-              {effectiveProjectKey.slice(0, 2).toUpperCase()}
+      {/* Workspace dropdown */}
+      {!collapsed && (
+        <div className="px-3 py-3">
+          <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
+              {slug.slice(0, 2).toUpperCase()}
             </div>
-            <span className="truncate font-mono text-xs font-medium text-gray-300 uppercase tracking-wide">
-              {effectiveProjectKey}
+            <span className="flex-1 truncate text-sm font-semibold text-gray-800">
+              {slug}
             </span>
+            <ChevronDown size={14} className="shrink-0 text-gray-500" />
           </div>
         </div>
       )}
 
       {/* Nav items */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2" aria-label="Project navigation">
+      <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Project navigation">
         {NAV_ITEMS.map((item) => {
           const href = item.href(slug, effectiveProjectKey)
           const isActive = router.asPath === href
@@ -143,8 +145,8 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
                 title={collapsed ? `${item.label}${("tooltip" in item && item.tooltip) ? ` — ${item.tooltip as string}` : ""}` : (("tooltip" in item && item.tooltip) ? item.tooltip as string : undefined)}
                 aria-disabled="true"
                 className={clsx(
-                  "flex cursor-not-allowed items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-600",
-                  collapsed ? "justify-center px-2" : "pl-2 pr-2 border-l-[3px] border-transparent"
+                  "flex cursor-not-allowed items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-400",
+                  collapsed ? "justify-center px-2" : "px-3"
                 )}
               >
                 <span className="shrink-0">{item.icon}</span>
@@ -160,19 +162,19 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
               title={collapsed ? item.label : undefined}
               className={clsx(
                 "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-                collapsed ? "justify-center px-2" : "pr-2",
+                collapsed ? "justify-center px-2" : "px-3",
                 isActive
-                  ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                  : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+                  ? "bg-primary-selected text-primary font-semibold"
+                  : "text-gray-800 hover:bg-gray-100"
               )}
             >
-              <span className="shrink-0">{item.icon}</span>
+              <span className={clsx("shrink-0", isActive ? "text-primary" : "text-gray-500")}>{item.icon}</span>
               {!collapsed && <span>{item.label}</span>}
             </Link>
           )
         })}
 
-        <div className="my-2 border-t border-gray-700" />
+        <div className="my-3 border-t border-gray-200" />
 
         {/* Ingestion */}
         {effectiveProjectKey && (
@@ -182,21 +184,21 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
               title={collapsed ? "Ingestion" : undefined}
               className={clsx(
                 "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-                collapsed ? "justify-center px-2" : "pr-2",
+                collapsed ? "justify-center px-2" : "px-3",
                 router.asPath.includes("/ingestion")
-                  ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                  : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+                  ? "bg-primary-selected text-primary font-semibold"
+                  : "text-gray-800 hover:bg-gray-100"
               )}
             >
-              <Download size={ICON_SIZE} className="shrink-0" />
+              <Download size={ICON_SIZE} className={clsx("shrink-0", router.asPath.includes("/ingestion") ? "text-primary" : "text-gray-500")} />
               {!collapsed && <span>Ingestion</span>}
             </Link>
           ) : (
             <span
               title={collapsed ? "Ingestion — Editor access required" : "Editor access required"}
               className={clsx(
-                "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
-                collapsed ? "justify-center px-2" : "pl-2 pr-2"
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-400 opacity-50 cursor-default",
+                collapsed ? "justify-center px-2" : "px-3"
               )}
             >
               <Download size={ICON_SIZE} className="shrink-0" />
@@ -213,21 +215,21 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
               title={collapsed ? "Project Settings" : undefined}
               className={clsx(
                 "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-                collapsed ? "justify-center px-2" : "pr-2",
+                collapsed ? "justify-center px-2" : "px-3",
                 router.asPath.includes(`/${effectiveProjectKey}/settings`)
-                  ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                  : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+                  ? "bg-primary-selected text-primary font-semibold"
+                  : "text-gray-800 hover:bg-gray-100"
               )}
             >
-              <Settings2 size={ICON_SIZE} className="shrink-0" />
+              <Settings2 size={ICON_SIZE} className={clsx("shrink-0", router.asPath.includes(`/${effectiveProjectKey}/settings`) ? "text-primary" : "text-gray-500")} />
               {!collapsed && <span>Project Settings</span>}
             </Link>
           ) : (
             <span
               title={collapsed ? "Project Settings — Editor access required" : "Editor access required"}
               className={clsx(
-                "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
-                collapsed ? "justify-center px-2" : "pl-2 pr-2"
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-400 opacity-50 cursor-default",
+                collapsed ? "justify-center px-2" : "px-3"
               )}
             >
               <Settings2 size={ICON_SIZE} className="shrink-0" />
@@ -236,7 +238,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
           )
         )}
 
-        <div className="my-2 border-t border-gray-700" />
+        <div className="my-3 border-t border-gray-200" />
 
         {/* Workspace Settings */}
         {isAdmin ? (
@@ -245,21 +247,21 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             title={collapsed ? "Settings" : undefined}
             className={clsx(
               "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-              collapsed ? "justify-center px-2" : "pr-2",
+              collapsed ? "justify-center px-2" : "px-3",
               router.asPath === `/app/${slug}/settings`
-                ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+                ? "bg-primary-selected text-primary font-semibold"
+                : "text-gray-800 hover:bg-gray-100"
             )}
           >
-            <Settings size={ICON_SIZE} className="shrink-0" />
+            <Settings size={ICON_SIZE} className={clsx("shrink-0", router.asPath === `/app/${slug}/settings` ? "text-primary" : "text-gray-500")} />
             {!collapsed && <span>Workspace Settings</span>}
           </Link>
         ) : (
           <span
             title={collapsed ? "Workspace Settings — Admin access required" : "Admin access required"}
             className={clsx(
-              "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
-              collapsed ? "justify-center px-2" : "pl-2 pr-2"
+              "flex items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-400 opacity-50 cursor-default",
+              collapsed ? "justify-center px-2" : "px-3"
             )}
           >
             <Settings size={ICON_SIZE} className="shrink-0" />
@@ -269,21 +271,21 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-gray-700 p-2">
+      <div className="border-t border-gray-200 p-2">
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/login" })}
           title={collapsed ? (displayName || "Sign out") : undefined}
           className={clsx(
-            "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 transition-colors",
+            "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-800 hover:bg-gray-100 transition-colors",
             collapsed ? "justify-center px-2" : "px-2"
           )}
         >
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-600 text-[10px] font-semibold text-gray-200">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
             {initials}
           </div>
           {!collapsed && (
-            <span className="flex-1 truncate text-left text-xs">{displayName || "Sign out"}</span>
+            <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Sign out"}</span>
           )}
         </button>
       </div>

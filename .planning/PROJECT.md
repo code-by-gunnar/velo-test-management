@@ -1,90 +1,73 @@
-# Velo
+# Velo UI Redesign — "Clean Elevation"
 
 ## What This Is
 
-Velo is a lean QA and test management platform for startups and scale-ups (20–200 employees). It gives QA engineers one clean place to write, run, and track tests — with a keyboard-first UI, flat pricing, and CI/CD integrations that work out of the box. Built by a QA engineer, for QA engineers.
+A full visual redesign of the Velo test management platform, moving from the current "Industrial Notebook" dark-sidebar aesthetic to a clean, elevated, light look. Every page gets restyled — new design tokens, typography (DM Sans + IBM Plex Sans), white sidebar, floating card layout on a cool blue-gray surface, and a brighter blue primary. No functional changes — same components, same interactions, same data flows.
 
 ## Core Value
 
-A QA engineer can create a test case in under 30 seconds and see run results update in real time — without fighting the tool.
+The app must look polished, intentional, and distinctly NOT like another dark-mode SaaS clone — while preserving every existing interaction and keyboard shortcut without regression.
 
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- All v1 functionality (48 requirements across 6 phases) — existing, must not regress
 
 ### Active
 
-**Phase 1 + 2 scope (MVP)**
-
-- [ ] Repo, CI/CD pipeline, and deployment to Railway are configured
-- [ ] Auth (email/password + session management) via Auth.js v5
-- [ ] PostgreSQL schema covers all core entities (Workspace, Project, Suite, TestCase, TestRun, RunItem, Defect, Milestone)
-- [ ] Valkey (Redis fork) configured for caching and real-time pub/sub
-- [ ] Design system tokens and base component library in Next.js (Pages Router)
-- [ ] Test case editor: keyboard-first, inline editing, under 30s from blank to saved (TC-01)
-- [ ] Suite and folder structure: nested suites, drag-and-drop, bulk move/copy (TC-02)
-- [ ] Test run creation from suites, filters, or milestone scope (TR-01)
-- [ ] Execution interface: P/F/B/S keyboard shortcuts, inline defect filing (TR-02)
-- [ ] JUnit XML and Allure JSON ingestion via API (IN-01)
-- [ ] Live run dashboard with real-time updates — no page refresh required (DA-01)
-- [ ] REST API with full UI parity + webhooks (API-01)
-- [ ] Jira two-way sync: file defects from Velo, see Jira status back in run view (INT-01)
-- [ ] Team and role management: Admin, Editor, Viewer (USR-01)
+- [ ] Design token overhaul (colors, typography, spacing, shadows, radii)
+- [ ] Typography swap: DM Sans (headings) + IBM Plex Sans (body) replacing Inter
+- [ ] White sidebar with collapsible icon rail (192px / 48px)
+- [ ] Floating card layout on blue-gray (#E8EDF2) background for all pages
+- [ ] 3-panel layout on cases page (sidebar | suites panel | content)
+- [ ] Component reskin (buttons, badges, cards, inputs, status badges, table rows)
+- [ ] All existing pages restyled to match new design language
+- [ ] Status colors preserved (pass/fail/blocked/skipped muted tones kept)
 
 ### Out of Scope
 
-- Clerk auth — want more control; Auth.js v5 gives full ownership without a paid dependency
-- Next.js App Router — CVE-2025-55182 (CVSS 10.0 RCE); Pages Router only until patched/resolved
-- Fly.io hosting — Railway is simpler for MVP; migrate to Fly.io if multi-region becomes a need
-- P1 features (templates, coverage reports, GitHub/GitLab, Slack, AI generation) — Phase 3+ only
-- P2 features (custom dashboards, Linear, failure analysis AI) — post-PMF
-- Built-in test automation engine — out of scope entirely
-- Requirements management module — not Velo's job
-- Time/budget tracking — not Velo's job
-- Built-in bug tracker — Jira/Linear integration only
-- Custom workflow builder — opinionated defaults instead
-- On-premises / self-hosted — not in V1
-- Compliance modules (21 CFR, FDA, ISO 13485) — enterprise tier only if ever
-- Native mobile app — not in V1
-- Dark mode — V2 feature
-- PostgreSQL FTS upgrades / Typesense search — V2
-- SSO / SAML — Growth/Enterprise tier, post-PMF
+- Functional changes — no new features, no interaction redesigns, no new API endpoints
+- Dark mode — light is the identity, dark mode is v2
+- Mobile-responsive redesign — current responsive behavior stays, just restyled
+- New component creation — restyle existing components only
+- The floating action buttons and right-side icons from the mockup — these are mockup artifacts, not production features
 
 ## Context
 
-- **Builder background:** Solo founder who is an active QA / SDET — first-hand user of the problem. Primary daily frustrations: (1) test case creation is too slow and click-heavy in current tools, and (2) run tracking requires constant manual refresh — results are always stale.
-- **Market gap:** Incumbents (TestRail, Qase, PractiTest) were built for enterprise compliance workflows. All charge per-seat. None feel fast. Velo's differentiators are flat pricing, keyboard-first UX, and real-time run tracking.
-- **Design language:** Notion/Craft aesthetic — light, spatial, warm. Not dark-mode cockpit. Status colours: muted sage (pass), warm coral (fail), amber (blocked). Primary accent: Cobalt (#2563EB). Background: Mist (#F8FAFC).
-- **Pricing model:** Flat workspace tiers (Free / Starter $49 / Growth $149 / Enterprise custom). Viewers always free. Editors capped per tier.
+**Current state:** Velo v1 is complete (48/48 requirements, all 6 phases shipped). The app works end-to-end: auth, test cases, runs, execution, CI ingestion, Linear integration, RBAC. The visual layer is functional but uses an "Industrial Notebook" warm palette that feels dated compared to the founder's vision.
+
+**Design reference:** `docs/Clean Elevation.png` (mockup) and `docs/desgin-language-redesign.md` (pixel-level spec). The spec references "Inter/SF Pro" in the typography table — this is overridden by the founder's decision to use DM Sans + IBM Plex Sans.
+
+**Tech stack (frontend):** Next.js 16 Pages Router, Tailwind CSS with custom design tokens in `globals.css`, CVA for component variants, Lucide React icons. All current design tokens are CSS custom properties.
+
+**Key files:**
+- `apps/web/src/styles/globals.css` — CSS custom properties (colors, spacing, shadows, typography vars)
+- `apps/web/src/pages/_app.tsx` — font loading via `next/font/google`
+- `apps/web/src/components/ui/` — Button, Card, Input, StatusBadge (CVA variants)
+- `apps/web/src/components/layout/sidebar.tsx` — collapsible sidebar (dark warm)
+- `apps/web/src/components/layout/app-layout.tsx` — app shell layout
+- `tailwind.config.ts` — Tailwind theme extension
 
 ## Constraints
 
-- **Tech — Frontend:** Next.js 16 Pages Router + TypeScript + Tailwind CSS. App Router explicitly excluded (CVE-2025-55182).
-- **Tech — Backend:** Node.js 22 LTS + Fastify 5
-- **Tech — Database:** PostgreSQL 16 + Valkey (replaces Redis — SSPL licence change March 2024)
-- **Tech — Auth:** Auth.js v5 (PKCE enforced). No Clerk dependency.
-- **Tech — Storage:** Cloudflare R2 (zero egress vs S3)
-- **Tech — AI:** Anthropic Claude API (claude-sonnet-4-6 / claude-haiku-4-5) — for Phase 3+ AI features
-- **Tech — Observability:** Sentry + Better Stack
-- **Hosting:** Railway for MVP
-- **CI/CD:** GitHub Actions
-- **Scope:** Phase 1 (Foundation) + Phase 2 (Core MVP) only. 6-phase full roadmap exists but phases 3–6 are future.
-- **Security:** Supply chain hardening — pnpm lockfiles + Dependabot/Socket.dev in CI; node:22-alpine base with pinned digests; Trivy in CI.
-- **Performance:** All operations <300ms. Real-time run updates without page reload.
-- **Navigation:** Max 3 clicks to any data from any screen.
+- **No regressions**: Every keyboard shortcut, every page flow, every API call must work identically after the redesign
+- **CSS-first**: Changes should be primarily in tokens, Tailwind config, and component class names — not restructuring React component trees
+- **Font licensing**: DM Sans and IBM Plex Sans are both Google Fonts (open source, free) — no licensing issues
+- **Existing status tokens**: pass/fail/blocked/skipped colors stay as muted tones (forest green, brick red, burnt amber, warm gray) — they work well and don't need to match the cool palette
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Next.js Pages Router over App Router | CVE-2025-55182 (CVSS 10.0 RCE) in App Router makes it a non-starter; Pages Router is stable and familiar | — Pending |
-| Auth.js v5 over Clerk | More control over auth infrastructure; avoid paid dependency at MVP stage | — Pending |
-| Railway over Fly.io | Simpler setup for solo MVP; Fly.io available if multi-region needed later | — Pending |
-| Valkey over Redis | Redis SSPL licence change March 2024 — Valkey is the open-source fork with community backing | — Pending |
-| SvelteKit dropped in favour of Next.js | Larger ecosystem wins for solo founder with delivery risk; CVE concerns still apply to App Router | — Pending |
-| Phase 1+2 only (not full 6-phase roadmap) | Solo founder — validate core before building integrations and AI features | — Pending |
+| DM Sans + IBM Plex Sans over Inter | Inter is overused in SaaS; DM Sans has more character for headings, IBM Plex Sans is highly legible for body | — Pending |
+| White sidebar over dark | Lighter, more open feel; matches the "Clean Elevation" aesthetic | — Pending |
+| Cool blue-gray background (#E8EDF2) | Distinguishes from the Notion/Craft cool-white default while staying light | — Pending |
+| Brighter blue primary (#2D7FF9) | More vibrant than the current cobalt (#1A56DB); better contrast on white | — Pending |
+| Floating card layout | Every page rendered as a white card on the blue-gray surface — consistent, clean, elevated | — Pending |
+| 3-panel cases page | Sidebar \| Suites panel (144px) \| Content — clearer hierarchy for test case management | — Pending |
+| Visual reskin only | No functional changes reduces risk, scope, and testing surface | — Pending |
+| Keep muted status colors | Forest green/brick red/amber/gray work well; forcing them into the cool palette would reduce readability | — Pending |
 
 ---
-*Last updated: 2026-03-08 after initialization*
+*Last updated: 2026-03-11 after initialization (UI redesign milestone)*

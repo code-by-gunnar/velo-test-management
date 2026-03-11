@@ -207,12 +207,12 @@ export function CaseList({
           onDragEnd={(e) => { void handleDragEnd(e) }}
         >
           <div className="flex-1 overflow-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ borderSpacing: "0 4px", borderCollapse: "separate" }}>
               <thead className="sticky top-0 bg-white">
-                <tr className="border-b border-gray-200">
+                <tr>
                   {/* Drag handle column header — empty */}
-                  <th className="w-8 px-2 py-2" />
-                  <th className="w-8 px-3 py-2">
+                  <th className="w-8 px-2 py-2.5" />
+                  <th className="w-8 px-3 py-2.5">
                     <input
                       type="checkbox"
                       checked={allChecked}
@@ -220,22 +220,22 @@ export function CaseList({
                         if (el) el.indeterminate = indeterminate
                       }}
                       onChange={toggleAll}
-                      className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+                      className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
                       aria-label="Select all"
                     />
                   </th>
-                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
                     Title
                   </th>
                   {!selectedSuite && (
-                    <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
                       Suite
                     </th>
                   )}
-                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
                     Priority
                   </th>
-                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
                     Steps
                   </th>
                 </tr>

@@ -66,7 +66,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
             type="text"
             defaultValue={`Failed: ${caseTitle}`}
             placeholder="Defect title"
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
@@ -75,7 +75,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
             name="description"
             rows={2}
             placeholder="Description (optional)"
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt resize-none"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
           />
         </div>
 

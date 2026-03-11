@@ -95,12 +95,12 @@ export default function RunsDashboard({
       <div className="flex h-full flex-col">
         {/* Page header */}
         <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-          <div>
+          <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-gray-900">Test Runs</h1>
             {!isFiltering && (
-              <p className="mt-0.5 text-sm text-gray-500">
+              <span className="text-sm text-gray-400">
                 {runs.length} {runs.length === 1 ? "run" : "runs"}
-              </p>
+              </span>
             )}
           </div>
           <Button

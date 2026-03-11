@@ -3,39 +3,36 @@
 @tailwind utilities;
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────────
-   Velo design language: Industrial Notebook — warm, precise, human.
-   Warm paper tones replace clinical whites. Earthy status colours replace
-   saturated Tailwind defaults.
+   Velo design language: Clean Elevation — cool, precise, elevated.
+   Cool blue-gray surface with pure white cards. Neutral shadows and
+   refined spacing create a modern QA workspace.
    ─────────────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Primary */
-  --color-cobalt: #1A56DB;
-  --color-cobalt-light: #D6E4FF;
-  --color-cobalt-dark: #1442A8;
+  --color-primary: #2D7FF9;
+  --color-primary-hover: #1A6BE8;
+  --color-primary-selected: #EBF3FF;
 
-  /* Accent */
-  --color-accent: #E8C547;
-  --color-accent-light: #FDF6D8;
-  --color-accent-dark: #C9A51E;
+  /* Backgrounds — cool elevation */
+  --color-mist: #E8EDF2;
+  --color-white: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F9FAFB;
+  --color-hover-bg: #F3F4F6;
+  --color-table-header-bg: #F9FAFB;
 
-  /* Backgrounds — warm paper tones */
-  --color-mist: #F5F3EF;
-  --color-white: #FAFAF8;
-  --color-surface: #FAFAF8;
-  --color-surface-raised: #F5F3EF;
+  /* Text — cool near-blacks */
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-text-tertiary: #9CA3AF;
+  --color-text-disabled: #D1D5DB;
 
-  /* Text — warm near-blacks */
-  --color-text-primary: #2D2926;
-  --color-text-secondary: #5C574E;
-  --color-text-tertiary: #8B8680;
-  --color-text-disabled: #D4D0C8;
+  /* Borders — cool gray */
+  --color-border: #E5E7EB;
+  --color-border-strong: #D1D5DB;
 
-  /* Borders — warm stone */
-  --color-border: #E8E4DD;
-  --color-border-strong: #D4D0C8;
-
-  /* Status colours — muted, earthy */
+  /* Status colours — muted, earthy (UNCHANGED) */
   --color-pass: #3D9970;
   --color-pass-bg: #EBF5F0;
   --color-pass-text: #1B5E42;
@@ -52,13 +49,14 @@
   --color-skipped-bg: #F2F1EE;
   --color-skipped-text: #5C574E;
 
-  /* Sidebar — dark warm */
-  --color-sidebar-bg: #2D2926;
-  --color-sidebar-text: #E8E4DD;
-  --color-sidebar-muted: #8B8680;
-  --color-sidebar-hover: #3A3632;
-  --color-sidebar-active: #E8C547;
-  --color-sidebar-border: #3A3632;
+  /* Sidebar — white with blue accents */
+  --color-sidebar-bg: #FFFFFF;
+  --color-sidebar-text: #1F2937;
+  --color-sidebar-muted: #9CA3AF;
+  --color-sidebar-hover: #F3F4F6;
+  --color-sidebar-active: #2D7FF9;
+  --color-sidebar-active-bg: #EBF3FF;
+  --color-sidebar-border: #E5E7EB;
 
   /* Sidebar sizing */
   --sidebar-width: 240px;
@@ -76,14 +74,15 @@
   --space-12: 48px;
 
   /* Border radius */
-  --radius-sm: 4px;
+  --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-full: 9999px;
 
-  /* Shadows — slightly warm */
-  --shadow-sm: 0 1px 2px 0 rgb(45 41 38 / 0.04);
-  --shadow-md: 0 4px 6px -1px rgb(45 41 38 / 0.06), 0 2px 4px -2px rgb(45 41 38 / 0.04);
-  --shadow-lg: 0 10px 15px -3px rgb(45 41 38 / 0.06), 0 4px 6px -4px rgb(45 41 38 / 0.04);
+  /* Shadows — neutral */
+  --shadow-card: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-dropdown: 0px 4px 6px rgba(0, 0, 0, 0.1), 0px 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-toast: 0px 4px 12px rgba(0, 0, 0, 0.15);
 
   /* Typography */
   --font-display: var(--font-display), system-ui, sans-serif;
@@ -91,7 +90,7 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-/* ─── Skeleton shimmer — warm tones ──────────────────────────────────────── */
+/* ─── Skeleton shimmer — cool tones ──────────────────────────────────────── */
 
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
@@ -99,27 +98,10 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #F5F3EF 25%, #EBE8E2 50%, #F5F3EF 75%);
+  background: linear-gradient(90deg, #E8EDF2 25%, #DEE3EA 50%, #E8EDF2 75%);
   background-size: 800px 100%;
   animation: shimmer 1.2s ease-in-out infinite;
-  border-radius: 4px;
-}
-
-/* ─── Subtle noise texture for page background ───────────────────────────── */
-
-.bg-noise {
-  position: relative;
-}
-
-.bg-noise::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.025;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+  border-radius: 6px;
 }
 
 /* ─── Base resets ────────────────────────────────────────────────────────── */
@@ -137,6 +119,98 @@ body {
 }
 
 /* ─── Heading font — DM Sans for display weight ─────────────────────────── */
-h1, h2, h3 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display), system-ui, sans-serif;
+}
+
+/* ─── Typography Scale (UI-08) ──────────────────────────────────────────── */
+@layer components {
+  .text-page-title {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--color-text-primary);
+  }
+
+  .text-section-label {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .text-body {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-text-primary);
+  }
+
+  .text-body-medium {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--color-text-primary);
+  }
+
+  .text-table-header {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .text-caption {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--color-text-tertiary);
+  }
+
+  .text-code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  /* ── Table row pattern (UI-23) ──────────────────────────────────── */
+  .table-header-row {
+    display: grid;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    background-color: var(--color-table-header-bg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .table-header-cell {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .table-body-row {
+    display: grid;
+    align-items: center;
+    height: 56px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 150ms;
+  }
+
+  .table-body-row:hover {
+    background-color: var(--color-surface-raised);
+  }
 }

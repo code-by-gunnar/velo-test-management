@@ -10,8 +10,8 @@ export function Input({ className, error, ...props }: InputProps) {
   return (
     <input
       className={clsx(
-        "w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-400",
-        "focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt",
+        "w-full rounded-sm border px-3 py-2 text-sm text-gray-900 placeholder-gray-400",
+        "focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
         error
           ? "border-fail focus:border-fail focus:ring-fail"
