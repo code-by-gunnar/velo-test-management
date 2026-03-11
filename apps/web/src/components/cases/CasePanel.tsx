@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { useUserRole } from "@/hooks/useUserRole"
 import { useForm } from "react-hook-form"
 import { clsx } from "clsx"
 import { Button, Label } from "@/components/ui"
@@ -31,6 +32,7 @@ export function CasePanel({
   onClose,
   onSaved,
 }: CasePanelProps) {
+  const { canEdit } = useUserRole()
   const titleRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const [steps, setSteps] = useState<Step[]>(DEFAULT_STEPS)
@@ -103,7 +105,7 @@ export function CasePanel({
         e.preventDefault()
         void handleSubmit(onSubmit)()
       } else if (e.key === "e" || e.key === "E") {
-        // E key enters edit mode when in view mode
+        if (!canEdit) return
         const target = e.target as HTMLElement
         if (!["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) && !isEditing && caseId !== null) {
           setIsEditing(true)
@@ -183,7 +185,7 @@ export function CasePanel({
             {isCreateMode ? "New Test Case" : (isEditing ? "Edit Test Case" : (viewData?.title ?? "Test Case"))}
           </h2>
           <div className="flex items-center gap-2">
-            {!isCreateMode && !isEditing && (
+            {!isCreateMode && !isEditing && canEdit && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -317,9 +319,11 @@ export function CasePanel({
                     </div>
                   )}
                 </div>
-                <div className="pt-2">
-                  <span className="text-xs text-gray-400">Press E to edit</span>
-                </div>
+                {canEdit && (
+                  <div className="pt-2">
+                    <span className="text-xs text-gray-400">Press E to edit</span>
+                  </div>
+                )}
               </div>
             )
           )}

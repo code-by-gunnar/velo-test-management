@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import { clsx } from "clsx"
+import { useUserRole } from "@/hooks/useUserRole"
 import {
   DndContext,
   closestCenter,
@@ -55,6 +56,7 @@ export function SuiteTree({
   onSuiteCreated,
   onSuiteReordered,
 }: SuiteTreeProps) {
+  const { canEdit } = useUserRole()
   const [creating, setCreating] = useState(false)
   const [newSuiteName, setNewSuiteName] = useState("")
   const [rootSuites, setRootSuites] = useState<Suite[]>(tree)
@@ -158,15 +160,17 @@ export function SuiteTree({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Suites</span>
-        <button
-          type="button"
-          onClick={startCreate}
-          className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-sm"
-          title="New suite"
-          aria-label="New suite"
-        >
-          +
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={startCreate}
+            className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-sm"
+            title="New suite"
+            aria-label="New suite"
+          >
+            +
+          </button>
+        )}
       </div>
 
       {/* Tree */}
@@ -225,7 +229,7 @@ export function SuiteTree({
       </div>
 
       {/* New suite inline input */}
-      {creating && (
+      {canEdit && creating && (
         <div className="border-t border-gray-100 px-2 py-1.5">
           <input
             ref={inputRef}
@@ -241,7 +245,7 @@ export function SuiteTree({
       )}
 
       {/* New suite button */}
-      {!creating && (
+      {canEdit && !creating && (
         <div className="border-t border-gray-100 px-2 py-1.5">
           <button
             type="button"

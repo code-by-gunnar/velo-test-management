@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
+import { useUserRole } from "@/hooks/useUserRole"
 
 interface BulkActionBarProps {
   selectedCount: number
@@ -21,6 +22,7 @@ export function BulkActionBar({
   onDelete,
   onClearSelection,
 }: BulkActionBarProps) {
+  const { canEdit } = useUserRole()
   const [dropdownMode, setDropdownMode] = useState<DropdownMode>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -71,44 +73,50 @@ export function BulkActionBar({
         </span>
 
         {/* Move to dropdown */}
-        <div className="relative">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setDropdownMode(dropdownMode === "move" ? null : "move")}
-            disabled={isSubmitting}
-          >
-            Move to &#9660;
-          </Button>
-          {dropdownMode === "move" && (
-            <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
-          )}
-        </div>
+        {canEdit && (
+          <div className="relative">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDropdownMode(dropdownMode === "move" ? null : "move")}
+              disabled={isSubmitting}
+            >
+              Move to &#9660;
+            </Button>
+            {dropdownMode === "move" && (
+              <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
+            )}
+          </div>
+        )}
 
         {/* Copy to dropdown */}
-        <div className="relative">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setDropdownMode(dropdownMode === "copy" ? null : "copy")}
-            disabled={isSubmitting}
-          >
-            Copy to &#9660;
-          </Button>
-          {dropdownMode === "copy" && (
-            <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
-          )}
-        </div>
+        {canEdit && (
+          <div className="relative">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDropdownMode(dropdownMode === "copy" ? null : "copy")}
+              disabled={isSubmitting}
+            >
+              Copy to &#9660;
+            </Button>
+            {dropdownMode === "copy" && (
+              <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
+            )}
+          </div>
+        )}
 
         {/* Delete */}
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => { void handleDelete() }}
-          disabled={isSubmitting}
-        >
-          Delete
-        </Button>
+        {canEdit && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => { void handleDelete() }}
+            disabled={isSubmitting}
+          >
+            Delete
+          </Button>
+        )}
 
         {/* Clear selection */}
         <button

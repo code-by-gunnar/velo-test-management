@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/router"
+import { useUserRole } from "@/hooks/useUserRole"
 import { useKeyboardExecution } from "@/hooks/useKeyboardExecution"
 import type { Verdict } from "@/hooks/useKeyboardExecution"
 import { DefectPrompt } from "./DefectPrompt"
@@ -81,6 +82,7 @@ export function ExecutionScreen({
   startIndex: startIndexProp,
 }: ExecutionScreenProps) {
   const router = useRouter()
+  const { canEdit } = useUserRole()
 
   const [items, setItems] = useState<RunItem[]>(initialItems)
   const [currentIndex, setCurrentIndex] = useState(() => {
@@ -481,13 +483,15 @@ export function ExecutionScreen({
                           {step.expected_result}
                         </td>
                         <td className="px-2 py-3 align-top">
-                          <StepCommentIcon
-                            runItemId={currentItem.id}
-                            stepOrder={step.step_order}
-                            workspaceId={workspaceId}
-                            existingComments={stepComments}
-                            onCommentAdded={(comment) => handleStepCommentAdded(comment, currentItem.id)}
-                          />
+                          {canEdit && (
+                            <StepCommentIcon
+                              runItemId={currentItem.id}
+                              stepOrder={step.step_order}
+                              workspaceId={workspaceId}
+                              existingComments={stepComments}
+                              onCommentAdded={(comment) => handleStepCommentAdded(comment, currentItem.id)}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -503,12 +507,20 @@ export function ExecutionScreen({
             )}
 
             {/* Defect prompt */}
-            <DefectPrompt
-              isOpen={showDefectPrompt}
-              caseTitle={currentItem.case_title}
-              onFile={handleFileDefect}
-              onSkip={handleSkipDefect}
-            />
+            {canEdit && (
+              <DefectPrompt
+                isOpen={showDefectPrompt}
+                caseTitle={currentItem.case_title}
+                onFile={handleFileDefect}
+                onSkip={handleSkipDefect}
+              />
+            )}
+
+            {!canEdit && (
+              <div className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-500 mb-4">
+                You have view-only access to this run.
+              </div>
+            )}
 
             {/* Case comment */}
             <div className="mb-4">
@@ -533,7 +545,7 @@ export function ExecutionScreen({
                 placeholder="Add a note about this test case…"
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt resize-none"
               />
-              {!commentSaved && (
+              {!commentSaved && canEdit && (
                 <div className="flex items-center justify-end gap-2 mt-1.5">
                   <span className="text-[10px] text-gray-400">Ctrl+Enter to save</span>
                   <Button variant="primary" size="sm" onClick={saveComment}>
@@ -557,11 +569,15 @@ export function ExecutionScreen({
         <div className="flex items-center justify-center gap-6 text-xs text-gray-400">
           {isCurrentUntested ? (
             <>
-              <KeyHint k="P" label="Pass" color="text-pass-text" />
-              <KeyHint k="F" label="Fail" color="text-fail-text" />
-              <KeyHint k="B" label="Blocked" color="text-blocked-text" />
-              <KeyHint k="S" label="Skip" color="text-skipped-text" />
-              <span className="text-gray-300">|</span>
+              {canEdit && (
+                <>
+                  <KeyHint k="P" label="Pass" color="text-pass-text" />
+                  <KeyHint k="F" label="Fail" color="text-fail-text" />
+                  <KeyHint k="B" label="Blocked" color="text-blocked-text" />
+                  <KeyHint k="S" label="Skip" color="text-skipped-text" />
+                  <span className="text-gray-300">|</span>
+                </>
+              )}
               <KeyHint k="←" label="Prev" color="text-gray-500" />
               <KeyHint k="→" label="Next" color="text-gray-500" />
             </>

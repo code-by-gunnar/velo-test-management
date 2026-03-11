@@ -3,6 +3,7 @@ import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
+import { useUserRole } from "@/hooks/useUserRole"
 
 type Priority = "critical" | "high" | "medium" | "low"
 
@@ -45,6 +46,7 @@ function findSuiteName(suites: Suite[], suiteId: string): string | null {
 }
 
 export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suites, onToggleSelect, onOpen }: CaseListRowProps) {
+  const { canEdit } = useUserRole()
   const priority = testCase.priority as Priority
   const priorityCfg = PRIORITY_CONFIG[priority]
 
@@ -74,14 +76,16 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
     >
       {/* Drag handle — listeners spread here only, NOT on the whole row */}
       <td className="w-8 px-2 py-2.5">
-        <span
-          {...attributes}
-          {...listeners}
-          className="flex cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
-          aria-label="Drag to reorder"
-        >
-          &#8801;
-        </span>
+        {canEdit && (
+          <span
+            {...attributes}
+            {...listeners}
+            className="flex cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
+            aria-label="Drag to reorder"
+          >
+            &#8801;
+          </span>
+        )}
       </td>
 
       {/* Checkbox */}

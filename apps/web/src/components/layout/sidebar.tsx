@@ -4,6 +4,7 @@ import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
 import { useCallback, useSyncExternalStore } from "react"
+import { useUserRole } from "@/hooks/useUserRole"
 import {
   LayoutGrid,
   Play,
@@ -50,6 +51,7 @@ const NAV_ITEMS = [
 export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
+  const { canEdit, isAdmin } = useUserRole()
 
   const subscribeStorage = useCallback((cb: () => void) => {
     window.addEventListener("storage", cb)
@@ -173,7 +175,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         <div className="my-2 border-t border-gray-700" />
 
         {/* Ingestion */}
-        {effectiveProjectKey && (
+        {canEdit && effectiveProjectKey && (
           <Link
             href={`/app/${slug}/${effectiveProjectKey}/ingestion`}
             title={collapsed ? "Ingestion" : undefined}
@@ -191,7 +193,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         )}
 
         {/* Project Settings */}
-        {effectiveProjectKey && (
+        {canEdit && effectiveProjectKey && (
           <Link
             href={`/app/${slug}/${effectiveProjectKey}/settings`}
             title={collapsed ? "Project Settings" : undefined}
@@ -211,20 +213,22 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         <div className="my-2 border-t border-gray-700" />
 
         {/* Workspace Settings */}
-        <Link
-          href={`/app/${slug}/settings`}
-          title={collapsed ? "Settings" : undefined}
-          className={clsx(
-            "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-            collapsed ? "justify-center px-2" : "pr-2",
-            router.asPath === `/app/${slug}/settings`
-              ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-              : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
-          )}
-        >
-          <Settings size={ICON_SIZE} className="shrink-0" />
-          {!collapsed && <span>Workspace Settings</span>}
-        </Link>
+        {isAdmin && (
+          <Link
+            href={`/app/${slug}/settings`}
+            title={collapsed ? "Settings" : undefined}
+            className={clsx(
+              "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+              collapsed ? "justify-center px-2" : "pr-2",
+              router.asPath === `/app/${slug}/settings`
+                ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
+                : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+            )}
+          >
+            <Settings size={ICON_SIZE} className="shrink-0" />
+            {!collapsed && <span>Workspace Settings</span>}
+          </Link>
+        )}
       </nav>
 
       {/* User section */}

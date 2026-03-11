@@ -6,6 +6,7 @@ interface StepRowProps {
   action: string
   expected_result: string
   isLast: boolean
+  readOnly?: boolean
   onChange: (index: number, field: "action" | "expected_result", value: string) => void
   onAddAfter: (index: number) => void
   onDelete: (index: number) => void
@@ -20,6 +21,7 @@ export function StepRow({
   action,
   expected_result,
   isLast,
+  readOnly = false,
   onChange,
   onAddAfter,
   onDelete,
@@ -63,6 +65,7 @@ export function StepRow({
         ref={actionRef}
         rows={1}
         value={action}
+        readOnly={readOnly}
         onChange={(e) => onChange(index, "action", e.target.value)}
         onKeyDown={handleActionKeyDown}
         onInput={autoResize}
@@ -74,6 +77,7 @@ export function StepRow({
         ref={expectedRef}
         rows={1}
         value={expected_result}
+        readOnly={readOnly}
         onChange={(e) => onChange(index, "expected_result", e.target.value)}
         onKeyDown={handleExpectedKeyDown}
         onInput={autoResize}
