@@ -62,10 +62,10 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
   return (
     <tr
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, borderRadius: 8 }}
       className={clsx(
-        "group cursor-pointer border-b border-gray-100 transition-colors",
-        isDragging ? "opacity-50 bg-primary/5" : isSelected ? "bg-primary/5" : "hover:bg-gray-50"
+        "group cursor-pointer transition-colors",
+        isDragging ? "opacity-50 bg-primary/5" : isSelected ? "bg-primary-selected" : "bg-gray-50 hover:bg-gray-100"
       )}
       onClick={(e) => {
         // Only open panel if clicking the row itself, not the checkbox or drag handle

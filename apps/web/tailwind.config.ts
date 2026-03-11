@@ -61,7 +61,7 @@ const config: Config = {
         toast:    "0px 4px 12px rgba(0, 0, 0, 0.15)",
       },
       width: {
-        sidebar: "192px",
+        sidebar: "240px",
         "sidebar-collapsed": "48px",
       },
     },
