@@ -175,45 +175,71 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         <div className="my-2 border-t border-gray-700" />
 
         {/* Ingestion */}
-        {canEdit && effectiveProjectKey && (
-          <Link
-            href={`/app/${slug}/${effectiveProjectKey}/ingestion`}
-            title={collapsed ? "Ingestion" : undefined}
-            className={clsx(
-              "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-              collapsed ? "justify-center px-2" : "pr-2",
-              router.asPath.includes("/ingestion")
-                ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
-            )}
-          >
-            <Download size={ICON_SIZE} className="shrink-0" />
-            {!collapsed && <span>Ingestion</span>}
-          </Link>
+        {effectiveProjectKey && (
+          canEdit ? (
+            <Link
+              href={`/app/${slug}/${effectiveProjectKey}/ingestion`}
+              title={collapsed ? "Ingestion" : undefined}
+              className={clsx(
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+                collapsed ? "justify-center px-2" : "pr-2",
+                router.asPath.includes("/ingestion")
+                  ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
+                  : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+              )}
+            >
+              <Download size={ICON_SIZE} className="shrink-0" />
+              {!collapsed && <span>Ingestion</span>}
+            </Link>
+          ) : (
+            <span
+              title={collapsed ? "Ingestion — Editor access required" : "Editor access required"}
+              className={clsx(
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
+                collapsed ? "justify-center px-2" : "pl-2 pr-2"
+              )}
+            >
+              <Download size={ICON_SIZE} className="shrink-0" />
+              {!collapsed && <span>Ingestion</span>}
+            </span>
+          )
         )}
 
         {/* Project Settings */}
-        {canEdit && effectiveProjectKey && (
-          <Link
-            href={`/app/${slug}/${effectiveProjectKey}/settings`}
-            title={collapsed ? "Project Settings" : undefined}
-            className={clsx(
-              "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
-              collapsed ? "justify-center px-2" : "pr-2",
-              router.asPath.includes(`/${effectiveProjectKey}/settings`)
-                ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
-                : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
-            )}
-          >
-            <Settings2 size={ICON_SIZE} className="shrink-0" />
-            {!collapsed && <span>Project Settings</span>}
-          </Link>
+        {effectiveProjectKey && (
+          canEdit ? (
+            <Link
+              href={`/app/${slug}/${effectiveProjectKey}/settings`}
+              title={collapsed ? "Project Settings" : undefined}
+              className={clsx(
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+                collapsed ? "justify-center px-2" : "pr-2",
+                router.asPath.includes(`/${effectiveProjectKey}/settings`)
+                  ? "border-l-[3px] border-accent bg-gray-700/40 text-gray-100 font-medium pl-[5px]"
+                  : "border-l-[3px] border-transparent text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 pl-2"
+              )}
+            >
+              <Settings2 size={ICON_SIZE} className="shrink-0" />
+              {!collapsed && <span>Project Settings</span>}
+            </Link>
+          ) : (
+            <span
+              title={collapsed ? "Project Settings — Editor access required" : "Editor access required"}
+              className={clsx(
+                "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
+                collapsed ? "justify-center px-2" : "pl-2 pr-2"
+              )}
+            >
+              <Settings2 size={ICON_SIZE} className="shrink-0" />
+              {!collapsed && <span>Project Settings</span>}
+            </span>
+          )
         )}
 
         <div className="my-2 border-t border-gray-700" />
 
         {/* Workspace Settings */}
-        {isAdmin && (
+        {isAdmin ? (
           <Link
             href={`/app/${slug}/settings`}
             title={collapsed ? "Settings" : undefined}
@@ -228,6 +254,17 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             <Settings size={ICON_SIZE} className="shrink-0" />
             {!collapsed && <span>Workspace Settings</span>}
           </Link>
+        ) : (
+          <span
+            title={collapsed ? "Workspace Settings — Admin access required" : "Admin access required"}
+            className={clsx(
+              "flex items-center gap-2.5 rounded-md py-1.5 text-sm border-l-[3px] border-transparent text-gray-600 opacity-40 cursor-default",
+              collapsed ? "justify-center px-2" : "pl-2 pr-2"
+            )}
+          >
+            <Settings size={ICON_SIZE} className="shrink-0" />
+            {!collapsed && <span>Workspace Settings</span>}
+          </span>
         )}
       </nav>
 

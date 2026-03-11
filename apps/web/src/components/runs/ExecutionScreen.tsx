@@ -545,10 +545,10 @@ export function ExecutionScreen({
                 placeholder="Add a note about this test case…"
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt resize-none"
               />
-              {!commentSaved && canEdit && (
+              {!commentSaved && (
                 <div className="flex items-center justify-end gap-2 mt-1.5">
                   <span className="text-[10px] text-gray-400">Ctrl+Enter to save</span>
-                  <Button variant="primary" size="sm" onClick={saveComment}>
+                  <Button variant="primary" size="sm" onClick={saveComment} disabled={!canEdit}>
                     Save
                   </Button>
                 </div>

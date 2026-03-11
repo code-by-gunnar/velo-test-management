@@ -185,10 +185,11 @@ export function CasePanel({
             {isCreateMode ? "New Test Case" : (isEditing ? "Edit Test Case" : (viewData?.title ?? "Test Case"))}
           </h2>
           <div className="flex items-center gap-2">
-            {!isCreateMode && !isEditing && canEdit && (
+            {!isCreateMode && !isEditing && (
               <Button
                 variant="secondary"
                 size="sm"
+                disabled={!canEdit}
                 onClick={() => {
                   setIsEditing(true)
                   setTimeout(() => titleRef.current?.focus(), 0)

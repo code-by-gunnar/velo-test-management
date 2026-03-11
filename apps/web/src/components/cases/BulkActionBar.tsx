@@ -73,50 +73,44 @@ export function BulkActionBar({
         </span>
 
         {/* Move to dropdown */}
-        {canEdit && (
-          <div className="relative">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setDropdownMode(dropdownMode === "move" ? null : "move")}
-              disabled={isSubmitting}
-            >
-              Move to &#9660;
-            </Button>
-            {dropdownMode === "move" && (
-              <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
-            )}
-          </div>
-        )}
+        <div className="relative">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setDropdownMode(dropdownMode === "move" ? null : "move")}
+            disabled={isSubmitting || !canEdit}
+          >
+            Move to &#9660;
+          </Button>
+          {dropdownMode === "move" && (
+            <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
+          )}
+        </div>
 
         {/* Copy to dropdown */}
-        {canEdit && (
-          <div className="relative">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setDropdownMode(dropdownMode === "copy" ? null : "copy")}
-              disabled={isSubmitting}
-            >
-              Copy to &#9660;
-            </Button>
-            {dropdownMode === "copy" && (
-              <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
-            )}
-          </div>
-        )}
+        <div className="relative">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setDropdownMode(dropdownMode === "copy" ? null : "copy")}
+            disabled={isSubmitting || !canEdit}
+          >
+            Copy to &#9660;
+          </Button>
+          {dropdownMode === "copy" && (
+            <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
+          )}
+        </div>
 
         {/* Delete */}
-        {canEdit && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => { void handleDelete() }}
-            disabled={isSubmitting}
-          >
-            Delete
-          </Button>
-        )}
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => { void handleDelete() }}
+          disabled={isSubmitting || !canEdit}
+        >
+          Delete
+        </Button>
 
         {/* Clear selection */}
         <button
