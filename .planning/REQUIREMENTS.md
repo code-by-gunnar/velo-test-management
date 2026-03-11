@@ -82,50 +82,50 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| UI-05 | — | Pending |
-| UI-06 | — | Pending |
-| UI-07 | — | Pending |
-| UI-08 | — | Pending |
-| UI-09 | — | Pending |
-| UI-10 | — | Pending |
-| UI-11 | — | Pending |
-| UI-12 | — | Pending |
-| UI-13 | — | Pending |
-| UI-14 | — | Pending |
-| UI-15 | — | Pending |
-| UI-16 | — | Pending |
-| UI-17 | — | Pending |
-| UI-18 | — | Pending |
-| UI-19 | — | Pending |
-| UI-20 | — | Pending |
-| UI-21 | — | Pending |
-| UI-22 | — | Pending |
-| UI-23 | — | Pending |
-| UI-24 | — | Pending |
-| UI-25 | — | Pending |
-| UI-26 | — | Pending |
-| UI-27 | — | Pending |
-| UI-28 | — | Pending |
-| UI-29 | — | Pending |
-| UI-30 | — | Pending |
-| UI-31 | — | Pending |
-| UI-32 | — | Pending |
-| UI-33 | — | Pending |
-| UI-34 | — | Pending |
-| UI-35 | — | Pending |
-| UI-36 | — | Pending |
-| UI-37 | — | Pending |
-| UI-38 | — | Pending |
+| UI-01 | Phase 1 | Pending |
+| UI-02 | Phase 1 | Pending |
+| UI-03 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Pending |
+| UI-05 | Phase 1 | Pending |
+| UI-06 | Phase 1 | Pending |
+| UI-07 | Phase 1 | Pending |
+| UI-08 | Phase 1 | Pending |
+| UI-09 | Phase 2 | Pending |
+| UI-10 | Phase 2 | Pending |
+| UI-11 | Phase 2 | Pending |
+| UI-12 | Phase 2 | Pending |
+| UI-13 | Phase 2 | Pending |
+| UI-14 | Phase 2 | Pending |
+| UI-15 | Phase 2 | Pending |
+| UI-16 | Phase 2 | Pending |
+| UI-17 | Phase 2 | Pending |
+| UI-18 | Phase 3 | Pending |
+| UI-19 | Phase 3 | Pending |
+| UI-20 | Phase 3 | Pending |
+| UI-21 | Phase 3 | Pending |
+| UI-22 | Phase 3 | Pending |
+| UI-23 | Phase 3 | Pending |
+| UI-24 | Phase 3 | Pending |
+| UI-25 | Phase 3 | Pending |
+| UI-26 | Phase 3 | Pending |
+| UI-27 | Phase 3 | Pending |
+| UI-28 | Phase 3 | Pending |
+| UI-29 | Phase 3 | Pending |
+| UI-30 | Phase 3 | Pending |
+| UI-31 | Phase 3 | Pending |
+| UI-32 | Phase 3 | Pending |
+| UI-33 | Phase 3 | Pending |
+| UI-34 | Phase 3 | Pending |
+| UI-35 | Phase 4 | Pending |
+| UI-36 | Phase 4 | Pending |
+| UI-37 | Phase 4 | Pending |
+| UI-38 | Phase 4 | Pending |
 
 **Coverage:**
 - UI redesign requirements: 38 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 38
+- Mapped to phases: 38
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-11 — Phase mappings added*
