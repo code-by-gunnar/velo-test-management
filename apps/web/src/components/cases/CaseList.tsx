@@ -220,7 +220,7 @@ export function CaseList({
                         if (el) el.indeterminate = indeterminate
                       }}
                       onChange={toggleAll}
-                      className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+                      className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
                       aria-label="Select all"
                     />
                   </th>

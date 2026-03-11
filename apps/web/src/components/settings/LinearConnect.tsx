@@ -193,7 +193,7 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
               <select
                 value={selectedTeamId}
                 onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="w-full appearance-none rounded-md border border-gray-200 bg-white px-3 py-1.5 pr-8 text-sm text-gray-900 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="w-full appearance-none rounded-md border border-gray-200 bg-white px-3 py-1.5 pr-8 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">Select a team...</option>
                 {status.teams.map((team) => (

@@ -124,7 +124,7 @@ export function ExecutionHistory({ caseId, workspaceId }: ExecutionHistoryProps)
                 <button
                   type="button"
                   onClick={() => setShowAll((v) => !v)}
-                  className="mt-2 text-xs text-cobalt hover:underline"
+                  className="mt-2 text-xs text-primary hover:underline"
                 >
                   {showAll ? "Show less" : `Show all ${entries.length} results`}
                 </button>

@@ -62,7 +62,7 @@ function FilePicker({ onFile, error }: FilePickerProps) {
   return (
     <div className="flex flex-col gap-4">
       <div
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-gray-300 px-6 py-12 text-center transition hover:border-cobalt hover:bg-cobalt/5"
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-gray-300 px-6 py-12 text-center transition hover:border-primary hover:bg-primary/5"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onClick={() => inputRef.current?.click()}
@@ -94,7 +94,7 @@ function FilePicker({ onFile, error }: FilePickerProps) {
         <button
           type="button"
           onClick={downloadSampleCsv}
-          className="text-cobalt underline hover:no-underline"
+          className="text-primary underline hover:no-underline"
         >
           Download sample CSV
         </button>
@@ -158,7 +158,7 @@ function MappingStep({
             <select
               value={columnMapping.title}
               onChange={updateField("title")}
-              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
             >
               <option value="">-- select --</option>
               {headers.map((h) => (
@@ -177,7 +177,7 @@ function MappingStep({
             <select
               value={columnMapping.action}
               onChange={updateField("action")}
-              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
             >
               <option value="">-- select --</option>
               {headers.map((h) => (
@@ -194,7 +194,7 @@ function MappingStep({
             <select
               value={columnMapping.expected}
               onChange={updateField("expected")}
-              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-cobalt focus:outline-none"
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
             >
               <option value="">-- (none) --</option>
               {headers.map((h) => (
@@ -355,7 +355,7 @@ export function ImportModal({
           {/* Step 3a: Importing spinner */}
           {state.status === "importing" && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-cobalt border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               <p className="text-sm text-gray-600">Importing test cases…</p>
             </div>
           )}

@@ -202,7 +202,7 @@ export function RunCreateModal({
                       setSelectedSuiteIds(new Set())
                     }
                   }}
-                  className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+                  className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
                 />
                 All Cases
               </label>
@@ -224,7 +224,7 @@ export function RunCreateModal({
                           type="checkbox"
                           checked={selectedSuiteIds.has(suite.id)}
                           onChange={() => toggleSuite(suite.id)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+                          className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
                         />
                         {suite.name}
                       </label>
@@ -237,7 +237,7 @@ export function RunCreateModal({
                 <button
                   type="button"
                   onClick={() => setAllCases(false)}
-                  className="mt-1 text-xs text-cobalt underline hover:no-underline"
+                  className="mt-1 text-xs text-primary underline hover:no-underline"
                 >
                   Select specific suites
                 </button>
@@ -253,7 +253,7 @@ export function RunCreateModal({
                 id="run-assignee"
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">Unassigned</option>
                 {assignees.map((a) => (

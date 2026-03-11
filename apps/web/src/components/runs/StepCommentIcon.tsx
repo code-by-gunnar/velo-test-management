@@ -126,13 +126,13 @@ export function StepCommentIcon({
           e.stopPropagation()
           setOpen((prev) => !prev)
         }}
-        className="relative flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-cobalt hover:bg-cobalt/5 transition-colors"
+        className="relative flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-primary hover:bg-primary/5 transition-colors"
         title={hasComments ? `${allComments.length} comment(s)` : "Add step comment"}
         aria-label="Step comment"
       >
         <MessageSquare size={14} aria-hidden="true" />
         {hasComments && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cobalt border border-white" />
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-white" />
         )}
       </button>
 
@@ -171,13 +171,13 @@ export function StepCommentIcon({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Add comment…"
-                className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <button
                 type="button"
                 onClick={() => void handleAdd()}
                 disabled={!inputValue.trim() || saving}
-                className="rounded bg-cobalt px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 hover:bg-cobalt/90 transition-colors"
+                className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 hover:bg-primary-hover transition-colors"
               >
                 {saving ? "…" : "Add"}
               </button>

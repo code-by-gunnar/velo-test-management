@@ -404,7 +404,7 @@ export function ExecutionScreen({
                       onClick={() => navigateTo(idx)}
                       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                         isCurrent
-                          ? "bg-cobalt/5 text-cobalt font-medium"
+                          ? "bg-primary/5 text-primary font-medium"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
@@ -543,7 +543,7 @@ export function ExecutionScreen({
                 onKeyDown={handleCommentKeyDown}
                 rows={2}
                 placeholder="Add a note about this test case…"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt resize-none"
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
               {!commentSaved && (
                 <div className="flex items-center justify-end gap-2 mt-1.5">
