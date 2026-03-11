@@ -85,21 +85,19 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
       const keyPrefix = rawKey.slice(0, 8) // "velo_xxx" — first 8 chars
 
       const keyId = uuidv7()
-      const safeName = name.replace(/'/g, "''")
-      const createdByVal = request.userId ? `'${request.userId}'` : "NULL"
 
       await withWorkspace(workspaceId, async (tx) => {
-        await tx.unsafe(`
+        await tx`
           INSERT INTO api_keys (id, workspace_id, name, key_prefix, key_hash, created_by)
           VALUES (
-            '${keyId}',
+            ${keyId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${safeName}',
-            '${keyPrefix}',
-            '${keyHash}',
-            ${createdByVal}
+            ${name},
+            ${keyPrefix},
+            ${keyHash},
+            ${request.userId ?? null}::uuid
           )
-        `)
+        `
       })
 
       return reply.status(201).send({
@@ -124,12 +122,12 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const keys = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT id, name, key_prefix AS prefix, created_at, expires_at, revoked_at
           FROM api_keys
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           ORDER BY created_at DESC
-        `)
+        `
       })
 
       return reply.send(keys)
@@ -153,20 +151,20 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           SELECT id FROM api_keys
-          WHERE id = '${keyId}'
+          WHERE id = ${keyId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
             AND revoked_at IS NULL
-        `)
+        `
         if (rows.length === 0) return "not_found"
 
-        await tx.unsafe(`
+        await tx`
           UPDATE api_keys
           SET revoked_at = NOW()
-          WHERE id = '${keyId}'
+          WHERE id = ${keyId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
         return "ok"
       })
 

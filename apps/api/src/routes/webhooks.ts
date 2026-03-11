@@ -75,27 +75,23 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       const webhookId = uuidv7()
       const secret = crypto.randomBytes(32).toString("hex")
-      const safeUrl = endpoint_url.replace(/'/g, "''")
       const createdBy = request.userId
 
-      // Build Postgres array literal from events
-      const eventsArray = `{${events.map((e) => `"${e}"`).join(",")}}`
-
       const webhook = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           INSERT INTO webhooks (id, workspace_id, project_id, endpoint_url, secret, events, active, created_by)
           VALUES (
-            '${webhookId}',
+            ${webhookId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            '${safeUrl}',
-            '${secret}',
-            '${eventsArray}'::text[],
+            ${projectId}::uuid,
+            ${endpoint_url},
+            ${secret},
+            ${events}::text[],
             true,
-            ${createdBy ? `'${createdBy}'` : "NULL"}
+            ${createdBy ?? null}::uuid
           )
           RETURNING id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at
-        `)
+        `
         return rows[0] as Record<string, unknown>
       })
 
@@ -121,13 +117,13 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const webhooks = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at, updated_at
           FROM webhooks
-          WHERE project_id = '${projectId}'
+          WHERE project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           ORDER BY created_at DESC
-        `)
+        `
       })
 
       return reply.send(webhooks)
@@ -178,34 +174,23 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Build SET clauses
-      const setClauses: string[] = []
-      if (endpoint_url !== undefined) {
-        setClauses.push(`endpoint_url = '${endpoint_url.replace(/'/g, "''")}'`)
-      }
-      if (events !== undefined) {
-        const eventsArray = `{${events.map((e) => `"${e}"`).join(",")}}`
-        setClauses.push(`events = '${eventsArray}'::text[]`)
-      }
-      if (active !== undefined) {
-        setClauses.push(`active = ${active}`)
-      }
-
-      if (setClauses.length === 0) {
+      if (endpoint_url === undefined && events === undefined && active === undefined) {
         return reply.status(400).send({ error: "No fields to update" })
       }
 
-      setClauses.push("updated_at = NOW()")
-
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const urlFrag = endpoint_url !== undefined ? tx`endpoint_url = ${endpoint_url},` : tx``
+        const eventsFrag = events !== undefined ? tx`events = ${events}::text[],` : tx``
+        const activeFrag = active !== undefined ? tx`active = ${active},` : tx``
+
+        const rows = await tx`
           UPDATE webhooks
-          SET ${setClauses.join(", ")}
-          WHERE id = '${webhookId}'
-            AND project_id = '${projectId}'
+          SET ${urlFrag} ${eventsFrag} ${activeFrag} updated_at = NOW()
+          WHERE id = ${webhookId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at, updated_at
-        `)
+        `
         return rows.length > 0 ? rows[0] as Record<string, unknown> : null
       })
 
@@ -234,13 +219,13 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           DELETE FROM webhooks
-          WHERE id = '${webhookId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${webhookId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
-        `)
+        `
         return rows.length > 0 ? "deleted" as const : "not_found" as const
       })
 
@@ -270,13 +255,13 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Look up webhook
       const webhook = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           SELECT id, endpoint_url, secret
           FROM webhooks
-          WHERE id = '${webhookId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${webhookId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
         return rows.length > 0 ? rows[0] as unknown as { id: string; endpoint_url: string; secret: string } : null
       })
 

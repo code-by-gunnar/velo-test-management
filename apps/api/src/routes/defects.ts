@@ -67,22 +67,21 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const defectId = uuidv7()
-      const safeTitle = title.replace(/'/g, "''")
       const createdBy = request.userId
 
       // Step 1: Save defect locally (always succeeds regardless of Linear)
       const defect = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           INSERT INTO defects (id, workspace_id, run_item_id, title, created_by)
           VALUES (
-            '${defectId}',
+            ${defectId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${run_item_id}',
-            '${safeTitle}',
-            ${createdBy ? `'${createdBy}'` : "NULL"}
+            ${run_item_id}::uuid,
+            ${title},
+            ${createdBy ?? null}::uuid
           )
           RETURNING id, workspace_id, run_item_id, external_id, external_url, external_status, title, created_by, created_at, updated_at
-        `)
+        `
 
         return rows[0] as Record<string, unknown>
       })
@@ -91,11 +90,11 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
       // Defect is saved regardless of what happens below
       try {
         const connection = await withWorkspace(workspaceId, async (tx) => {
-          const rows = await tx.unsafe(`
+          const rows = await tx`
             SELECT access_token_enc, team_id
             FROM linear_connections
             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-          `)
+          `
           return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string; team_id: string } : null
         })
 
@@ -108,20 +107,17 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
           })
 
           // Update defect with Linear issue data
-          const safeExternalId = issue.id.replace(/'/g, "''")
-          const safeExternalUrl = issue.url.replace(/'/g, "''")
-
           const updated = await withWorkspace(workspaceId, async (tx) => {
-            const rows = await tx.unsafe(`
+            const rows = await tx`
               UPDATE defects
-              SET external_id = '${safeExternalId}',
-                  external_url = '${safeExternalUrl}',
+              SET external_id = ${issue.id},
+                  external_url = ${issue.url},
                   external_status = 'Todo',
                   updated_at = NOW()
-              WHERE id = '${defectId}'
+              WHERE id = ${defectId}::uuid
                 AND workspace_id = current_setting('app.workspace_id', true)::uuid
               RETURNING id, workspace_id, run_item_id, external_id, external_url, external_status, title, created_by, created_at, updated_at
-            `)
+            `
             return rows.length > 0 ? rows[0] as Record<string, unknown> : null
           })
 
@@ -161,9 +157,9 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const defects = await withWorkspace(workspaceId, async (tx) => {
-        const itemFilter = run_item_id ? `AND d.run_item_id = '${run_item_id}'` : ""
+        const itemFilter = run_item_id ? tx`AND d.run_item_id = ${run_item_id}::uuid` : tx``
 
-        return tx.unsafe(`
+        return tx`
           SELECT
             d.id, d.workspace_id, d.run_item_id, d.external_id, d.external_url,
             d.external_status, d.title, d.created_by, d.created_at, d.updated_at
@@ -172,7 +168,7 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
             ${itemFilter}
           ORDER BY d.created_at DESC
           LIMIT 200
-        `)
+        `
       })
 
       return reply.send(defects)

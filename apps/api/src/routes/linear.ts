@@ -130,30 +130,30 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         const encAccessToken = encrypt(tokens.access_token)
 
         const result = await withWorkspace(workspaceId, async (tx) => {
-          const existing = await tx.unsafe(`
+          const existing = await tx`
             SELECT id FROM linear_connections
             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-          `)
+          `
 
           if (existing.length > 0) {
             return "exists" as const
           }
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO linear_connections (
               id, workspace_id, access_token_enc, linear_org_id, linear_org_name,
               team_id, team_name, connected_by
             ) VALUES (
               gen_random_uuid(),
               current_setting('app.workspace_id', true)::uuid,
-              '${encAccessToken.replace(/'/g, "''")}',
-              '${org.id.replace(/'/g, "''")}',
-              '${org.name.replace(/'/g, "''")}',
+              ${encAccessToken},
+              ${org.id},
+              ${org.name},
               'pending',
-              NULL,
-              '${parsed.userId}'
+              ${null},
+              ${parsed.userId}::uuid
             )
-          `)
+          `
 
           return "created" as const
         })
@@ -172,11 +172,11 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
           )
 
           await withWorkspace(workspaceId, async (tx) => {
-            await tx.unsafe(`
+            await tx`
               UPDATE linear_connections
-              SET webhook_signing_secret = '${webhook.secret.replace(/'/g, "''")}'
+              SET webhook_signing_secret = ${webhook.secret}
               WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-            `)
+            `
           })
         } catch (err) {
           fastify.log.warn({ err, workspaceId }, "Linear webhook registration failed")
@@ -260,16 +260,13 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      const safeTeamId = team_id.replace(/'/g, "''")
-      const safeTeamName = team_name.replace(/'/g, "''")
-
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           UPDATE linear_connections
-          SET team_id = '${safeTeamId}', team_name = '${safeTeamName}'
+          SET team_id = ${team_id}, team_name = ${team_name}
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
-        `)
+        `
         return rows.length > 0 ? "updated" as const : "not_found" as const
       })
 
@@ -297,11 +294,11 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const connection = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           SELECT linear_org_name, team_id, team_name, connected_by, connected_at
           FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
         return rows.length > 0 ? rows[0] as Record<string, unknown> : null
       })
 
@@ -337,11 +334,11 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           DELETE FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
-        `)
+        `
         return rows.length > 0 ? "deleted" as const : "not_found" as const
       })
 

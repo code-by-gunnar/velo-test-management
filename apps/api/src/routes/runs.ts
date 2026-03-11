@@ -74,69 +74,60 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        // 1. Get matching test cases — scoped or all project cases
         const hasSuiteFilter = suite_ids !== undefined && suite_ids.length > 0
 
         let cases: Array<{ id: string; title: string }>
 
         if (hasSuiteFilter) {
-          const suiteList = suite_ids!.map((id) => `'${id}'`).join(",")
-          cases = (await tx.unsafe(`
+          cases = await tx`
             SELECT id, title FROM test_cases
-            WHERE project_id = '${project_id}'
-              AND suite_id = ANY(ARRAY[${suiteList}]::uuid[])
+            WHERE project_id = ${project_id}::uuid
+              AND suite_id = ANY(${suite_ids!}::uuid[])
               AND deleted_at IS NULL
             ORDER BY suite_id, position
-          `)) as Array<{ id: string; title: string }>
+          ` as unknown as Array<{ id: string; title: string }>
         } else {
-          cases = (await tx.unsafe(`
+          cases = await tx`
             SELECT id, title FROM test_cases
-            WHERE project_id = '${project_id}'
+            WHERE project_id = ${project_id}::uuid
               AND deleted_at IS NULL
             ORDER BY suite_id NULLS LAST, position
-          `)) as Array<{ id: string; title: string }>
+          ` as unknown as Array<{ id: string; title: string }>
         }
 
-        // 2. If 0 cases, signal 400
         if (cases.length === 0) {
           return null
         }
 
-        // 3. INSERT test_runs
         const runId = uuidv7()
-        const safeName = name.replace(/'/g, "''")
-        const assignedToVal = assigned_to ? `'${assigned_to}'` : "NULL"
-        const createdByVal = request.userId ? `'${request.userId}'` : "NULL"
 
-        await tx.unsafe(`
+        await tx`
           INSERT INTO test_runs (id, workspace_id, project_id, name, status, assigned_to, created_by, started_at)
           VALUES (
-            '${runId}',
+            ${runId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${project_id}',
-            '${safeName}',
+            ${project_id}::uuid,
+            ${name},
             'active',
-            ${assignedToVal},
-            ${createdByVal},
+            ${assigned_to ?? null}::uuid,
+            ${request.userId ?? null}::uuid,
             NOW()
           )
-        `)
+        `
 
-        // 4. Batch INSERT run_items with case_title snapshot
         for (const tc of cases) {
           const itemId = uuidv7()
-          const safeTitle = tc.title.replace(/'/g, "''")
-          await tx.unsafe(`
+          await tx`
             INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
             VALUES (
-              '${itemId}',
+              ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
-              '${runId}',
-              '${tc.id}',
-              '${safeTitle}',
+              ${runId}::uuid,
+              ${tc.id}::uuid,
+              ${tc.title},
               'untested'
             )
-          `)
+          `
         }
 
         return { runId, item_count: cases.length }
@@ -176,13 +167,8 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "project_id (UUID) is required" })
       }
 
-      const statusFilter = status ? `AND tr.status = '${status}'` : ""
-      const assignedFilter = assigned_to && isUuid(assigned_to)
-        ? `AND tr.assigned_to = '${assigned_to}'::uuid`
-        : ""
-
       const runs = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT
             tr.id, tr.name, tr.status, tr.project_id, tr.assigned_to,
             tr.created_by, tr.started_at, tr.completed_at, tr.created_at, tr.updated_at,
@@ -198,13 +184,13 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           LEFT JOIN run_items ri ON ri.run_id = tr.id
           LEFT JOIN users u_assigned ON u_assigned.id = tr.assigned_to
           LEFT JOIN users u_created ON u_created.id = tr.created_by
-          WHERE tr.project_id = '${project_id}'
-            ${statusFilter}
-            ${assignedFilter}
+          WHERE tr.project_id = ${project_id}::uuid
+            ${status ? tx`AND tr.status = ${status}` : tx``}
+            ${assigned_to && isUuid(assigned_to) ? tx`AND tr.assigned_to = ${assigned_to}::uuid` : tx``}
           GROUP BY tr.id, u_assigned.name, u_created.name
           ORDER BY tr.created_at DESC
           LIMIT 100
-        `)
+        `
       })
 
       return reply.send(runs)
@@ -228,8 +214,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        // Run metadata with stats
-        const runRows = await tx.unsafe(`
+        const runRows = await tx`
           SELECT
             tr.id, tr.name, tr.status, tr.project_id, tr.assigned_to,
             tr.created_by, tr.started_at, tr.completed_at, tr.created_at, tr.updated_at,
@@ -241,17 +226,16 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             COUNT(ri.id) FILTER (WHERE ri.status = 'untested')::int AS untested_count
           FROM test_runs tr
           LEFT JOIN run_items ri ON ri.run_id = tr.id
-          WHERE tr.id = '${runId}'
+          WHERE tr.id = ${runId}::uuid
             AND tr.workspace_id = current_setting('app.workspace_id', true)::uuid
           GROUP BY tr.id
-        `)
+        ` as unknown as Array<Record<string, unknown>>
 
         if (runRows.length === 0) return null
 
         const run = runRows[0]
 
-        // Run items with defect info
-        const items = await tx.unsafe(`
+        const items = await tx`
           SELECT
             ri.id, ri.test_case_id, ri.case_title, ri.status,
             ri.comment, ri.executed_by, ri.executed_at, ri.created_at,
@@ -259,9 +243,9 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             d.external_id AS defect_external_id, d.external_url AS defect_external_url
           FROM run_items ri
           LEFT JOIN defects d ON d.run_item_id = ri.id
-          WHERE ri.run_id = '${runId}'
+          WHERE ri.run_id = ${runId}::uuid
           ORDER BY ri.created_at
-        `)
+        `
 
         return { run, items }
       })
@@ -290,27 +274,25 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        // Check current status
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           SELECT status, project_id, name FROM test_runs
-          WHERE id = '${runId}'
+          WHERE id = ${runId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        ` as unknown as Array<{ status: string; project_id: string; name: string }>
 
         if (rows.length === 0) return { outcome: "not_found" as const }
 
-        const run = rows[0] as unknown as { status: string; project_id: string; name: string }
+        const run = rows[0]!
         if (run.status !== "active") return { outcome: "not_active" as const }
 
-        await tx.unsafe(`
+        await tx`
           UPDATE test_runs
           SET status = 'aborted', completed_at = NOW(), updated_at = NOW()
-          WHERE id = '${runId}'
+          WHERE id = ${runId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
 
-        // Get stats for webhook payload
-        const statsRows = await tx.unsafe(`
+        const statsRows = await tx`
           SELECT
             COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE status = 'pass')::int AS pass,
@@ -318,12 +300,12 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
             COUNT(*) FILTER (WHERE status = 'skipped')::int AS skipped
           FROM run_items
-          WHERE run_id = '${runId}'
-        `)
-
-        const stats = statsRows[0] as unknown as {
+          WHERE run_id = ${runId}::uuid
+        ` as unknown as Array<{
           total: number; pass: number; fail: number; blocked: number; skipped: number
-        }
+        }>
+
+        const stats = statsRows[0]!
 
         return {
           outcome: "ok" as const,
@@ -373,60 +355,54 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        // Get failed items from source run
-        const failedItems = (await tx.unsafe(`
+        const failedItems = await tx`
           SELECT ri.test_case_id, tc.title AS case_title
           FROM run_items ri
           LEFT JOIN test_cases tc ON tc.id = ri.test_case_id
-          WHERE ri.run_id = '${runId}'
+          WHERE ri.run_id = ${runId}::uuid
             AND ri.status = 'fail'
-        `)) as Array<{ test_case_id: string; case_title: string | null }>
+        ` as unknown as Array<{ test_case_id: string; case_title: string | null }>
 
         if (failedItems.length === 0) return null
 
-        // Get source run metadata
-        const sourceRows = (await tx.unsafe(`
+        const sourceRows = await tx`
           SELECT name, project_id FROM test_runs
-          WHERE id = '${runId}'
+          WHERE id = ${runId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)) as Array<{ name: string; project_id: string }>
+        ` as unknown as Array<{ name: string; project_id: string }>
 
         if (sourceRows.length === 0) return null
 
         const sourceRun = sourceRows[0]!
         const newRunId = uuidv7()
-        const rerunName = `Rerun: ${sourceRun.name}`.replace(/'/g, "''")
-        const createdByVal = request.userId ? `'${request.userId}'` : "NULL"
+        const rerunName = `Rerun: ${sourceRun.name}`
 
-        // Create new run
-        await tx.unsafe(`
+        await tx`
           INSERT INTO test_runs (id, workspace_id, project_id, name, status, created_by, started_at)
           VALUES (
-            '${newRunId}',
+            ${newRunId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${sourceRun.project_id}',
-            '${rerunName}',
+            ${sourceRun.project_id}::uuid,
+            ${rerunName},
             'active',
-            ${createdByVal},
+            ${request.userId ?? null}::uuid,
             NOW()
           )
-        `)
+        `
 
-        // Snapshot failed cases into new run_items
         for (const fi of failedItems) {
           const itemId = uuidv7()
-          const titleVal = fi.case_title ? `'${fi.case_title.replace(/'/g, "''")}'` : "NULL"
-          await tx.unsafe(`
+          await tx`
             INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
             VALUES (
-              '${itemId}',
+              ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
-              '${newRunId}',
-              '${fi.test_case_id}',
-              ${titleVal},
+              ${newRunId}::uuid,
+              ${fi.test_case_id}::uuid,
+              ${fi.case_title ?? null},
               'untested'
             )
-          `)
+          `
         }
 
         return { newRunId, item_count: failedItems.length }
@@ -462,7 +438,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const history = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT
             ri.id AS run_item_id,
             ri.status,
@@ -475,10 +451,10 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           FROM run_items ri
           JOIN test_runs tr ON tr.id = ri.run_id
           LEFT JOIN users u ON u.id = ri.executed_by
-          WHERE ri.test_case_id = '${caseId}'
+          WHERE ri.test_case_id = ${caseId}::uuid
           ORDER BY ri.executed_at DESC NULLS LAST
           LIMIT 50
-        `)
+        `
       })
 
       return reply.send(history)
