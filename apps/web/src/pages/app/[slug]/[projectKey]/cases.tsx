@@ -29,20 +29,17 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["__Secure-authjs.session-token"] ??
     context.req.cookies["authjs.session-token"]
 
-  // Look up the project by projectKey to get its id
+  // Resolve projectKey → UUID via single-row lookup
   let projectId = ""
-  if (workspaceId) {
+  if (workspaceId && token) {
     try {
       const res = await fetch(
-        `${process.env.API_URL}/api/workspaces/${workspaceId}/projects`,
-        {
-          headers: token ? { authorization: `Bearer ${token}` } : {},
-        }
+        `${process.env.API_URL}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`,
+        { headers: { authorization: `Bearer ${token}` } }
       )
       if (res.ok) {
-        const projects = await res.json() as Array<{ id: string; project_key: string }>
-        const project = projects.find((p) => p.project_key === projectKey)
-        projectId = project?.id ?? ""
+        const project = await res.json() as { id: string }
+        projectId = project.id
       }
     } catch {
       // projectId stays empty — CasesPage will handle the missing state gracefully

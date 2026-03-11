@@ -71,33 +71,21 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   let hasApiKeys = false
 
   if (workspaceId && token) {
-    // Resolve project ID from project key
-    try {
-      const projectsRes = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/projects`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (projectsRes.ok) {
-        const projects = await projectsRes.json() as Array<{ id: string; project_key: string }>
-        const project = projects.find((p) => p.project_key === projectKey)
-        projectId = project?.id ?? ""
-      }
-    } catch {
-      // projectId stays empty
-    }
+    const headers = { authorization: `Bearer ${token}` }
 
-    // Check if workspace has any API keys (for setup guide prompt)
-    try {
-      const keysRes = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/api-keys`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (keysRes.ok) {
-        const keys = await keysRes.json() as Array<{ revoked_at: string | null }>
-        hasApiKeys = keys.some((k) => k.revoked_at === null)
-      }
-    } catch {
-      // hasApiKeys stays false
+    // Parallel: resolve project + check API keys
+    const [projectRes, keysRes] = await Promise.all([
+      fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`, { headers }).catch(() => null),
+      fetch(`${apiUrl}/api/workspaces/${workspaceId}/api-keys`, { headers }).catch(() => null),
+    ])
+
+    if (projectRes?.ok) {
+      const project = await projectRes.json() as { id: string }
+      projectId = project.id
+    }
+    if (keysRes?.ok) {
+      const keys = await keysRes.json() as Array<{ revoked_at: string | null }>
+      hasApiKeys = keys.some((k) => k.revoked_at === null)
     }
   }
 

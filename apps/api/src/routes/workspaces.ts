@@ -311,17 +311,11 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { workspaceId: string } }>(
     "/api/workspaces/:workspaceId/projects",
     async (request, reply) => {
-      const userId = request.userId
       const { workspaceId } = request.params
 
-      // Verify user belongs to workspace
-      const member = await sql`
-        SELECT id FROM workspace_members
-        WHERE workspace_id = ${workspaceId}::uuid
-          AND user_id = ${userId}::uuid
-          AND is_active = true
-      `
-      if (member.length === 0) return reply.status(403).send({ error: "Access denied" })
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
 
       const projects = await withWorkspace(workspaceId, async (tx) =>
         tx`
@@ -334,6 +328,38 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       )
 
       return reply.send(projects)
+    }
+  )
+
+  // ── GET /api/workspaces/:workspaceId/projects/by-key/:projectKey ─────────
+  // Fast single-row lookup by human-readable project key.
+  // Used by SSR pages to resolve projectKey → UUID without fetching all projects.
+  fastify.get<{ Params: { workspaceId: string; projectKey: string } }>(
+    "/api/workspaces/:workspaceId/projects/by-key/:projectKey",
+    async (request, reply) => {
+      const { workspaceId, projectKey } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      const project = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT id, name, project_key, description, created_at
+          FROM projects
+          WHERE workspace_id = ${workspaceId}::uuid
+            AND project_key = ${projectKey}
+            AND deleted_at IS NULL
+          LIMIT 1
+        `
+        return rows.length > 0 ? rows[0] : null
+      })
+
+      if (!project) {
+        return reply.status(404).send({ error: "Project not found" })
+      }
+
+      return reply.send(project)
     }
   )
 
