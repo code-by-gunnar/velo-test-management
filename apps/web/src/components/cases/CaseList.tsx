@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useUserRole } from "@/hooks/useUserRole"
 import {
   DndContext,
   closestCenter,
@@ -63,6 +64,7 @@ export function CaseList({
   onCasesChange,
   refetch,
 }: CaseListProps) {
+  const { canEdit } = useUserRole()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
 
@@ -158,12 +160,16 @@ export function CaseList({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={onImport}>
-            Import
-          </Button>
-          <Button variant="primary" size="sm" onClick={onNewCase}>
-            New Case
-          </Button>
+          {canEdit && (
+            <Button variant="secondary" size="sm" onClick={onImport}>
+              Import
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="primary" size="sm" onClick={onNewCase}>
+              New Case
+            </Button>
+          )}
         </div>
       </div>
 
@@ -194,9 +200,11 @@ export function CaseList({
             <h3 className="mb-1 text-base font-semibold text-gray-900">No test cases yet</h3>
             <p className="text-sm text-gray-500">Create your first test case to get started</p>
           </div>
-          <Button variant="primary" size="md" onClick={onNewCase}>
-            New Test Case
-          </Button>
+          {canEdit && (
+            <Button variant="primary" size="md" onClick={onNewCase}>
+              New Test Case
+            </Button>
+          )}
         </div>
       ) : (
         <DndContext

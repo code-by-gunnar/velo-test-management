@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react"
+import { useUserRole } from "@/hooks/useUserRole"
 import { StepRow } from "./StepRow"
 
 export interface Step {
@@ -12,6 +13,7 @@ interface StepEditorProps {
 }
 
 export function StepEditor({ steps, onChange }: StepEditorProps) {
+  const { canEdit } = useUserRole()
   // Store DOM elements via callback refs — never read during render
   const elementsRef = useRef<Map<string, HTMLTextAreaElement | null>>(new Map())
 
@@ -76,9 +78,10 @@ export function StepEditor({ steps, onChange }: StepEditorProps) {
           action={step.action}
           expected_result={step.expected_result}
           isLast={index === steps.length - 1}
-          onChange={handleChange}
-          onAddAfter={handleAddAfter}
-          onDelete={handleDelete}
+          readOnly={!canEdit}
+          onChange={canEdit ? handleChange : () => {}}
+          onAddAfter={canEdit ? handleAddAfter : () => {}}
+          onDelete={canEdit ? handleDelete : () => {}}
           actionRef={(el) => { elementsRef.current.set(elementKey(index, "action"), el) }}
           expectedRef={(el) => { elementsRef.current.set(elementKey(index, "expected"), el) }}
           onFocusAction={() => focusElement(index, "action")}

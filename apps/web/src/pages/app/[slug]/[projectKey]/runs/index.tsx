@@ -8,6 +8,7 @@ import { RunCard, type RunListItem } from "@/components/runs/RunCard"
 import { RunFilters, type FilterState } from "@/components/runs/RunFilters"
 import { RunCreateModal } from "@/components/runs/RunCreateModal"
 import { useRunSSE } from "@/hooks/useRunSSE"
+import { useUserRole } from "@/hooks/useUserRole"
 import { Play } from "lucide-react"
 
 interface RunsDashboardProps {
@@ -30,6 +31,7 @@ export default function RunsDashboard({
   sseToken,
 }: RunsDashboardProps) {
   const router = useRouter()
+  const { canEdit } = useUserRole()
 
   const [runs, setRuns] = useState<RunListItem[]>(initialRuns)
   const [filters, setFilters] = useState<FilterState>({})
@@ -101,13 +103,15 @@ export default function RunsDashboard({
               </p>
             )}
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsModalOpen(true)}
-          >
-            New Run
-          </Button>
+          {canEdit && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsModalOpen(true)}
+            >
+              New Run
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -133,9 +137,11 @@ export default function RunsDashboard({
                   Create your first test run to start tracking execution
                 </p>
               </div>
-              <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
-                Create your first test run
-              </Button>
+              {canEdit && (
+                <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
+                  Create your first test run
+                </Button>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-8">
@@ -182,14 +188,16 @@ export default function RunsDashboard({
         </div>
       </div>
 
-      <RunCreateModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onCreated={handleRunCreated}
-        workspaceId={workspaceId}
-        projectId={projectId}
-        assignees={[]}
-      />
+      {canEdit && (
+        <RunCreateModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreated={handleRunCreated}
+          workspaceId={workspaceId}
+          projectId={projectId}
+          assignees={[]}
+        />
+      )}
     </AppLayout>
   )
 }

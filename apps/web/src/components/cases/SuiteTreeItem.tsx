@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { clsx } from "clsx"
+import { useUserRole } from "@/hooks/useUserRole"
 import {
   DndContext,
   closestCenter,
@@ -51,6 +52,7 @@ export function SuiteTreeItem({
   projectId,
   onSuiteReordered,
 }: SuiteTreeItemProps) {
+  const { canEdit } = useUserRole()
   const [expanded, setExpanded] = useState(true)
   const hasChildren = suite.children.length > 0
   const isSelected = selected === suite.id
@@ -107,14 +109,16 @@ export function SuiteTreeItem({
         style={{ paddingLeft: suite.depth * 16 + 8 }}
       >
         {/* Drag handle — listeners here only, not on the whole row */}
-        <span
-          {...attributes}
-          {...listeners}
-          className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
-          aria-label="Drag to reorder"
-        >
-          &#8801;
-        </span>
+        {canEdit && (
+          <span
+            {...attributes}
+            {...listeners}
+            className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
+            aria-label="Drag to reorder"
+          >
+            &#8801;
+          </span>
+        )}
 
         {hasChildren ? (
           <button
