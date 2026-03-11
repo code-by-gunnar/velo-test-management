@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { requireEditor } from "../plugins/require-editor.js"
 
 // UUID v7 validation regex (matches uuidv7 format)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -79,6 +80,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -154,6 +156,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites/:suiteId",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -206,6 +209,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites/:suiteId/position",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -296,6 +300,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; projectId: string; suiteId: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites/:suiteId",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, projectId, suiteId } = request.params
 

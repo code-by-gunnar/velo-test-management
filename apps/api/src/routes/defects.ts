@@ -3,6 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { decrypt } from "../lib/encryption.js"
 import { createLinearIssue } from "../lib/linear-client.js"
+import { requireEditor } from "../plugins/require-editor.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -40,6 +41,7 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/defects",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",

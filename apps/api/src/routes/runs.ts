@@ -5,6 +5,7 @@ import { withWorkspace } from "../db/tenant.js"
 import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
+import { requireEditor } from "../plugins/require-editor.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -42,6 +43,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/runs",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -275,6 +277,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; runId: string }
   }>(
     "/api/workspaces/:workspaceId/runs/:runId/abort",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, runId } = request.params
 
@@ -357,6 +360,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; runId: string }
   }>(
     "/api/workspaces/:workspaceId/runs/:runId/rerun-failures",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, runId } = request.params
 

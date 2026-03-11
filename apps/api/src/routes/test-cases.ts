@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
+import { requireEditor } from "../plugins/require-editor.js"
 
 // Free tier limit (shared with workspaces.ts)
 const FREE_TIER_MAX_TEST_CASES = 500
@@ -87,6 +88,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -277,6 +279,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/:caseId",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -384,6 +387,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; projectId: string; caseId: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/:caseId",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, projectId, caseId } = request.params
 
@@ -420,6 +424,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/:caseId/position",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -521,6 +526,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { action: string; case_ids: string[]; target_suite_id?: string | null }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/bulk",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
 
@@ -662,6 +668,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/import",
+    { preHandler: [requireEditor] },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
 

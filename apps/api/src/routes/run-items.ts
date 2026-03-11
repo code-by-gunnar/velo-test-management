@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
+import { requireEditor } from "../plugins/require-editor.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -43,6 +44,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/run-items/:itemId",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -202,6 +204,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/run-items/:itemId/comment",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
@@ -247,6 +250,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/run-items/:itemId/step-comments",
     {
+      preHandler: [requireEditor],
       schema: {
         body: {
           type: "object",
