@@ -107,7 +107,7 @@ export default function OnboardingPage() {
           {STEPS.map((s, i) => (
             <div
               key={s}
-              className={`h-1 flex-1 rounded-full ${step === s || i < STEPS.indexOf(step) ? "bg-cobalt" : "bg-gray-200"}`}
+              className={`h-1 flex-1 rounded-full ${step === s || i < STEPS.indexOf(step) ? "bg-primary" : "bg-gray-200"}`}
             />
           ))}
         </div>

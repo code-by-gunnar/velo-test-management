@@ -51,7 +51,7 @@ export default function LoginPage() {
           <p className="text-sm text-gray-500 mb-6">Welcome back. Enter your credentials to continue.</p>
 
           {typeof router.query.next === "string" && router.query.next.includes("accept-invite") && (
-            <div className="rounded-md bg-cobalt/10 px-3 py-2 text-sm text-cobalt mb-4" role="status">
+            <div className="rounded-md bg-primary-selected px-3 py-2 text-sm text-primary mb-4" role="status">
               Sign in to accept your invitation. No account yet?{" "}
               <a href={`/signup?next=${encodeURIComponent(router.query.next)}`} className="font-medium underline">
                 Create one first
@@ -100,13 +100,13 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-4 text-center text-sm text-gray-500">
-            <Link href="/forgot-password" className="text-cobalt hover:underline">
+            <Link href="/forgot-password" className="text-primary hover:underline">
               Forgot your password?
             </Link>
           </p>
           <p className="mt-2 text-center text-sm text-gray-500">
             No account?{" "}
-            <Link href={typeof router.query.next === "string" ? `/signup?next=${encodeURIComponent(router.query.next)}` : "/signup"} className="text-cobalt hover:underline">
+            <Link href={typeof router.query.next === "string" ? `/signup?next=${encodeURIComponent(router.query.next)}` : "/signup"} className="text-primary hover:underline">
               Create one
             </Link>
           </p>

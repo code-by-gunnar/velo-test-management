@@ -132,9 +132,9 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
     <div className="flex flex-col gap-4">
       {/* Raw key one-time display */}
       {rawKey && (
-        <div className="rounded-lg border border-cobalt/30 bg-cobalt/5 p-4">
+        <div className="rounded-lg border border-primary/30 bg-primary-selected p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-cobalt">API key created</p>
+            <p className="text-sm font-semibold text-primary">API key created</p>
             <button
               type="button"
               onClick={handleDismissRaw}

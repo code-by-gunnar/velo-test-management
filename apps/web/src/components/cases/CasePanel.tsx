@@ -229,7 +229,7 @@ export function CasePanel({
                   placeholder="Test case title"
                   className={clsx(
                     "w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-400",
-                    "focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt",
+                    "focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
                     errors.title ? "border-fail" : "border-gray-200"
                   )}
                 />
@@ -244,7 +244,7 @@ export function CasePanel({
                 <select
                   id="case-priority"
                   {...register("priority")}
-                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   {priorityOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -260,7 +260,7 @@ export function CasePanel({
                   {...register("preconditions")}
                   rows={2}
                   placeholder="Optional preconditions or setup"
-                  className="mt-1 block w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+                  className="mt-1 block w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 

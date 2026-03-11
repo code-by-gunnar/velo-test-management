@@ -66,7 +66,7 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F3EF] px-4">
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-[#FAFAF8] p-8 shadow-sm text-center">
+      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm text-center">
         {state === "loading" && (
           <>
             <p className="text-sm font-medium text-gray-700">Accepting your invitation...</p>
@@ -90,7 +90,7 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
             </p>
             <p className="mt-4 text-xs text-gray-400">
               Contact your workspace admin to request a new invitation, or{" "}
-              <Link href="/login" className="text-cobalt underline hover:no-underline">
+              <Link href="/login" className="text-primary underline hover:no-underline">
                 sign in
               </Link>{" "}
               if you already have access.

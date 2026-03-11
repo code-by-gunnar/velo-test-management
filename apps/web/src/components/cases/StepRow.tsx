@@ -70,7 +70,7 @@ export function StepRow({
         onKeyDown={handleActionKeyDown}
         onInput={autoResize}
         placeholder="Action"
-        className="resize-none overflow-hidden rounded border border-gray-200 px-2 py-1.5 text-sm focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+        className="resize-none overflow-hidden rounded border border-gray-200 px-2 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         aria-label={`Step ${index + 1} action`}
       />
       <textarea
@@ -82,7 +82,7 @@ export function StepRow({
         onKeyDown={handleExpectedKeyDown}
         onInput={autoResize}
         placeholder="Expected result"
-        className="resize-none overflow-hidden rounded border border-gray-200 px-2 py-1.5 text-sm focus:border-cobalt focus:outline-none focus:ring-1 focus:ring-cobalt"
+        className="resize-none overflow-hidden rounded border border-gray-200 px-2 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         aria-label={`Step ${index + 1} expected result`}
       />
     </div>
