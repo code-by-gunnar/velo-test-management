@@ -12,8 +12,8 @@ Transform Velo from the "Industrial Notebook" dark-sidebar aesthetic to a clean,
 
 - [x] **Phase 1: Design Foundation** - Design tokens, color palette, typography, spacing, shadows, and Tailwind config
 - [x] **Phase 2: Layout & Navigation** - White sidebar, app shell with floating card layout, 3-panel cases structure
-- [ ] **Phase 3: Components & Pages** - Restyle all UI components and all application pages to new design language
-- [ ] **Phase 4: Regression Verification** - Validate all keyboard shortcuts, page flows, SSE, and CI checks pass
+- [x] **Phase 3: Components & Pages** - Restyle all UI components and all application pages to new design language
+- [x] **Phase 4: Regression Verification** - Validate all keyboard shortcuts, page flows, SSE, and CI checks pass
 
 ## Phase Details
 
