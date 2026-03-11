@@ -77,8 +77,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Manual regression walkthrough and SSE verification
-- [ ] 04-02: Lint, typecheck, and test suite pass
+- [x] 04-01: Manual regression walkthrough and SSE verification
+- [x] 04-02: Lint, typecheck, and test suite pass
 
 ## Progress
 
@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Design Foundation | 2/2 | Complete | 2026-03-11 |
 | 2. Layout & Navigation | 2/2 | Complete | 2026-03-11 |
 | 3. Components & Pages | 3/3 | Complete | 2026-03-11 |
-| 4. Regression Verification | 0/2 | Not started | - |
+| 4. Regression Verification | 2/2 | Complete | 2026-03-11 |
 
 ## Coverage Map
 
