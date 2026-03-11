@@ -522,9 +522,9 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Fetch current run items and send initial stats event
       const initialItems = await withWorkspace(workspaceId, async (tx) => {
-        return (await tx.unsafe(`
-          SELECT status, executed_at FROM run_items WHERE run_id = '${runId}'
-        `)) as Array<{ status: string; executed_at: string | null }>
+        return tx`
+          SELECT status, executed_at FROM run_items WHERE run_id = ${runId}::uuid
+        ` as unknown as Array<{ status: string; executed_at: string | null }>
       })
       const stats = computeRunStats(initialItems)
       const eta = estimateTimeRemaining(initialItems, initialItems.length)

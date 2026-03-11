@@ -88,6 +88,7 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/linear/auth`)
       if (!res.ok) throw new Error(`Failed to start Linear connection (${res.status})`)
       const data = await res.json() as { url: string }
+      if (!/^https:\/\/linear\.app\b/i.test(data.url)) throw new Error("Unexpected redirect URL")
       window.location.href = data.url
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect to Linear")
