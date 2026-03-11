@@ -28,7 +28,8 @@ export default function VerifyPage() {
       return
     }
 
-    router.push("/login?verified=1")
+    const next = typeof router.query.next === "string" ? `&next=${encodeURIComponent(router.query.next)}` : ""
+    router.push(`/login?verified=1${next}`)
   }
 
   const resend = async () => {
