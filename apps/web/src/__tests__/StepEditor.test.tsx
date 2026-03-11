@@ -12,8 +12,12 @@
 import React, { useState } from "react"
 import { render, screen, act } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { StepEditor, type Step } from "@/components/cases/StepEditor"
+
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { role: "editor" } }, status: "authenticated" }),
+}))
 
 // Wrapper component to manage state for controlled StepEditor
 function TestWrapper({ initialSteps }: { initialSteps?: Step[] }) {
