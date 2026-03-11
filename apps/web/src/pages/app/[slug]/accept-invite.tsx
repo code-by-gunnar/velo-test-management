@@ -99,11 +99,11 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const session = await auth(context)
   const resolvedSlug = context.params?.slug as string
-  const { token } = context.query as { token?: string }
+  const { token, workspace } = context.query as { token?: string; workspace?: string }
 
   if (!session) {
     const next = encodeURIComponent(
-      `/app/${resolvedSlug}/accept-invite?token=${token ?? ""}`
+      `/app/${resolvedSlug}/accept-invite?token=${token ?? ""}&workspace=${workspace ?? ""}`
     )
     return {
       redirect: {
@@ -122,7 +122,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     }
   }
 
-  const workspaceId = session.user.workspace_id ?? ""
+  // Prefer workspace ID from query param (passed through invite flow),
+  // fall back to session workspace for existing members
+  const workspaceId = workspace ?? session.user.workspace_id ?? ""
 
   return {
     props: {

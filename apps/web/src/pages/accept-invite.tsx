@@ -65,7 +65,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       if (match) {
         return {
           redirect: {
-            destination: `/app/${match.slug}/accept-invite?token=${token}`,
+            destination: `/app/${match.slug}/accept-invite?token=${token}&workspace=${workspace}`,
             permanent: false,
           },
         }
@@ -79,7 +79,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // The [slug] page will 404 but at least the user sees something
   return {
     redirect: {
-      destination: `/app/${workspace}/accept-invite?token=${token}`,
+      destination: `/app/${workspace}/accept-invite?token=${token}&workspace=${workspace}`,
       permanent: false,
     },
   }
