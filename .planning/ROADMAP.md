@@ -11,7 +11,7 @@ Transform Velo from the "Industrial Notebook" dark-sidebar aesthetic to a clean,
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Design Foundation** - Design tokens, color palette, typography, spacing, shadows, and Tailwind config
-- [ ] **Phase 2: Layout & Navigation** - White sidebar, app shell with floating card layout, 3-panel cases structure
+- [x] **Phase 2: Layout & Navigation** - White sidebar, app shell with floating card layout, 3-panel cases structure
 - [ ] **Phase 3: Components & Pages** - Restyle all UI components and all application pages to new design language
 - [ ] **Phase 4: Regression Verification** - Validate all keyboard shortcuts, page flows, SSE, and CI checks pass
 
@@ -45,8 +45,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Sidebar restyling (white bg, nav items, workspace dropdown, collapse behavior)
-- [ ] 02-02: App shell and cases 3-panel layout (floating card wrapper, suites panel)
+- [x] 02-01: Sidebar restyling (white bg, nav items, workspace dropdown, collapse behavior)
+- [x] 02-02: App shell and cases 3-panel layout (floating card wrapper, suites panel)
 
 ### Phase 3: Components & Pages
 **Goal**: Every UI component and every application page reflects the new design language — buttons, badges, cards, tables, inputs, and all 10 page groups are restyled
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Design Foundation | 2/2 | Complete | 2026-03-11 |
-| 2. Layout & Navigation | 0/2 | Not started | - |
+| 2. Layout & Navigation | 2/2 | Complete | 2026-03-11 |
 | 3. Components & Pages | 0/3 | Not started | - |
 | 4. Regression Verification | 0/2 | Not started | - |
 

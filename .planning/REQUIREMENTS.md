@@ -21,18 +21,18 @@
 
 ### Sidebar
 
-- [ ] **UI-09**: Sidebar background changed from dark warm (#2D2926) to white (#FFFFFF) with right border (#E5E7EB)
-- [ ] **UI-10**: Sidebar width updated from 240px to 192px (collapsed 48px icon rail preserved)
-- [ ] **UI-11**: Active nav item styled with blue highlight — bg #EBF3FF, text/icon #2D7FF9, font-weight 600
-- [ ] **UI-12**: Inactive nav items styled — text #1F2937, icon #6B7280, hover bg #F3F4F6
-- [ ] **UI-13**: Workspace dropdown in sidebar — 24px avatar square with initials, workspace name, chevron-down, on #F3F4F6 background
-- [ ] **UI-14**: Sidebar collapse/expand toggle and localStorage persistence preserved
+- [x] **UI-09**: Sidebar background changed from dark warm (#2D2926) to white (#FFFFFF) with right border (#E5E7EB)
+- [x] **UI-10**: Sidebar width updated from 240px to 192px (collapsed 48px icon rail preserved)
+- [x] **UI-11**: Active nav item styled with blue highlight — bg #EBF3FF, text/icon #2D7FF9, font-weight 600
+- [x] **UI-12**: Inactive nav items styled — text #1F2937, icon #6B7280, hover bg #F3F4F6
+- [x] **UI-13**: Workspace dropdown in sidebar — 24px avatar square with initials, workspace name, chevron-down, on #F3F4F6 background
+- [x] **UI-14**: Sidebar collapse/expand toggle and localStorage persistence preserved
 
 ### Layout
 
-- [ ] **UI-15**: App shell updated — page background #E8EDF2, main content rendered as floating white card with 12px border-radius and card shadow
-- [ ] **UI-16**: Cases page adopts 3-panel layout — sidebar (192px) | suites panel (144px, white, right border) | main content (remaining)
-- [ ] **UI-17**: Suites panel shows "SUITES" header (12px uppercase), tree items with selected state (blue bg), and "+ New suite" at bottom
+- [x] **UI-15**: App shell updated — page background #E8EDF2, main content rendered as floating white card with 12px border-radius and card shadow
+- [x] **UI-16**: Cases page adopts 3-panel layout — sidebar (192px) | suites panel (144px, white, right border) | main content (remaining)
+- [x] **UI-17**: Suites panel shows "SUITES" header (12px uppercase), tree items with selected state (blue bg), and "+ New suite" at bottom
 
 ### Components
 
@@ -90,15 +90,15 @@
 | UI-06 | Phase 1 | Done |
 | UI-07 | Phase 1 | Done |
 | UI-08 | Phase 1 | Done |
-| UI-09 | Phase 2 | Pending |
-| UI-10 | Phase 2 | Pending |
-| UI-11 | Phase 2 | Pending |
-| UI-12 | Phase 2 | Pending |
-| UI-13 | Phase 2 | Pending |
-| UI-14 | Phase 2 | Pending |
-| UI-15 | Phase 2 | Pending |
-| UI-16 | Phase 2 | Pending |
-| UI-17 | Phase 2 | Pending |
+| UI-09 | Phase 2 | Done |
+| UI-10 | Phase 2 | Done |
+| UI-11 | Phase 2 | Done |
+| UI-12 | Phase 2 | Done |
+| UI-13 | Phase 2 | Done |
+| UI-14 | Phase 2 | Done |
+| UI-15 | Phase 2 | Done |
+| UI-16 | Phase 2 | Done |
+| UI-17 | Phase 2 | Done |
 | UI-18 | Phase 3 | Pending |
 | UI-19 | Phase 3 | Pending |
 | UI-20 | Phase 3 | Pending |
