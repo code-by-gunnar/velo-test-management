@@ -36,26 +36,26 @@
 
 ### Components
 
-- [ ] **UI-18**: Button primary restyled — bg #2D7FF9, hover #1A6BE8, white text, 8px radius, 40px height
-- [ ] **UI-19**: Button secondary restyled — white bg, 1px #2D7FF9 border, blue text, hover bg #EBF3FF
-- [ ] **UI-20**: Priority badges restyled — High: solid blue bg + white text; Medium: #E8F2FF bg + blue text + blue border; Low: #F3F4F6 bg + gray text
-- [ ] **UI-21**: Status badges (pass/fail/blocked/skipped) retain existing muted color tokens — no change to status semantics
-- [ ] **UI-22**: Card component updated — white bg, 8px radius, card shadow, 1px #E5E7EB border
-- [ ] **UI-23**: Table rows updated — 56px height, 1px bottom border, #F9FAFB hover, grid layout with uppercase headers on #F9FAFB bg
-- [ ] **UI-24**: Input/form fields updated — 6px radius, focus ring color changed to primary blue
+- [x] **UI-18**: Button primary restyled — bg #2D7FF9, hover #1A6BE8, white text, 8px radius, 40px height
+- [x] **UI-19**: Button secondary restyled — white bg, 1px #2D7FF9 border, blue text, hover bg #EBF3FF
+- [x] **UI-20**: Priority badges restyled — High: solid blue bg + white text; Medium: #E8F2FF bg + blue text + blue border; Low: #F3F4F6 bg + gray text
+- [x] **UI-21**: Status badges (pass/fail/blocked/skipped) retain existing muted color tokens — no change to status semantics
+- [x] **UI-22**: Card component updated — white bg, 8px radius, card shadow, 1px #E5E7EB border
+- [x] **UI-23**: Table rows updated — 56px height, 1px bottom border, #F9FAFB hover, grid layout with uppercase headers on #F9FAFB bg
+- [x] **UI-24**: Input/form fields updated — 6px radius, focus ring color changed to primary blue
 
 ### Pages
 
-- [ ] **UI-25**: Auth pages (login, signup, verify, forgot-password, reset-password) restyled with new tokens and floating card layout
-- [ ] **UI-26**: Onboarding wizard restyled with new tokens
-- [ ] **UI-27**: Dashboard page restyled — floating card, new button/badge styles
-- [ ] **UI-28**: Cases page restyled with 3-panel layout, new table styles, status bar with avatar stack
-- [ ] **UI-29**: Runs dashboard restyled — RunCard, SegmentedBar, RunFilters with new tokens
-- [ ] **UI-30**: Run detail page restyled — item list, defect badges, action buttons
-- [ ] **UI-31**: Execution screen restyled — keyboard hints footer, DefectPrompt, StepCommentIcon with new tokens
-- [ ] **UI-32**: Settings page restyled — tabs, TeamPanel, ApiKeysPanel with new tokens
-- [ ] **UI-33**: Ingestion page restyled — SetupGuide, IngestionHistory with new tokens
-- [ ] **UI-34**: Toast notifications restyled — white bg, 8px radius, toast shadow, green checkmark icon
+- [x] **UI-25**: Auth pages (login, signup, verify, forgot-password, reset-password) restyled with new tokens and floating card layout
+- [x] **UI-26**: Onboarding wizard restyled with new tokens
+- [x] **UI-27**: Dashboard page restyled — floating card, new button/badge styles
+- [x] **UI-28**: Cases page restyled with 3-panel layout, new table styles, status bar with avatar stack
+- [x] **UI-29**: Runs dashboard restyled — RunCard, SegmentedBar, RunFilters with new tokens
+- [x] **UI-30**: Run detail page restyled — item list, defect badges, action buttons
+- [x] **UI-31**: Execution screen restyled — keyboard hints footer, DefectPrompt, StepCommentIcon with new tokens
+- [x] **UI-32**: Settings page restyled — tabs, TeamPanel, ApiKeysPanel with new tokens
+- [x] **UI-33**: Ingestion page restyled — SetupGuide, IngestionHistory with new tokens
+- [x] **UI-34**: Toast notifications restyled — white bg, 8px radius, toast shadow, green checkmark icon
 
 ### Regression Guard
 
@@ -99,23 +99,23 @@
 | UI-15 | Phase 2 | Done |
 | UI-16 | Phase 2 | Done |
 | UI-17 | Phase 2 | Done |
-| UI-18 | Phase 3 | Pending |
-| UI-19 | Phase 3 | Pending |
-| UI-20 | Phase 3 | Pending |
-| UI-21 | Phase 3 | Pending |
-| UI-22 | Phase 3 | Pending |
-| UI-23 | Phase 3 | Pending |
-| UI-24 | Phase 3 | Pending |
-| UI-25 | Phase 3 | Pending |
-| UI-26 | Phase 3 | Pending |
-| UI-27 | Phase 3 | Pending |
-| UI-28 | Phase 3 | Pending |
-| UI-29 | Phase 3 | Pending |
-| UI-30 | Phase 3 | Pending |
-| UI-31 | Phase 3 | Pending |
-| UI-32 | Phase 3 | Pending |
-| UI-33 | Phase 3 | Pending |
-| UI-34 | Phase 3 | Pending |
+| UI-18 | Phase 3 | Done |
+| UI-19 | Phase 3 | Done |
+| UI-20 | Phase 3 | Done |
+| UI-21 | Phase 3 | Done |
+| UI-22 | Phase 3 | Done |
+| UI-23 | Phase 3 | Done |
+| UI-24 | Phase 3 | Done |
+| UI-25 | Phase 3 | Done |
+| UI-26 | Phase 3 | Done |
+| UI-27 | Phase 3 | Done |
+| UI-28 | Phase 3 | Done |
+| UI-29 | Phase 3 | Done |
+| UI-30 | Phase 3 | Done |
+| UI-31 | Phase 3 | Done |
+| UI-32 | Phase 3 | Done |
+| UI-33 | Phase 3 | Done |
+| UI-34 | Phase 3 | Done |
 | UI-35 | Phase 4 | Pending |
 | UI-36 | Phase 4 | Pending |
 | UI-37 | Phase 4 | Pending |

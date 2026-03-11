@@ -61,9 +61,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Component restyling (Button, Card, Input, StatusBadge, PriorityBadge, Table rows)
-- [ ] 03-02: Auth, onboarding, dashboard, and settings pages
-- [ ] 03-03: Cases, runs, run detail, execution, ingestion pages, and toasts
+- [x] 03-01: Component restyling (Button, Card, Input, StatusBadge, PriorityBadge, Table rows)
+- [x] 03-02: Auth, onboarding, dashboard, and settings pages
+- [x] 03-03: Cases, runs, run detail, execution, ingestion pages, and toasts
 
 ### Phase 4: Regression Verification
 **Goal**: Every existing interaction, keyboard shortcut, page flow, and real-time feature works identically after the redesign, and CI passes clean
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Design Foundation | 2/2 | Complete | 2026-03-11 |
 | 2. Layout & Navigation | 2/2 | Complete | 2026-03-11 |
-| 3. Components & Pages | 0/3 | Not started | - |
+| 3. Components & Pages | 3/3 | Complete | 2026-03-11 |
 | 4. Regression Verification | 0/2 | Not started | - |
 
 ## Coverage Map
