@@ -10,6 +10,7 @@ export interface ColumnMapping {
   expected: string    // header name mapped to "expected" field
   preconditions?: string
   priority?: string
+  suite?: string
 }
 
 type ImportStatus = "idle" | "file-selected" | "previewing" | "importing" | "done" | "error"
@@ -41,6 +42,7 @@ function detectColumnMapping(headers: string[]): ColumnMapping {
     if (["preconditions", "precondition", "prerequisites"].includes(lower))
       mapping.preconditions = h
     if (["priority", "severity"].includes(lower)) mapping.priority = h
+    if (["suite", "area", "module", "section", "folder", "group"].includes(lower)) mapping.suite = h
   }
   return mapping
 }
@@ -122,6 +124,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
     if (columnMapping.expected) params.set("colExpected", columnMapping.expected)
     if (columnMapping.preconditions) params.set("colPreconditions", columnMapping.preconditions)
     if (columnMapping.priority) params.set("colPriority", columnMapping.priority)
+    if (columnMapping.suite) params.set("colSuite", columnMapping.suite)
 
     try {
       const res = await fetch(
