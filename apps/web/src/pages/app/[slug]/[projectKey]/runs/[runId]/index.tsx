@@ -3,6 +3,7 @@ import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
 import { AppLayout } from "@/components/layout/app-layout"
+import { useUserRole } from "@/hooks/useUserRole"
 import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
@@ -75,11 +76,14 @@ export default function RunDetailPage({
   sseToken,
 }: RunDetailPageProps) {
   const router = useRouter()
+  const { isAdmin } = useUserRole()
   const [run, setRun] = useState<RunDetail | null>(initialRun)
   const [items, setItems] = useState<RunItem[]>(initialRun?.items ?? [])
   const [isAborting, setIsAborting] = useState(false)
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [isRerunning, setIsRerunning] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isDeleteRunning, setIsDeleteRunning] = useState(false)
   const [popoverId, setPopoverId] = useState<string | null>(null)
 
   // Update defect status in local items state when Linear sync event arrives
@@ -168,6 +172,24 @@ export default function RunDetailPage({
     }
   }
 
+  const handleDeleteRun = async () => {
+    setIsDeleteRunning(true)
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/runs/${runId}`,
+        { method: "DELETE" }
+      )
+      if (res.ok) {
+        void router.push(`/app/${slug}/${projectKey}/runs`)
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setIsDeleteRunning(false)
+      setConfirmDelete(false)
+    }
+  }
+
   if (!run) {
     return (
       <AppLayout slug={slug} projectKey={projectKey}>
@@ -245,28 +267,28 @@ export default function RunDetailPage({
                     Resume Execution
                   </Button>
                   {confirmAbort ? (
-                    <div className="flex items-center gap-2 rounded-md border border-fail/20 bg-fail-bg px-3 py-1.5">
-                      <span className="text-xs text-fail-text">Abort this run?</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                    <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5">
+                      <span className="text-xs text-gray-600">Abort this run?</span>
+                      <button
+                        type="button"
                         onClick={() => void handleAbort()}
                         disabled={isAborting}
+                        className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                       >
                         {isAborting ? "Aborting…" : "Confirm"}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setConfirmAbort(false)}
                         disabled={isAborting}
+                        className="rounded-md px-2.5 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
                       >
                         Cancel
-                      </Button>
+                      </button>
                     </div>
                   ) : (
                     <Button
-                      variant="destructive"
+                      variant="secondary"
                       size="sm"
                       onClick={() => setConfirmAbort(true)}
                     >
@@ -284,6 +306,39 @@ export default function RunDetailPage({
                 >
                   {isRerunning ? "Creating…" : "Rerun Failures"}
                 </Button>
+              )}
+              {isAdmin && !confirmAbort && (
+                <>
+                  {confirmDelete ? (
+                    <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5">
+                      <span className="text-xs text-gray-600">Delete this run permanently?</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteRun()}
+                        disabled={isDeleteRunning}
+                        className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      >
+                        {isDeleteRunning ? "Deleting…" : "Confirm"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(false)}
+                        disabled={isDeleteRunning}
+                        className="rounded-md px-2.5 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete Run
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
