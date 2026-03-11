@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { hkdfSync } from "crypto"
 import { jwtDecrypt } from "jose"
 import { valkey } from "../lib/valkey.js"
+import { sql } from "../db/client.js"
 
 // Extend FastifyRequest with session data
 declare module "fastify" {
@@ -104,6 +105,36 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
       } catch {
         // Fail open: if Valkey is down, allow the request through.
         // The membership check in individual routes is the secondary guard.
+      }
+    }
+
+    // ── Live role refresh ──────────────────────────────────────────────
+    // JWT role may be stale if an admin changed it. Check Valkey cache
+    // (60s TTL), falling back to DB lookup.
+    if (id && request.workspaceId) {
+      try {
+        const cacheKey = `member_role:${request.workspaceId}:${id}`
+        let liveRole = await valkey.get(cacheKey)
+
+        if (!liveRole) {
+          // Cache miss — query DB
+          const rows = await sql`
+            SELECT role FROM workspace_members
+            WHERE workspace_id = ${request.workspaceId}::uuid
+              AND user_id = ${id}::uuid
+              AND is_active = true
+          `
+          if (rows.length > 0) {
+            liveRole = (rows[0] as { role: string }).role
+            await valkey.set(cacheKey, liveRole, "EX", 60)
+          }
+        }
+
+        if (liveRole) {
+          request.userRole = liveRole
+        }
+      } catch {
+        // Fail open — use JWT role if Valkey/DB unavailable
       }
     }
   })
