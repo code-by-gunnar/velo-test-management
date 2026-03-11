@@ -15,7 +15,7 @@
 - [x] **Phase 3: Test Runs and Dashboard** - Run creation, keyboard-driven execution, inline defect filing, live real-time dashboard (completed 2026-03-10)
 - [x] **Phase 4: CI Ingestion** - JUnit XML and Allure JSON ingestion via REST API, R2 raw payload storage (completed 2026-03-10)
 - [ ] **Phase 5: Integrations and API** - Linear integration, REST API with full UI parity, outbound webhooks
-- [ ] **Phase 6: Team and Access Control** - Workspace invitations, RBAC enforcement, plan tier limits
+- [x] **Phase 6: Team and Access Control** - Workspace invitations, RBAC enforcement, plan tier limits (completed 2026-03-11)
 
 ---
 
@@ -27,8 +27,8 @@
 | 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
 | 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
 | 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
-| 5. Integrations and API | 6/6 | Planned | - |
-| 6. Team and Access Control | 4/5 | In Progress|  |
+| 5. Integrations and API | 5/6 | In Progress | - |
+| 6. Team and Access Control | 5/5 | Complete | 2026-03-11 |
 
 ---
 
@@ -151,11 +151,11 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Wave 0: Migration (linear_connections, webhooks tables, defects.external_status), test stubs for all INT-01–INT-04 requirements
-- [ ] 05-02-PLAN.md — Wave 1: Unified auth middleware (session + API key), /api/v1/ route prefix, CRUD gaps (PATCH project, DELETE project, GET members, PATCH workspace), Valkey rate limiting
-- [ ] 05-03-PLAN.md — Wave 2: Linear OAuth flow (connect/disconnect/team select), token encryption, auto-file defects to Linear
-- [ ] 05-04-PLAN.md — Wave 3: Linear inbound webhook for status sync, outbound webhook CRUD + BullMQ delivery, event triggers (run.completed, run_item.failed)
-- [ ] 05-05-PLAN.md — Wave 4: Frontend — Integrations settings (Linear connect), DefectBadge, webhook config UI, project settings page
+- [x] 05-01-PLAN.md — Wave 0: Migration (linear_connections, webhooks tables, defects.external_status), test stubs for all INT-01–INT-04 requirements (complete 2026-03-10)
+- [x] 05-02-PLAN.md — Wave 1: Unified auth middleware (session + API key), /api/v1/ route prefix, CRUD gaps (PATCH project, DELETE project, GET members, PATCH workspace), Valkey rate limiting (complete 2026-03-10)
+- [x] 05-03-PLAN.md — Wave 2: Linear OAuth flow (connect/disconnect/team select), token encryption, auto-file defects to Linear (complete 2026-03-10)
+- [x] 05-04-PLAN.md — Wave 3: Linear inbound webhook for status sync, outbound webhook CRUD + BullMQ delivery, event triggers (run.completed, run_item.failed) (complete 2026-03-10)
+- [x] 05-05-PLAN.md — Wave 4: Frontend — Integrations settings (Linear connect), DefectBadge, webhook config UI, project settings page (complete 2026-03-10)
 - [ ] 05-06-PLAN.md — Wave 5: Human verification UAT for all INT-01 through INT-04
 
 ---
@@ -178,11 +178,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Wave 0: Migration (workspace_invitations table), schema.ts update, email queue type extension, test stubs for USR-01–USR-06
-- [ ] 06-02-PLAN.md — Wave 1: Invitation CRUD routes (create, accept, list pending), email worker extension, tier enforcement (editor seat cap)
-- [ ] 06-03-PLAN.md — Wave 2: Role change route, member deactivation route, Valkey blocklist in session plugin for immediate invalidation
-- [ ] 06-04-PLAN.md — Wave 3: Frontend Team tab in settings (member list, invite form, role dropdown, deactivate), accept-invite page
-- [ ] 06-05-PLAN.md — Wave 4: Human verification UAT for all USR-01 through USR-06
+- [x] 06-01-PLAN.md — Wave 0: Migration (workspace_invitations table), schema.ts update, email queue type extension, test stubs for USR-01–USR-06 (complete 2026-03-10)
+- [x] 06-02-PLAN.md — Wave 1: Invitation CRUD routes (create, accept, list pending), email worker extension, tier enforcement (editor seat cap) (complete 2026-03-10)
+- [x] 06-03-PLAN.md — Wave 2: Role change route, member deactivation route, Valkey blocklist in session plugin for immediate invalidation (complete 2026-03-10)
+- [x] 06-04-PLAN.md — Wave 3: Frontend Team tab in settings (member list, invite form, role dropdown, deactivate), accept-invite page (complete 2026-03-10)
+- [x] 06-05-PLAN.md — Wave 4: UAT verified in production — USR-01 through USR-05 all confirmed working (complete 2026-03-11)
 
 ---
 

@@ -200,6 +200,22 @@ export function SuiteTree({
           <span>All Cases</span>
         </button>
 
+        {/* Inline input — appears at top of suite list */}
+        {canEdit && creating && (
+          <div className="px-1 py-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newSuiteName}
+              onChange={(e) => setNewSuiteName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={cancelCreate}
+              placeholder="Suite name…"
+              className="w-full rounded border border-cobalt bg-white px-2 py-0.5 text-sm focus:outline-none"
+            />
+          </div>
+        )}
+
         {/* Root suite nodes — wrapped in DndContext for within-root reorder */}
         <DndContext
           sensors={sensors}
@@ -227,36 +243,6 @@ export function SuiteTree({
         )}
       </div>
 
-      {/* New suite inline input */}
-      {canEdit && creating && (
-        <div className="border-t border-gray-100 px-2 py-1.5">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newSuiteName}
-            onChange={(e) => setNewSuiteName(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={cancelCreate}
-            placeholder="Suite name…"
-            className="w-full rounded border border-cobalt px-2 py-0.5 text-sm focus:outline-none"
-          />
-        </div>
-      )}
-
-      {/* New suite button */}
-      {!creating && (
-        <div className="border-t border-gray-100 px-2 py-1.5">
-          <button
-            type="button"
-            onClick={startCreate}
-            disabled={!canEdit}
-            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-400 disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-gray-600"
-          >
-            <span>+</span>
-            <span>New suite</span>
-          </button>
-        </div>
-      )}
     </div>
   )
 }
