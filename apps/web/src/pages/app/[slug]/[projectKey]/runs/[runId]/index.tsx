@@ -400,7 +400,7 @@ export default function RunDetailPage({
                                   <p className="pr-4 text-xs font-semibold text-gray-900">
                                     {item.defect_title ?? "Defect"}
                                   </p>
-                                  {item.defect_external_url && (
+                                  {item.defect_external_url && /^https?:\/\//i.test(item.defect_external_url) && (
                                     <a
                                       href={item.defect_external_url}
                                       target="_blank"
