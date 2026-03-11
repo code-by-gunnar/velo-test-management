@@ -20,6 +20,17 @@ interface RunUpdateEvent {
   }
 }
 
+interface DefectStatusUpdateEvent {
+  type: "defect_status_update"
+  defectId: string
+  externalStatus: string
+  runItemId: string
+}
+
+export interface UseRunSSEOptions {
+  onDefectStatusUpdate?: (runItemId: string, externalStatus: string) => void
+}
+
 /**
  * Subscribes to SSE streams for one or more runs, returning a Map from
  * runId to the latest stats. Connects directly to the Railway API URL
@@ -35,9 +46,14 @@ export function useRunSSE(
   runIds: string[],
   apiUrl: string,
   token: string | null,
-  workspaceId: string
+  workspaceId: string,
+  options?: UseRunSSEOptions | undefined
 ): Map<string, RunStats> {
   const [statsMap, setStatsMap] = useState<Map<string, RunStats>>(new Map())
+
+  // Stable ref for the callback so SSE connections don't reconnect on callback identity changes
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   // Stable ref so the effect cleanup can access the current sources
   const sourcesRef = useRef<Map<string, EventSource>>(new Map())
@@ -53,13 +69,15 @@ export function useRunSSE(
 
       es.onmessage = (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data as string) as RunUpdateEvent
-          if (data.type === "run_update" && data.stats) {
+          const data = JSON.parse(event.data as string) as RunUpdateEvent | DefectStatusUpdateEvent
+          if (data.type === "run_update" && "stats" in data) {
             setStatsMap((prev) => {
               const next = new Map(prev)
               next.set(runId, data.stats)
               return next
             })
+          } else if (data.type === "defect_status_update" && optionsRef.current?.onDefectStatusUpdate) {
+            optionsRef.current.onDefectStatusUpdate(data.runItemId, data.externalStatus)
           }
         } catch {
           // Ignore malformed SSE frames (heartbeats are comments, not data events)

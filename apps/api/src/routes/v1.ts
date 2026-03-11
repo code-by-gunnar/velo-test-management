@@ -10,6 +10,9 @@ import runItemsRoutes from "./run-items.js"
 import defectsRoutes from "./defects.js"
 import apiKeyRoutes from "./api-keys.js"
 import ingestionRoutes from "./ingestion.js"
+import memberRoutes from "./members.js"
+import linearRoutes from "./linear.js"
+import webhookRoutes from "./webhooks.js"
 
 /**
  * /api/v1/ route prefix plugin.
@@ -56,6 +59,9 @@ const v1Routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(defectsRoutes)
   await fastify.register(apiKeyRoutes)
   await fastify.register(ingestionRoutes)
+  await fastify.register(memberRoutes)
+  await fastify.register(linearRoutes)
+  await fastify.register(webhookRoutes)
 }
 
 export default v1Routes

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
@@ -82,12 +82,22 @@ export default function RunDetailPage({
   const [isRerunning, setIsRerunning] = useState(false)
   const [popoverId, setPopoverId] = useState<string | null>(null)
 
+  // Update defect status in local items state when Linear sync event arrives
+  const handleDefectStatusUpdate = useCallback((runItemId: string, externalStatus: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === runItemId ? { ...item, defect_external_status: externalStatus } : item
+      )
+    )
+  }, [])
+
   // Subscribe to SSE for live updates
   const liveStatsMap = useRunSSE(
     run ? [runId] : [],
     apiUrl,
     sseToken,
-    workspaceId
+    workspaceId,
+    { onDefectStatusUpdate: handleDefectStatusUpdate }
   )
 
   const liveStats = liveStatsMap.get(runId)
