@@ -1,123 +1,68 @@
-# Requirements: Velo
+# Requirements: Velo UI Redesign — "Clean Elevation"
 
-**Defined:** 2026-03-08
-**Core Value:** A QA engineer can create a test case in under 30 seconds and see run results update in real time — without fighting the tool.
+**Defined:** 2026-03-11
+**Core Value:** The app looks polished, intentional, and distinctly light — while preserving every existing interaction without regression.
 
-## v1 Requirements
+## UI Redesign Requirements
 
-### Infrastructure
+### Design Tokens
 
-- [x] **INFRA-01**: Repository is set up with CI/CD pipeline running on GitHub Actions (lint, type-check, test on every PR)
-- [x] **INFRA-02**: Application deploys to Railway automatically from main branch merge
-- [x] **INFRA-03**: PostgreSQL 16 database is provisioned on Railway with drizzle-kit migration system in place
-- [x] **INFRA-04**: Valkey instance is provisioned and connected (session store, pub/sub, BullMQ)
-- [x] **INFRA-05**: Multi-tenancy isolation enforced at application layer (workspace_id on every tenant-scoped row, TypeScript compile-time enforcement)
-- [x] **INFRA-06**: PostgreSQL RLS enabled on all tenant-scoped tables as defense-in-depth layer using SET LOCAL (transaction-scoped)
+- [ ] **UI-01**: CSS custom properties updated to new color palette — page bg #E8EDF2, card bg #FFFFFF, primary blue #2D7FF9, hover blue #1A6BE8, selected bg #EBF3FF, text primary #1F2937, text secondary #6B7280, text muted #9CA3AF, borders #E5E7EB
+- [ ] **UI-02**: Spacing scale standardized to 4/8/12/16/20/24/32/40/48px grid
+- [ ] **UI-03**: Border radius tokens updated — small 6px (badges, inputs), medium 8px (buttons, cards), large 12px (panels, modals), full 50% (avatars)
+- [ ] **UI-04**: Shadow tokens updated — card `0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px rgba(0,0,0,0.06)`, dropdown `0px 4px 6px rgba(0,0,0,0.1)`, toast `0px 4px 12px rgba(0,0,0,0.15)`
 
-### Authentication
+### Typography
 
-- [x] **AUTH-01**: User can sign up with email and password
-- [x] **AUTH-02**: User can sign in with email and password and stay signed in across browser restarts
-- [x] **AUTH-03**: User can sign out from any screen
-- [x] **AUTH-04**: User can reset password via email link (email delivered via Resend)
-- [x] **AUTH-05**: Auth.js v5 JWT session correctly persists custom fields (workspace_id, role) across authorize → jwt → session callback chain
+- [ ] **UI-05**: DM Sans loaded via next/font/google as `font-display` variable, replacing Inter for headings and display text
+- [ ] **UI-06**: IBM Plex Sans loaded via next/font/google as `font-body` variable for all body/UI text
+- [ ] **UI-07**: JetBrains Mono retained as `font-mono` for code and IDs (no change)
+- [ ] **UI-08**: Typography scale applied — page titles 28px/600, section labels 12px/600 uppercase with letter-spacing, body 14px/400, table headers 12px/600 uppercase
 
-### Design System
+### Sidebar
 
-- [x] **DS-01**: Design token set is implemented as CSS custom properties (Cobalt, Slate, Mist, Gray Mid, Gray Light, Pass Green, Fail Red, Blocked Amber, Skipped Slate)
-- [x] **DS-02**: Typography scale is implemented (Inter for UI, JetBrains Mono for code/IDs)
-- [x] **DS-03**: Base component library exists: Button (primary/secondary/destructive/ghost), Card, Form Input, Status Badge (PASS/FAIL/BLOCKED/SKIPPED)
-- [x] **DS-04**: Left sidebar navigation (240px, collapsible to 48px icon rail) with persistent project context
+- [ ] **UI-09**: Sidebar background changed from dark warm (#2D2926) to white (#FFFFFF) with right border (#E5E7EB)
+- [ ] **UI-10**: Sidebar width updated from 240px to 192px (collapsed 48px icon rail preserved)
+- [ ] **UI-11**: Active nav item styled with blue highlight — bg #EBF3FF, text/icon #2D7FF9, font-weight 600
+- [ ] **UI-12**: Inactive nav items styled — text #1F2937, icon #6B7280, hover bg #F3F4F6
+- [ ] **UI-13**: Workspace dropdown in sidebar — 24px avatar square with initials, workspace name, chevron-down, on #F3F4F6 background
+- [ ] **UI-14**: Sidebar collapse/expand toggle and localStorage persistence preserved
 
-### Workspace & Projects
+### Layout
 
-- [x] **WORK-01**: User can create a workspace with a name and slug
-- [x] **WORK-02**: User can create a project within a workspace (name + project key, e.g. VELO)
-- [x] **WORK-03**: Free tier enforces limits (3 editors, 1 project, 500 test cases)
+- [ ] **UI-15**: App shell updated — page background #E8EDF2, main content rendered as floating white card with 12px border-radius and card shadow
+- [ ] **UI-16**: Cases page adopts 3-panel layout — sidebar (192px) | suites panel (144px, white, right border) | main content (remaining)
+- [ ] **UI-17**: Suites panel shows "SUITES" header (12px uppercase), tree items with selected state (blue bg), and "+ New suite" at bottom
 
-### Test Cases
+### Components
 
-- [x] **TC-01**: User can create a test case with title, preconditions, steps, expected results, and priority — entirely by keyboard, in under 30 seconds from blank to saved
-- [x] **TC-02**: User can add, reorder, and delete steps using only keyboard (Tab to next field, Enter to add step)
-- [x] **TC-03**: User can organise test cases into nested suites (unlimited depth) within a project
-- [x] **TC-04**: User can drag and drop suites and test cases to reorder them (gap-based integer positions, no full-table rewrite on reorder)
-- [x] **TC-05**: User can bulk move or copy test cases between suites
-- [x] **TC-06**: User can import test cases from CSV or Excel file, preserving step structure (not flattened to single description field)
+- [ ] **UI-18**: Button primary restyled — bg #2D7FF9, hover #1A6BE8, white text, 8px radius, 40px height
+- [ ] **UI-19**: Button secondary restyled — white bg, 1px #2D7FF9 border, blue text, hover bg #EBF3FF
+- [ ] **UI-20**: Priority badges restyled — High: solid blue bg + white text; Medium: #E8F2FF bg + blue text + blue border; Low: #F3F4F6 bg + gray text
+- [ ] **UI-21**: Status badges (pass/fail/blocked/skipped) retain existing muted color tokens — no change to status semantics
+- [ ] **UI-22**: Card component updated — white bg, 8px radius, card shadow, 1px #E5E7EB border
+- [ ] **UI-23**: Table rows updated — 56px height, 1px bottom border, #F9FAFB hover, grid layout with uppercase headers on #F9FAFB bg
+- [ ] **UI-24**: Input/form fields updated — 6px radius, focus ring color changed to primary blue
 
-### Test Runs
+### Pages
 
-- [x] **TR-01**: User can create a named test run scoped to a project, suite selection, or milestone
-- [x] **TR-02**: User can assign a test run to themselves or another team member
-- [x] **TR-03**: User can execute a run one case at a time using P/F/B/S keyboard shortcuts (Pass / Fail / Blocked / Skipped)
-- [x] **TR-04**: User can add an inline comment on any test step during execution
-- [x] **TR-05**: User can file a defect (linked to Linear issue) directly from a failed run item
-- [x] **TR-06**: User can see execution history for a test case across all previous runs
-- [x] **TR-07**: User can create a new run from the failures of a previous run (rerun-failures flow)
+- [ ] **UI-25**: Auth pages (login, signup, verify, forgot-password, reset-password) restyled with new tokens and floating card layout
+- [ ] **UI-26**: Onboarding wizard restyled with new tokens
+- [ ] **UI-27**: Dashboard page restyled — floating card, new button/badge styles
+- [ ] **UI-28**: Cases page restyled with 3-panel layout, new table styles, status bar with avatar stack
+- [ ] **UI-29**: Runs dashboard restyled — RunCard, SegmentedBar, RunFilters with new tokens
+- [ ] **UI-30**: Run detail page restyled — item list, defect badges, action buttons
+- [ ] **UI-31**: Execution screen restyled — keyboard hints footer, DefectPrompt, StepCommentIcon with new tokens
+- [ ] **UI-32**: Settings page restyled — tabs, TeamPanel, ApiKeysPanel with new tokens
+- [ ] **UI-33**: Ingestion page restyled — SetupGuide, IngestionHistory with new tokens
+- [ ] **UI-34**: Toast notifications restyled — white bg, 8px radius, toast shadow, green checkmark icon
 
-### Live Dashboard
+### Regression Guard
 
-- [x] **DA-01**: User can see a live run dashboard that updates in real time without page refresh (SSE + Valkey pub/sub per run_id)
-- [x] **DA-02**: Dashboard shows real-time progress bar, pass rate percentage, and time-to-complete estimate
-- [x] **DA-03**: Dashboard run list is filterable by assignee, run status, and milestone
-
-### CI/CD Result Ingestion
-
-- [x] **IN-01**: CI pipeline can push JUnit XML results to Velo via REST API endpoint; results are auto-mapped to test cases by name or external ID
-- [x] **IN-02**: CI pipeline can push Allure JSON results to Velo; results are auto-mapped to test cases
-- [x] **IN-03**: JUnit XML parser handles the 5 most common CI variants (pytest-junit, Surefire/Maven, Gradle, Jest-junit, Go gotestsum) without error
-- [x] **IN-04**: Raw CI payloads are stored in Cloudflare R2 (not in PostgreSQL) for debugging and audit
-
-### Integrations
-
-- [x] **INT-01**: User can create a Linear issue directly from a failed run item in Velo (one-way create)
-- [x] **INT-02**: Velo displays the current Linear issue status back in the run view (two-way sync; idempotency key prevents sync loops)
-- [x] **INT-03**: REST API provides full parity with the UI (all resources readable and writable via API)
-- [x] **INT-04**: Webhooks fire on: run complete, case fail, milestone reached (configurable endpoint per project) — milestone.reached deferred to v2 (TR-V2-01)
-
-### Team & Access Control
-
-- [x] **USR-01**: Workspace admin can invite team members by email
-- [x] **USR-02**: Invited user receives email with sign-up/join link (delivered via Resend)
-- [x] **USR-03**: Workspace admin can assign roles: Admin, Editor, Viewer
-- [x] **USR-04**: Workspace admin can deactivate a team member (revokes access immediately)
-- [x] **USR-05**: Viewer role has unlimited seats on all plan tiers; Editor seats are capped per tier
-- [x] **USR-06**: Plan tier limits are enforced at the API layer (cannot create project beyond Free limit without upgrade)
-
----
-
-## v2 Requirements
-
-### Test Cases
-
-- **TC-V2-01**: User can search and filter test cases by full-text query across title, steps, and tags
-- **TC-V2-02**: User can bulk tag, archive, or delete test cases via multi-select
-- **TC-V2-03**: User can create reusable step templates per project and import from shared library
-
-### Test Runs
-
-- **TR-V2-01**: User can create a test plan/milestone that groups multiple runs with a shared due date
-
-### Integrations
-
-- **INT-V2-01**: Jira two-way sync (file defect from Velo; see Jira status in run view) — deferred in favour of Linear for MVP
-- **INT-V2-02**: GitHub/GitLab PR status checks from automated run results
-- **INT-V2-03**: Slack/Teams notifications (run complete, run failed, milestone due)
-
-### Dashboard & Reporting
-
-- **DA-V2-01**: Coverage and trend reports (pass rate over time, flaky test surface, coverage by suite/milestone) — requires 90+ days of run history to be meaningful
-- **DA-V2-02**: Custom dashboard builder with drag-and-drop widgets
-
-### AI Features
-
-- **AI-V2-01**: AI test case generation from Jira tickets, requirements text, or OpenAPI spec via Claude API
-- **AI-V2-02**: AI failure analysis — pattern detection across recent failures, surface flaky vs regression failures
-
-### Enterprise
-
-- **ENT-V2-01**: SSO / SAML authentication
-- **ENT-V2-02**: Full audit log of all workspace activity
-- **ENT-V2-03**: SOC 2 compliance readiness
+- [ ] **UI-35**: All existing keyboard shortcuts (P/F/B/S execution, Tab/Enter step editing) work identically after redesign
+- [ ] **UI-36**: All existing page flows (auth → onboarding → dashboard → cases → runs → execution) work identically after redesign
+- [ ] **UI-37**: SSE live updates continue to work on runs dashboard and run detail page
+- [ ] **UI-38**: Typecheck and lint pass with zero errors after redesign
 
 ---
 
@@ -125,21 +70,11 @@
 
 | Feature | Reason |
 |---------|--------|
-| Next.js App Router | CVE-2025-55182 (CVSS 10.0 RCE) — Pages Router only until resolved |
-| Clerk auth | Want full control over auth infrastructure; avoid paid dependency at MVP stage |
-| Redis | SSPL licence change March 2024 — replaced by Valkey |
-| Fly.io | Railway simpler for solo MVP; revisit if multi-region is needed |
-| Jira integration (MVP) | Linear chosen instead — better fit for startup ICP; Jira deferred to v2 |
-| Built-in test automation engine | Separate product category; not Velo's job |
-| Requirements management module | Jira/Linear own this for the ICP |
-| Time / budget tracking | Out of Velo's domain |
-| Custom workflow states | Opinionated defaults (P/F/B/S/Retest) — configuration is friction |
-| On-premises / self-hosted | Not in V1 |
-| Native mobile app | Web-first; mobile-responsive polish is V2 |
-| Dark mode | V2 feature — light interface is the design identity |
-| No-code test recorder | Specialist product category |
-| Visual / screenshot testing | Separate product category |
-| Test execution scheduling | CI/CD tools own this |
+| Functional changes | No new features, no interaction redesigns, no new API endpoints |
+| Dark mode | Light is the identity; dark mode is v2 |
+| Mobile-responsive redesign | Current responsive behavior stays, just restyled |
+| New component creation | Restyle existing components only |
+| Floating action buttons (mockup) | Mockup artifact, not a production feature |
 
 ---
 
@@ -147,60 +82,50 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Complete |
-| INFRA-03 | Phase 1 | Complete |
-| INFRA-04 | Phase 1 | Complete |
-| INFRA-05 | Phase 1 | Complete |
-| INFRA-06 | Phase 1 | Complete |
-| AUTH-01 | Phase 1 | Complete |
-| AUTH-02 | Phase 1 | Complete |
-| AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Complete |
-| AUTH-05 | Phase 1 | Complete |
-| DS-01 | Phase 1 | Complete |
-| DS-02 | Phase 1 | Complete |
-| DS-03 | Phase 1 | Complete |
-| DS-04 | Phase 1 | Complete |
-| WORK-01 | Phase 1 | Complete |
-| WORK-02 | Phase 1 | Complete |
-| WORK-03 | Phase 1 | Complete |
-| TC-01 | Phase 2 | Complete |
-| TC-02 | Phase 2 | Complete |
-| TC-03 | Phase 2 | Complete |
-| TC-04 | Phase 2 | Complete |
-| TC-05 | Phase 2 | Complete |
-| TC-06 | Phase 2 | Complete |
-| TR-01 | Phase 3 | Complete |
-| TR-02 | Phase 3 | Complete |
-| TR-03 | Phase 3 | Complete |
-| TR-04 | Phase 3 | Complete |
-| TR-05 | Phase 3 | Complete |
-| TR-06 | Phase 3 | Complete |
-| TR-07 | Phase 3 | Complete |
-| DA-01 | Phase 3 | Complete |
-| DA-02 | Phase 3 | Complete |
-| DA-03 | Phase 3 | Complete |
-| IN-01 | Phase 4 | Complete |
-| IN-02 | Phase 4 | Complete |
-| IN-03 | Phase 4 | Complete |
-| IN-04 | Phase 4 | Complete |
-| INT-01 | Phase 5 | Complete |
-| INT-02 | Phase 5 | Complete |
-| INT-03 | Phase 5 | Complete |
-| INT-04 | Phase 5 | Complete (2/3 events; milestone.reached deferred to v2 — TR-V2-01) |
-| USR-01 | Phase 6 | Complete |
-| USR-02 | Phase 6 | Complete |
-| USR-03 | Phase 6 | Complete |
-| USR-04 | Phase 6 | Complete |
-| USR-05 | Phase 6 | Complete |
-| USR-06 | Phase 6 | Complete |
+| UI-01 | — | Pending |
+| UI-02 | — | Pending |
+| UI-03 | — | Pending |
+| UI-04 | — | Pending |
+| UI-05 | — | Pending |
+| UI-06 | — | Pending |
+| UI-07 | — | Pending |
+| UI-08 | — | Pending |
+| UI-09 | — | Pending |
+| UI-10 | — | Pending |
+| UI-11 | — | Pending |
+| UI-12 | — | Pending |
+| UI-13 | — | Pending |
+| UI-14 | — | Pending |
+| UI-15 | — | Pending |
+| UI-16 | — | Pending |
+| UI-17 | — | Pending |
+| UI-18 | — | Pending |
+| UI-19 | — | Pending |
+| UI-20 | — | Pending |
+| UI-21 | — | Pending |
+| UI-22 | — | Pending |
+| UI-23 | — | Pending |
+| UI-24 | — | Pending |
+| UI-25 | — | Pending |
+| UI-26 | — | Pending |
+| UI-27 | — | Pending |
+| UI-28 | — | Pending |
+| UI-29 | — | Pending |
+| UI-30 | — | Pending |
+| UI-31 | — | Pending |
+| UI-32 | — | Pending |
+| UI-33 | — | Pending |
+| UI-34 | — | Pending |
+| UI-35 | — | Pending |
+| UI-36 | — | Pending |
+| UI-37 | — | Pending |
+| UI-38 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 48 total
-- Mapped to phases: 48
-- Unmapped: 0
+- UI redesign requirements: 38 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 38
 
 ---
-*Requirements defined: 2026-03-08*
-*Last updated: 2026-03-11 — traceability updated post-milestone audit*
+*Requirements defined: 2026-03-11*
+*Last updated: 2026-03-11*
