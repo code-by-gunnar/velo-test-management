@@ -101,12 +101,12 @@ export function SuiteTreeItem({
     <div ref={setNodeRef} style={style} className={isDragging ? "opacity-50" : ""}>
       <div
         className={clsx(
-          "flex w-full items-center gap-1 rounded-md py-1 pr-2 text-sm text-left transition-colors",
+          "flex w-full items-center gap-1 rounded-md text-sm text-left transition-colors",
           isSelected
-            ? "bg-cobalt/10 text-cobalt font-medium"
-            : "text-gray-700 hover:bg-gray-100"
+            ? "bg-primary-selected text-primary font-medium"
+            : "text-gray-800 hover:bg-gray-100"
         )}
-        style={{ paddingLeft: suite.depth * 16 + 8 }}
+        style={{ height: 32, padding: '6px 8px', paddingLeft: suite.depth * 16 + 8 }}
       >
         {/* Drag handle — listeners here only, not on the whole row */}
         {canEdit && (
@@ -127,7 +127,7 @@ export function SuiteTreeItem({
               e.stopPropagation()
               setExpanded((v) => !v)
             }}
-            className="mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-gray-400 hover:text-gray-600"
+            className={clsx("mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center hover:text-gray-600", isSelected ? "text-primary" : "text-gray-400")}
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             {expanded ? "▼" : "▶"}
