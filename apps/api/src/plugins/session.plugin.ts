@@ -66,9 +66,16 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
     const token = bearerToken ?? cookieToken ?? queryToken ?? null
     if (!token) return
 
-    // Try the HTTPS key first (production), fall back to plain (dev)
+    // Select key based on gateway hint (avoids trial-and-error decryption).
+    // x-token-secure: "1" = __Secure- cookie (production), "0" = plain (dev).
+    // Falls back to trying both keys when hint is absent (direct API callers).
+    const secureHint = request.headers["x-token-secure"] as string | undefined
+    const keysToTry = secureHint === "1" ? [secureKey]
+      : secureHint === "0" ? [plainKey]
+      : [secureKey, plainKey]
+
     let payload: Record<string, unknown> | null = null
-    for (const key of [secureKey, plainKey]) {
+    for (const key of keysToTry) {
       try {
         const result = await jwtDecrypt(token, key, {
           clockTolerance: 15,
@@ -91,10 +98,20 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
       request.userRole = (payload["role"] as string | null | undefined) ?? null
     }
 
-    // Check deactivation blocklist (USR-04: immediate session invalidation)
+    // Batch Valkey lookups into a single pipeline round trip:
+    // 1. Deactivation blocklist (USR-04: immediate session invalidation)
+    // 2. Live role cache (60s TTL — JWT role may be stale after admin change)
     if (id && request.workspaceId) {
       try {
-        const isBlocked = await valkey.get(`deactivated:${request.workspaceId}:${id}`)
+        const blockKey = `deactivated:${request.workspaceId}:${id}`
+        const roleKey = `member_role:${request.workspaceId}:${id}`
+
+        const results = await valkey.pipeline().get(blockKey).get(roleKey).exec()
+
+        // Result shape: [[err, val], [err, val]]
+        const isBlocked = results?.[0]?.[1] as string | null
+        const cachedRole = results?.[1]?.[1] as string | null
+
         if (isBlocked) {
           // Clear session context — requireAuth will return 401
           request.userId = ""
@@ -102,22 +119,11 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
           request.userRole = null
           return
         }
-      } catch {
-        // Fail open: if Valkey is down, allow the request through.
-        // The membership check in individual routes is the secondary guard.
-      }
-    }
 
-    // ── Live role refresh ──────────────────────────────────────────────
-    // JWT role may be stale if an admin changed it. Check Valkey cache
-    // (60s TTL), falling back to DB lookup.
-    if (id && request.workspaceId) {
-      try {
-        const cacheKey = `member_role:${request.workspaceId}:${id}`
-        let liveRole = await valkey.get(cacheKey)
-
-        if (!liveRole) {
-          // Cache miss — query DB
+        if (cachedRole) {
+          request.userRole = cachedRole
+        } else {
+          // Cache miss — query DB and populate cache
           const rows = await sql`
             SELECT role FROM workspace_members
             WHERE workspace_id = ${request.workspaceId}::uuid
@@ -125,13 +131,10 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
               AND is_active = true
           `
           if (rows.length > 0) {
-            liveRole = (rows[0] as { role: string }).role
-            await valkey.set(cacheKey, liveRole, "EX", 60)
+            const liveRole = (rows[0] as { role: string }).role
+            request.userRole = liveRole
+            await valkey.set(roleKey, liveRole, "EX", 60)
           }
-        }
-
-        if (liveRole) {
-          request.userRole = liveRole
         }
       } catch {
         // Fail open — use JWT role if Valkey/DB unavailable
