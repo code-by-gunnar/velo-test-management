@@ -42,6 +42,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ...(rawBody.length > 0 ? { body: rawBody.toString("utf-8") } : {}),
   })
 
+  // If the API returns 401, the session is invalid (deactivated user, expired token, etc.).
+  // Clear the Auth.js session cookie so the next page load redirects to /login.
+  if (fetchRes.status === 401 && token) {
+    const isSecure = req.headers["x-forwarded-proto"] === "https" || req.url?.startsWith("https")
+    const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token"
+    res.setHeader(
+      "Set-Cookie",
+      `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${isSecure ? "; Secure" : ""}`
+    )
+  }
+
   // Forward status + headers (skip hop-by-hop headers that cause issues)
   const skip = new Set(["content-encoding", "transfer-encoding", "connection"])
   res.status(fetchRes.status)
