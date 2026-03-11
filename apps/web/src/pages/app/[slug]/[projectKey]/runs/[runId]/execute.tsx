@@ -55,7 +55,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const headers = token ? { authorization: `Bearer ${token}` } : {}
 
-  // Resolve projectId from projectKey
   let projectId = ""
   let runName = ""
   let items: RunItem[] = []
@@ -64,46 +63,31 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { props: { slug, projectKey, runId, runName, workspaceId, projectId, items } }
   }
 
-  try {
-    // Look up project ID by key
-    const projectsRes = await fetch(
-      `${process.env.API_URL}/api/workspaces/${workspaceId}/projects`,
-      { headers }
-    )
-    if (projectsRes.ok) {
-      const projects = await projectsRes.json() as Array<{ id: string; project_key: string }>
-      const project = projects.find((p) => p.project_key === projectKey)
-      projectId = project?.id ?? ""
-    }
-  } catch {
-    // projectId stays empty
+  const apiUrl = process.env.API_URL ?? ""
+
+  // Parallel: resolve project key + fetch run detail (independent)
+  const [projectRes, runRes] = await Promise.all([
+    fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`, { headers }).catch(() => null),
+    fetch(`${apiUrl}/api/workspaces/${workspaceId}/runs/${runId}`, { headers }).catch(() => null),
+  ])
+
+  if (projectRes?.ok) {
+    const project = await projectRes.json() as { id: string }
+    projectId = project.id
   }
 
-  if (!projectId) {
-    return { props: { slug, projectKey, runId, runName, workspaceId, projectId, items } }
-  }
-
-  try {
-    // Fetch run detail to get items
-    const runRes = await fetch(
-      `${process.env.API_URL}/api/workspaces/${workspaceId}/runs/${runId}`,
-      { headers }
-    )
-    if (runRes.ok) {
-      const run = await runRes.json() as {
-        id: string
-        name: string
-        status: string
-        items: RunItem[]
-      }
-      runName = run.name ?? ""
-      items = (run.items ?? []).map((item) => ({
-        ...item,
-        case_title: item.case_title ?? "",
-      }))
+  if (runRes?.ok) {
+    const run = await runRes.json() as {
+      id: string
+      name: string
+      status: string
+      items: RunItem[]
     }
-  } catch {
-    // items stays empty
+    runName = run.name ?? ""
+    items = (run.items ?? []).map((item) => ({
+      ...item,
+      case_title: item.case_title ?? "",
+    }))
   }
 
   return {

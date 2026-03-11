@@ -217,15 +217,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   if (workspaceId && token) {
     try {
-      // Look up project by projectKey
-      const projectsRes = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/projects`,
+      // Resolve projectKey → UUID via single-row lookup
+      const projectRes = await fetch(
+        `${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`,
         { headers: { authorization: `Bearer ${token}` } }
       )
-      if (projectsRes.ok) {
-        const projects = await projectsRes.json() as Array<{ id: string; project_key: string }>
-        const project = projects.find((p) => p.project_key === projectKey)
-        projectId = project?.id ?? ""
+      if (projectRes.ok) {
+        const project = await projectRes.json() as { id: string }
+        projectId = project.id
       }
     } catch {
       // projectId stays empty
