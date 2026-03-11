@@ -240,7 +240,8 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             ri.id, ri.test_case_id, ri.case_title, ri.status,
             ri.comment, ri.executed_by, ri.executed_at, ri.created_at,
             d.id AS defect_id, d.title AS defect_title,
-            d.external_id AS defect_external_id, d.external_url AS defect_external_url
+            d.external_id AS defect_external_id, d.external_url AS defect_external_url,
+            d.external_status AS defect_external_status
           FROM run_items ri
           LEFT JOIN defects d ON d.run_item_id = ri.id
           WHERE ri.run_id = ${runId}::uuid
