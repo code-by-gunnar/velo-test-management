@@ -363,15 +363,15 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
             No webhooks configured. Add one to receive notifications when runs complete or tests fail.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div>
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  <th className="pb-2 pr-4">Endpoint</th>
-                  <th className="pb-2 pr-4">Events</th>
-                  <th className="pb-2 pr-4">Status</th>
-                  <th className="pb-2 pr-4">Created</th>
-                  <th className="pb-2" />
+                  <th className="pb-2 pr-4 w-[40%]">Endpoint</th>
+                  <th className="pb-2 pr-4 w-[22%]">Events</th>
+                  <th className="pb-2 pr-4 w-[10%]">Status</th>
+                  <th className="pb-2 pr-4 w-[12%]">Created</th>
+                  <th className="pb-2 w-[16%]" />
                 </tr>
               </thead>
               <tbody>
@@ -433,7 +433,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
                   return (
                     <tr key={webhook.id} className="border-b border-gray-50 last:border-0">
                       <td className="py-2.5 pr-4">
-                        <span className="font-mono text-xs text-gray-700 truncate block max-w-xs">
+                        <span className="font-mono text-xs text-gray-700 truncate block" title={webhook.endpoint_url}>
                           {webhook.endpoint_url}
                         </span>
                       </td>
