@@ -7,17 +7,17 @@
 
 ### Design Tokens
 
-- [ ] **UI-01**: CSS custom properties updated to new color palette — page bg #E8EDF2, card bg #FFFFFF, primary blue #2D7FF9, hover blue #1A6BE8, selected bg #EBF3FF, text primary #1F2937, text secondary #6B7280, text muted #9CA3AF, borders #E5E7EB
-- [ ] **UI-02**: Spacing scale standardized to 4/8/12/16/20/24/32/40/48px grid
-- [ ] **UI-03**: Border radius tokens updated — small 6px (badges, inputs), medium 8px (buttons, cards), large 12px (panels, modals), full 50% (avatars)
-- [ ] **UI-04**: Shadow tokens updated — card `0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px rgba(0,0,0,0.06)`, dropdown `0px 4px 6px rgba(0,0,0,0.1)`, toast `0px 4px 12px rgba(0,0,0,0.15)`
+- [x] **UI-01**: CSS custom properties updated to new color palette — page bg #E8EDF2, card bg #FFFFFF, primary blue #2D7FF9, hover blue #1A6BE8, selected bg #EBF3FF, text primary #1F2937, text secondary #6B7280, text muted #9CA3AF, borders #E5E7EB
+- [x] **UI-02**: Spacing scale standardized to 4/8/12/16/20/24/32/40/48px grid
+- [x] **UI-03**: Border radius tokens updated — small 6px (badges, inputs), medium 8px (buttons, cards), large 12px (panels, modals), full 50% (avatars)
+- [x] **UI-04**: Shadow tokens updated — card `0px 1px 3px rgba(0,0,0,0.1), 0px 1px 2px rgba(0,0,0,0.06)`, dropdown `0px 4px 6px rgba(0,0,0,0.1)`, toast `0px 4px 12px rgba(0,0,0,0.15)`
 
 ### Typography
 
-- [ ] **UI-05**: DM Sans loaded via next/font/google as `font-display` variable, replacing Inter for headings and display text
-- [ ] **UI-06**: IBM Plex Sans loaded via next/font/google as `font-body` variable for all body/UI text
-- [ ] **UI-07**: JetBrains Mono retained as `font-mono` for code and IDs (no change)
-- [ ] **UI-08**: Typography scale applied — page titles 28px/600, section labels 12px/600 uppercase with letter-spacing, body 14px/400, table headers 12px/600 uppercase
+- [x] **UI-05**: DM Sans loaded via next/font/google as `font-display` variable, replacing Inter for headings and display text
+- [x] **UI-06**: IBM Plex Sans loaded via next/font/google as `font-body` variable for all body/UI text
+- [x] **UI-07**: JetBrains Mono retained as `font-mono` for code and IDs (no change)
+- [x] **UI-08**: Typography scale applied — page titles 28px/600, section labels 12px/600 uppercase with letter-spacing, body 14px/400, table headers 12px/600 uppercase
 
 ### Sidebar
 
@@ -82,14 +82,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | Phase 1 | Pending |
-| UI-02 | Phase 1 | Pending |
-| UI-03 | Phase 1 | Pending |
-| UI-04 | Phase 1 | Pending |
-| UI-05 | Phase 1 | Pending |
-| UI-06 | Phase 1 | Pending |
-| UI-07 | Phase 1 | Pending |
-| UI-08 | Phase 1 | Pending |
+| UI-01 | Phase 1 | Done |
+| UI-02 | Phase 1 | Done |
+| UI-03 | Phase 1 | Done |
+| UI-04 | Phase 1 | Done |
+| UI-05 | Phase 1 | Done |
+| UI-06 | Phase 1 | Done |
+| UI-07 | Phase 1 | Done |
+| UI-08 | Phase 1 | Done |
 | UI-09 | Phase 2 | Pending |
 | UI-10 | Phase 2 | Pending |
 | UI-11 | Phase 2 | Pending |
