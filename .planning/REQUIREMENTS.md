@@ -70,9 +70,9 @@
 ### Integrations
 
 - [x] **INT-01**: User can create a Linear issue directly from a failed run item in Velo (one-way create)
-- [ ] **INT-02**: Velo displays the current Linear issue status back in the run view (two-way sync; idempotency key prevents sync loops)
-- [ ] **INT-03**: REST API provides full parity with the UI (all resources readable and writable via API)
-- [ ] **INT-04**: Webhooks fire on: run complete, case fail, milestone reached (configurable endpoint per project)
+- [x] **INT-02**: Velo displays the current Linear issue status back in the run view (two-way sync; idempotency key prevents sync loops)
+- [x] **INT-03**: REST API provides full parity with the UI (all resources readable and writable via API)
+- [x] **INT-04**: Webhooks fire on: run complete, case fail, milestone reached (configurable endpoint per project) — milestone.reached deferred to v2 (TR-V2-01)
 
 ### Team & Access Control
 
@@ -149,7 +149,7 @@
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
@@ -186,9 +186,9 @@
 | IN-03 | Phase 4 | Complete |
 | IN-04 | Phase 4 | Complete |
 | INT-01 | Phase 5 | Complete |
-| INT-02 | Phase 5 | Pending |
-| INT-03 | Phase 5 | Pending |
-| INT-04 | Phase 5 | Pending |
+| INT-02 | Phase 5 | Complete |
+| INT-03 | Phase 5 | Complete |
+| INT-04 | Phase 5 | Complete (2/3 events; milestone.reached deferred to v2 — TR-V2-01) |
 | USR-01 | Phase 6 | Complete |
 | USR-02 | Phase 6 | Complete |
 | USR-03 | Phase 6 | Complete |
@@ -203,4 +203,4 @@
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 — traceability populated by roadmapper*
+*Last updated: 2026-03-11 — traceability updated post-milestone audit*
