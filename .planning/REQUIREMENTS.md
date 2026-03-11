@@ -59,10 +59,10 @@
 
 ### Regression Guard
 
-- [ ] **UI-35**: All existing keyboard shortcuts (P/F/B/S execution, Tab/Enter step editing) work identically after redesign
-- [ ] **UI-36**: All existing page flows (auth → onboarding → dashboard → cases → runs → execution) work identically after redesign
-- [ ] **UI-37**: SSE live updates continue to work on runs dashboard and run detail page
-- [ ] **UI-38**: Typecheck and lint pass with zero errors after redesign
+- [x] **UI-35**: All existing keyboard shortcuts (P/F/B/S execution, Tab/Enter step editing) work identically after redesign
+- [x] **UI-36**: All existing page flows (auth → onboarding → dashboard → cases → runs → execution) work identically after redesign
+- [x] **UI-37**: SSE live updates continue to work on runs dashboard and run detail page
+- [x] **UI-38**: Typecheck and lint pass with zero errors after redesign
 
 ---
 
@@ -116,10 +116,10 @@
 | UI-32 | Phase 3 | Done |
 | UI-33 | Phase 3 | Done |
 | UI-34 | Phase 3 | Done |
-| UI-35 | Phase 4 | Pending |
-| UI-36 | Phase 4 | Pending |
-| UI-37 | Phase 4 | Pending |
-| UI-38 | Phase 4 | Pending |
+| UI-35 | Phase 4 | Done |
+| UI-36 | Phase 4 | Done |
+| UI-37 | Phase 4 | Done |
+| UI-38 | Phase 4 | Done |
 
 **Coverage:**
 - UI redesign requirements: 38 total
