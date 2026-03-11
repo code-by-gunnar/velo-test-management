@@ -42,7 +42,8 @@ export default function SignupPage() {
       return
     }
 
-    router.push(`/verify?email=${encodeURIComponent(data.email)}`)
+    const next = typeof router.query.next === "string" ? `&next=${encodeURIComponent(router.query.next)}` : ""
+    router.push(`/verify?email=${encodeURIComponent(data.email)}${next}`)
   }
 
   return (
@@ -102,7 +103,7 @@ export default function SignupPage() {
 
           <p className="mt-4 text-center text-sm text-gray-500">
             Already have an account?{" "}
-            <Link href="/login" className="text-cobalt hover:underline">
+            <Link href={typeof router.query.next === "string" ? `/login?next=${encodeURIComponent(router.query.next)}` : "/login"} className="text-cobalt hover:underline">
               Sign in
             </Link>
           </p>
