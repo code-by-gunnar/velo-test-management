@@ -3,6 +3,7 @@ import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
 import { AppLayout } from "@/components/layout/app-layout"
 import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel"
+import { ApiReference } from "@/components/settings/ApiReference"
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel"
 import { TeamPanel } from "@/components/settings/TeamPanel"
 import { clsx } from "clsx"
@@ -18,6 +19,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "team", label: "Team" },
   { key: "api-keys", label: "API Keys" },
+  { key: "api-reference", label: "API Reference" },
   { key: "integrations", label: "Integrations" },
 ] as const
 
@@ -88,6 +90,10 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
 
             {activeTab === "api-keys" && (
               <ApiKeysPanel workspaceId={workspaceId} />
+            )}
+
+            {activeTab === "api-reference" && (
+              <ApiReference workspaceId={workspaceId} />
             )}
 
             {activeTab === "integrations" && (
