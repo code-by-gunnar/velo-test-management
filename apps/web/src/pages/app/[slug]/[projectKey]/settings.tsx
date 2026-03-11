@@ -68,12 +68,20 @@ export default function ProjectSettingsPage({
             {activeTab === "general" && (
               <div className="rounded-lg border border-gray-200 bg-white p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Project</h3>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                   <dt className="text-gray-500">Project key</dt>
                   <dd className="font-mono text-gray-900 uppercase">{projectKey}</dd>
+                  <dt className="text-gray-500">Project ID</dt>
+                  <dd>
+                    <code className="select-all rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700">{projectId}</code>
+                  </dd>
+                  <dt className="text-gray-500">Workspace ID</dt>
+                  <dd>
+                    <code className="select-all rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700">{workspaceId}</code>
+                  </dd>
                 </dl>
                 <p className="mt-4 text-xs text-gray-400">
-                  Additional project settings will appear here.
+                  Use these IDs when calling the REST API or configuring CI ingestion.
                 </p>
               </div>
             )}

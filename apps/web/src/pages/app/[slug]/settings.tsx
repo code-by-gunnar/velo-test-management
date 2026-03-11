@@ -64,8 +64,16 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
             {activeTab === "general" && (
               <div className="rounded-lg border border-gray-200 bg-white p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Workspace</h3>
-                <p className="text-sm text-gray-500">
-                  Workspace configuration options will appear here.
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <dt className="text-gray-500">Slug</dt>
+                  <dd className="font-mono text-gray-900">{slug}</dd>
+                  <dt className="text-gray-500">Workspace ID</dt>
+                  <dd>
+                    <code className="select-all rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700">{workspaceId}</code>
+                  </dd>
+                </dl>
+                <p className="mt-4 text-xs text-gray-400">
+                  Use the Workspace ID when calling the REST API.
                 </p>
               </div>
             )}
