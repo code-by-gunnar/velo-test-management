@@ -364,14 +364,14 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
           </p>
         ) : (
           <div>
-            <table className="w-full text-sm table-fixed">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  <th className="pb-2 pr-4 w-[40%]">Endpoint</th>
-                  <th className="pb-2 pr-4 w-[22%]">Events</th>
-                  <th className="pb-2 pr-4 w-[10%]">Status</th>
-                  <th className="pb-2 pr-4 w-[12%]">Created</th>
-                  <th className="pb-2 w-[16%]" />
+                  <th className="pb-2 pr-4">Endpoint</th>
+                  <th className="pb-2 pr-4">Events</th>
+                  <th className="pb-2 pr-4">Status</th>
+                  <th className="pb-2 pr-4">Created</th>
+                  <th className="pb-2" />
                 </tr>
               </thead>
               <tbody>

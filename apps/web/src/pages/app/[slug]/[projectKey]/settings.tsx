@@ -64,7 +64,7 @@ export default function ProjectSettingsPage({
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto w-full max-w-3xl">
+          <div className={clsx("mx-auto w-full", activeTab === "webhooks" ? "max-w-5xl" : "max-w-3xl")}>
             {activeTab === "general" && (
               <div className="rounded-lg border border-gray-200 bg-white p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Project</h3>
