@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
@@ -14,6 +15,7 @@ interface AcceptInviteProps {
 
 export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInviteProps) {
   const router = useRouter()
+  const { update } = useSession()
   const [state, setState] = useState<PageState>("loading")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const startedRef = useRef(false)
@@ -47,16 +49,20 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
     acceptInvite(
       () => {
         setState("success")
-        setTimeout(() => {
-          void router.push(`/app/${slug}`)
-        }, 2000)
+        // Refresh JWT with new workspace_id/slug so requireAuth
+        // doesn't bounce to /onboarding on the next page load
+        void update({ workspace_id: workspaceId, workspace_slug: slug }).then(() => {
+          setTimeout(() => {
+            void router.push(`/app/${slug}`)
+          }, 2000)
+        })
       },
       (msg) => {
         setErrorMessage(msg)
         setState("error")
       }
     )
-  }, [acceptInvite, router, slug])
+  }, [acceptInvite, router, slug, update, workspaceId])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F5F3EF] px-4">
