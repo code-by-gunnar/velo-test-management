@@ -160,17 +160,16 @@ export function SuiteTree({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Suites</span>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={startCreate}
-            className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-sm"
-            title="New suite"
-            aria-label="New suite"
-          >
-            +
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={startCreate}
+          disabled={!canEdit}
+          className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-gray-600"
+          title={canEdit ? "New suite" : "Editor access required"}
+          aria-label="New suite"
+        >
+          +
+        </button>
       </div>
 
       {/* Tree */}
@@ -245,12 +244,13 @@ export function SuiteTree({
       )}
 
       {/* New suite button */}
-      {canEdit && !creating && (
+      {!creating && (
         <div className="border-t border-gray-100 px-2 py-1.5">
           <button
             type="button"
             onClick={startCreate}
-            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            disabled={!canEdit}
+            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-400 disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-gray-600"
           >
             <span>+</span>
             <span>New suite</span>

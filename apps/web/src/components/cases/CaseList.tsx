@@ -160,16 +160,12 @@ export function CaseList({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {canEdit && (
-            <Button variant="secondary" size="sm" onClick={onImport}>
-              Import
-            </Button>
-          )}
-          {canEdit && (
-            <Button variant="primary" size="sm" onClick={onNewCase}>
-              New Case
-            </Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={onImport} disabled={!canEdit}>
+            Import
+          </Button>
+          <Button variant="primary" size="sm" onClick={onNewCase} disabled={!canEdit}>
+            New Case
+          </Button>
         </div>
       </div>
 
@@ -200,11 +196,9 @@ export function CaseList({
             <h3 className="mb-1 text-base font-semibold text-gray-900">No test cases yet</h3>
             <p className="text-sm text-gray-500">Create your first test case to get started</p>
           </div>
-          {canEdit && (
-            <Button variant="primary" size="md" onClick={onNewCase}>
-              New Test Case
-            </Button>
-          )}
+          <Button variant="primary" size="md" onClick={onNewCase} disabled={!canEdit}>
+            New Test Case
+          </Button>
         </div>
       ) : (
         <DndContext

@@ -103,15 +103,14 @@ export default function RunsDashboard({
               </p>
             )}
           </div>
-          {canEdit && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsModalOpen(true)}
-            >
-              New Run
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsModalOpen(true)}
+            disabled={!canEdit}
+          >
+            New Run
+          </Button>
         </div>
 
         {/* Filters */}
@@ -137,11 +136,9 @@ export default function RunsDashboard({
                   Create your first test run to start tracking execution
                 </p>
               </div>
-              {canEdit && (
-                <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
-                  Create your first test run
-                </Button>
-              )}
+              <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)} disabled={!canEdit}>
+                Create your first test run
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-8">
