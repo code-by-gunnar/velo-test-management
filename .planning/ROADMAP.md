@@ -1,258 +1,142 @@
-# Roadmap: Velo
+# Roadmap: Velo UI Redesign — "Clean Elevation"
 
-**Project:** Velo QA Test Management Platform
-**Scope:** Phase 1 (Foundation) + Phase 2 (Core MVP)
-**Granularity:** Standard
-**Created:** 2026-03-08
-**Coverage:** 48/48 v1 requirements mapped
+## Overview
 
----
+Transform Velo from the "Industrial Notebook" dark-sidebar aesthetic to a clean, elevated, light design. Four phases: lay the design token foundation, restructure the sidebar and layout shell, restyle every component and page, then verify zero regressions. This is a visual reskin only — no functional changes, no API changes, no new components.
 
 ## Phases
 
-- [x] **Phase 1: Foundation** - Deployable scaffold with CI/CD, schema, auth, workspace isolation, and base design system (completed 2026-03-08)
-- [x] **Phase 2: Test Cases** - Keyboard-first test case editor, suite hierarchy, drag-drop reorder, bulk operations, CSV import (completed 2026-03-09)
-- [x] **Phase 3: Test Runs and Dashboard** - Run creation, keyboard-driven execution, inline defect filing, live real-time dashboard (completed 2026-03-10)
-- [x] **Phase 4: CI Ingestion** - JUnit XML and Allure JSON ingestion via REST API, R2 raw payload storage (completed 2026-03-10)
-- [x] **Phase 5: Integrations and API** - Linear integration, REST API with full UI parity, outbound webhooks (completed 2026-03-11)
-- [x] **Phase 6: Team and Access Control** - Workspace invitations, RBAC enforcement, plan tier limits (completed 2026-03-11)
+**Phase Numbering:**
+- Integer phases (1, 2, 3, 4): Planned milestone work
+- Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
----
-
-## Progress
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation | 6/6 | Complete   | 2026-03-08 |
-| 2. Test Cases | 6/6 | Complete   | 2026-03-09 |
-| 3. Test Runs and Dashboard | 6/6 | Complete   | 2026-03-10 |
-| 4. CI Ingestion | 5/5 | Complete   | 2026-03-10 |
-| 5. Integrations and API | 6/6 | Complete | 2026-03-11 |
-| 6. Team and Access Control | 5/5 | Complete | 2026-03-11 |
-
----
+- [x] **Phase 1: Design Foundation** - Design tokens, color palette, typography, spacing, shadows, and Tailwind config
+- [x] **Phase 2: Layout & Navigation** - White sidebar, app shell with floating card layout, 3-panel cases structure
+- [ ] **Phase 3: Components & Pages** - Restyle all UI components and all application pages to new design language
+- [ ] **Phase 4: Regression Verification** - Validate all keyboard shortcuts, page flows, SSE, and CI checks pass
 
 ## Phase Details
 
-### Phase 1: Foundation
-
-**Goal**: The application is deployed, secured, and ready for features — CI/CD runs on every PR, the database schema covers all core entities, auth works end-to-end, workspace isolation is enforced at compile time and at the database layer, and the design system renders correctly in the browser.
-
+### Phase 1: Design Foundation
+**Goal**: Every design token (colors, typography, spacing, shadows, radii) is updated and the Tailwind config reflects the new "Clean Elevation" design language
 **Depends on**: Nothing (first phase)
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08
+**Success Criteria** (what must be TRUE):
+  1. Page background renders as #E8EDF2 and cards render as #FFFFFF with the new shadow and border-radius tokens
+  2. DM Sans renders for all headings/display text and IBM Plex Sans renders for all body/UI text (visible in browser dev tools font panel)
+  3. Typography scale is consistent across the app — page titles are 28px/600, section labels are 12px/600 uppercase, body is 14px/400
+  4. All CSS custom properties in globals.css reflect the new palette and Tailwind config extends them correctly
+**Plans**: 2 plans
 
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, DS-01, DS-02, DS-03, DS-04, WORK-01, WORK-02, WORK-03
+Plans:
+- [x] 01-01: CSS custom properties and Tailwind config overhaul (colors, spacing, shadows, radii)
+- [x] 01-02: Font loading and typography scale (DM Sans, IBM Plex Sans, type scale)
 
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A pull request to main triggers lint, type-check, and test jobs in GitHub Actions; a merge to main triggers an automatic Railway deploy
-2. A new user can sign up, sign in, stay signed in across browser restarts, sign out from any screen, and reset a forgotten password via email
-3. The Auth.js v5 session correctly carries workspace_id and role through the authorize → jwt → session callback chain — verified by an integration test that asserts both fields are present after sign-in
-4. A user can create a workspace with a name/slug and create a project inside it; Free tier limits (3 editors, 1 project, 500 test cases) are schema-enforced
-5. The design token set, typography scale, base components (Button variants, Card, Form Input, Status Badge), and collapsible sidebar all render correctly in the browser with no visual regressions
-
-**Plans**: 6 plans
-
----
-
-### Phase 2: Test Cases
-
-**Goal**: A QA engineer can create a test case from blank to saved in under 30 seconds using only the keyboard, organise test cases into a nested suite tree, reorder everything via drag-and-drop, and bulk-manage cases across suites — including importing from CSV or Excel with step structure preserved.
-
+### Phase 2: Layout & Navigation
+**Goal**: The sidebar is white with blue active states, the app shell renders content as floating cards on the blue-gray surface, and the cases page has a 3-panel layout
 **Depends on**: Phase 1
-
-**Requirements**: TC-01, TC-02, TC-03, TC-04, TC-05, TC-06
-
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A user can create a complete test case (title, preconditions, steps, expected results, priority) using only Tab and Enter — from a blank form to saved — in under 30 seconds
-2. A user can add, reorder, and delete steps without touching the mouse; Tab moves to the next field, Enter adds a new step
-3. A user can create nested suites of unlimited depth and move test cases into them; the sidebar tree reflects the hierarchy immediately
-4. A user can drag and drop suites and test cases to reorder them; the reorder completes without a full-table rewrite (gap-based position integers)
-5. A user can bulk-select test cases and move or copy them to a different suite in one action
-6. A user can import a CSV or Excel file and see test cases created with step structure intact — not flattened to a single description field
-
-**Plans**: 6 plans
+**Requirements**: UI-09, UI-10, UI-11, UI-12, UI-13, UI-14, UI-15, UI-16, UI-17
+**Success Criteria** (what must be TRUE):
+  1. Sidebar renders as white (#FFFFFF) with a right border, 192px width, and collapses to 48px icon rail with localStorage persistence
+  2. Active nav item shows blue highlight (#EBF3FF bg, #2D7FF9 text), inactive items show dark text with gray hover
+  3. Main content area renders as a floating white card (12px radius, card shadow) on the #E8EDF2 page background
+  4. Cases page displays 3-panel layout: sidebar (192px) | suites panel (144px, white, right border) | main content
+  5. Workspace dropdown in sidebar shows avatar with initials, name, and chevron on gray background
+**Plans**: 2 plans
 
 Plans:
-- [x] 02-01-PLAN.md — Wave 0: deps install, soft-delete migration, test stubs for all TC-01–TC-06 requirements (complete 2026-03-09)
-- [ ] 02-02-PLAN.md — Wave 1: Fastify API routes for suites (recursive CTE) + test cases (CRUD + soft delete)
-- [ ] 02-03-PLAN.md — Wave 1: Cases page layout, suite tree panel, case list, slide-in panel, keyboard step editor
-- [ ] 02-04-PLAN.md — Wave 2: dnd-kit drag-drop reorder for cases and suites (gap-based positions)
-- [ ] 02-05-PLAN.md — Wave 2: Bulk select UI + BulkActionBar + POST /cases/bulk (move/copy/delete)
-- [ ] 02-06-PLAN.md — Wave 3: CSV/Excel import parser + @fastify/multipart upload endpoint + ImportModal UI
+- [x] 02-01: Sidebar restyling (white bg, nav items, workspace dropdown, collapse behavior)
+- [x] 02-02: App shell and cases 3-panel layout (floating card wrapper, suites panel)
 
----
-
-### Phase 3: Test Runs and Dashboard
-
-**Goal**: A QA engineer can create a named test run, execute it case-by-case using keyboard shortcuts, file defects inline from failures, and watch results update in real time on a live dashboard — without ever refreshing the page.
-
-**Depends on**: Phase 2 (test cases must exist to create a run)
-
-**Requirements**: TR-01, TR-02, TR-03, TR-04, TR-05, TR-06, TR-07, DA-01, DA-02, DA-03
-
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A user can create a named test run scoped to a project, a suite selection, or a milestone, and assign it to a team member
-2. A user can execute a run case-by-case using P/F/B/S keyboard shortcuts; pressing a key marks the result and advances to the next case without requiring a mouse click
-3. A user can add an inline comment on any test step during execution without leaving the execution screen
-4. A user can file a Linear issue directly from a failed run item and see the issue link appear in the run view
-5. The run dashboard updates in real time as results are recorded — no page refresh required; the progress bar, pass rate percentage, and time-to-complete estimate all update live
-6. A user can create a new run that contains only the failures from a previous run (rerun-failures flow)
-
-**Plans**: 6 plans
+### Phase 3: Components & Pages
+**Goal**: Every UI component and every application page reflects the new design language — buttons, badges, cards, tables, inputs, and all 10 page groups are restyled
+**Depends on**: Phase 2
+**Requirements**: UI-18, UI-19, UI-20, UI-21, UI-22, UI-23, UI-24, UI-25, UI-26, UI-27, UI-28, UI-29, UI-30, UI-31, UI-32, UI-33, UI-34
+**Success Criteria** (what must be TRUE):
+  1. Primary buttons render as #2D7FF9 with white text (8px radius, 40px height); secondary buttons render with blue border on white
+  2. Priority badges show the correct tier styling (High: solid blue, Medium: light blue, Low: gray) and status badges retain their muted pass/fail/blocked/skipped colors
+  3. All 10 page groups (auth, onboarding, dashboard, cases, runs, run detail, execution, settings, ingestion, toasts) visually match the new design language
+  4. Table rows are 56px with gray hover, uppercase headers on #F9FAFB background
+  5. Toast notifications render as white cards with 8px radius and toast shadow
+**Plans**: 3 plans
 
 Plans:
-- [x] 03-01-PLAN.md — Wave 0: Migration (step comments table + case_title column), test stubs for all TR/DA requirements (complete 2026-03-10)
-- [x] 03-02-PLAN.md — Wave 1: Runs CRUD API (create with snapshot, list with filters, detail, abort, rerun-failures, history) (complete 2026-03-10)
-- [x] 03-03-PLAN.md — Wave 1: Run items API (execute verdict, case/step comments, defect filing) (complete 2026-03-10)
-- [x] 03-04-PLAN.md — Wave 2: SSE endpoint with Valkey pub/sub, heartbeat, stats computation helpers (complete 2026-03-10)
-- [x] 03-05-PLAN.md — Wave 3: Runs dashboard page + run detail page (card grid, filters, SSE live updates, sidebar nav) (complete 2026-03-10)
-- [x] 03-06-PLAN.md — Wave 3: Execution screen (full-screen focus mode, P/F/B/S keyboard, defect prompt, step comments, history) (complete 2026-03-10)
+- [x] 03-01: Component restyling (Button, Card, Input, StatusBadge, PriorityBadge, Table rows)
+- [x] 03-02: Auth, onboarding, dashboard, and settings pages
+- [x] 03-03: Cases, runs, run detail, execution, ingestion pages, and toasts
 
----
-
-### Phase 4: CI Ingestion
-
-**Goal**: A CI pipeline can push automated test results to Velo via REST API and have them auto-mapped to test cases — supporting JUnit XML (five common CI variants) and Allure JSON — with raw payloads preserved in Cloudflare R2 for debugging.
-
-**Depends on**: Phase 1 (REST API scaffold), Phase 3 (test runs must exist to receive ingested results)
-
-**Requirements**: IN-01, IN-02, IN-03, IN-04
-
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A CI pipeline can POST a JUnit XML file to the Velo API and see a test run created with results auto-mapped to test cases by name or external ID
-2. A CI pipeline can POST an Allure JSON report to the Velo API and see results auto-mapped the same way
-3. The JUnit XML parser handles results from pytest-junit, Maven Surefire, Gradle, Jest-junit, and Go gotestsum without returning a parse error
-4. Raw CI payloads are stored in Cloudflare R2 and are not written to PostgreSQL; a developer can retrieve the raw payload for any ingestion run for debugging
-
-**Plans**: 5 plans
+### Phase 4: Regression Verification
+**Goal**: Every existing interaction, keyboard shortcut, page flow, and real-time feature works identically after the redesign, and CI passes clean
+**Depends on**: Phase 3
+**Requirements**: UI-35, UI-36, UI-37, UI-38
+**Success Criteria** (what must be TRUE):
+  1. All execution keyboard shortcuts (P/F/B/S, Tab/Enter for step editing) work identically in the restyled execution screen
+  2. Complete page flow (auth -> onboarding -> dashboard -> cases -> runs -> execution) works end-to-end without visual or functional breakage
+  3. SSE live updates render correctly on the restyled runs dashboard and run detail page
+  4. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Wave 1: Deps install, migration (api_keys + ci_ingestion_runs + run_items changes), JUnit fixtures, test stubs
-- [ ] 04-02-PLAN.md — Wave 2: TDD JUnit XML parser (all 5 variants: pytest, Surefire, Gradle, Jest-junit, gotestsum)
-- [ ] 04-03-PLAN.md — Wave 2: Allure JSON parser + Cloudflare R2 storage client
-- [ ] 04-04-PLAN.md — Wave 3: API key auth routes + ingestion REST endpoints (POST junit/allure, GET payload)
-- [ ] 04-05-PLAN.md — Wave 4: API key management UI + ingestion history page + setup guide + human verify
+- [x] 04-01: Manual regression walkthrough and SSE verification
+- [x] 04-02: Lint, typecheck, and test suite pass
 
----
+## Progress
 
-### Phase 5: Integrations and API
+**Execution Order:**
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
-**Goal**: The full REST API is available with parity to the UI, outbound webhooks fire on key events, and Linear is integrated so defects can be filed from failed run items and their status synced back into the run view.
-
-**Depends on**: Phase 3 (runs and defect filing must exist for Linear integration and webhooks)
-
-**Requirements**: INT-01, INT-02, INT-03, INT-04
-
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A user can create a Linear issue directly from a failed run item in Velo; the issue link appears in the run view immediately
-2. The current Linear issue status is visible in the Velo run view and stays in sync without manual refresh; an idempotency key prevents sync loops
-3. Every resource readable and writable via the Velo UI is also readable and writable via the REST API with the same authorisation rules
-4. A project admin can configure a webhook endpoint and verify that it receives a payload when a run completes, a case fails, or a milestone is reached
-
-**Plans**: 6 plans
-
-Plans:
-- [x] 05-01-PLAN.md — Wave 0: Migration (linear_connections, webhooks tables, defects.external_status), test stubs for all INT-01–INT-04 requirements (complete 2026-03-10)
-- [x] 05-02-PLAN.md — Wave 1: Unified auth middleware (session + API key), /api/v1/ route prefix, CRUD gaps (PATCH project, DELETE project, GET members, PATCH workspace), Valkey rate limiting (complete 2026-03-10)
-- [x] 05-03-PLAN.md — Wave 2: Linear OAuth flow (connect/disconnect/team select), token encryption, auto-file defects to Linear (complete 2026-03-10)
-- [x] 05-04-PLAN.md — Wave 3: Linear inbound webhook for status sync, outbound webhook CRUD + BullMQ delivery, event triggers (run.completed, run_item.failed) (complete 2026-03-10)
-- [x] 05-05-PLAN.md — Wave 4: Frontend — Integrations settings (Linear connect), DefectBadge, webhook config UI, project settings page (complete 2026-03-10)
-- [x] 05-06-PLAN.md — Wave 5: UAT verified in production — INT-01 through INT-04 all confirmed working (complete 2026-03-11)
-
----
-
-### Phase 6: Team and Access Control
-
-**Goal**: A workspace admin can build and manage a team — inviting members by email, assigning roles, and deactivating access — with role-based permissions and plan tier limits enforced at the API layer so the product is safe to sell.
-
-**Depends on**: Phase 1 (workspace and auth scaffold must exist)
-
-**Requirements**: USR-01, USR-02, USR-03, USR-04, USR-05, USR-06
-
-**Success Criteria** (what must be TRUE when this phase completes):
-1. A workspace admin can invite a team member by email; the invited user receives an email with a sign-up/join link and lands in the correct workspace after accepting
-2. A workspace admin can assign roles (Admin, Editor, Viewer) to each member; role changes take effect on the next request without requiring sign-out
-3. A workspace admin can deactivate a team member; their session is invalidated immediately and they cannot access any workspace resource
-4. Viewer seats are unlimited on all plan tiers; Editor seats are capped per tier and the API rejects editor-seat creation once the cap is reached
-5. The Free tier limits (3 editors, 1 project, 500 test cases) are enforced at the API layer; a request that would exceed a limit returns a clear error with an upgrade prompt
-
-**Plans**: 5 plans
-
-Plans:
-- [x] 06-01-PLAN.md — Wave 0: Migration (workspace_invitations table), schema.ts update, email queue type extension, test stubs for USR-01–USR-06 (complete 2026-03-10)
-- [x] 06-02-PLAN.md — Wave 1: Invitation CRUD routes (create, accept, list pending), email worker extension, tier enforcement (editor seat cap) (complete 2026-03-10)
-- [x] 06-03-PLAN.md — Wave 2: Role change route, member deactivation route, Valkey blocklist in session plugin for immediate invalidation (complete 2026-03-10)
-- [x] 06-04-PLAN.md — Wave 3: Frontend Team tab in settings (member list, invite form, role dropdown, deactivate), accept-invite page (complete 2026-03-10)
-- [x] 06-05-PLAN.md — Wave 4: UAT verified in production — USR-01 through USR-05 all confirmed working (complete 2026-03-11)
-
----
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Design Foundation | 2/2 | Complete | 2026-03-11 |
+| 2. Layout & Navigation | 2/2 | Complete | 2026-03-11 |
+| 3. Components & Pages | 3/3 | Complete | 2026-03-11 |
+| 4. Regression Verification | 2/2 | Complete | 2026-03-11 |
 
 ## Coverage Map
 
 | Requirement | Phase |
 |-------------|-------|
-| INFRA-01 | Phase 1 |
-| INFRA-02 | Phase 1 |
-| INFRA-03 | Phase 1 |
-| INFRA-04 | Phase 1 |
-| INFRA-05 | Phase 1 |
-| INFRA-06 | Phase 1 |
-| AUTH-01 | Phase 1 |
-| AUTH-02 | Phase 1 |
-| AUTH-03 | Phase 1 |
-| AUTH-04 | Phase 1 |
-| AUTH-05 | Phase 1 |
-| DS-01 | Phase 1 |
-| DS-02 | Phase 1 |
-| DS-03 | Phase 1 |
-| DS-04 | Phase 1 |
-| WORK-01 | Phase 1 |
-| WORK-02 | Phase 1 |
-| WORK-03 | Phase 1 |
-| TC-01 | Phase 2 |
-| TC-02 | Phase 2 |
-| TC-03 | Phase 2 |
-| TC-04 | Phase 2 |
-| TC-05 | Phase 2 |
-| TC-06 | Phase 2 |
-| TR-01 | Phase 3 |
-| TR-02 | Phase 3 |
-| TR-03 | Phase 3 |
-| TR-04 | Phase 3 |
-| TR-05 | Phase 3 |
-| TR-06 | Phase 3 |
-| TR-07 | Phase 3 |
-| DA-01 | Phase 3 |
-| DA-02 | Phase 3 |
-| DA-03 | Phase 3 |
-| IN-01 | Phase 4 |
-| IN-02 | Phase 4 |
-| IN-03 | Phase 4 |
-| IN-04 | Phase 4 |
-| INT-01 | Phase 5 |
-| INT-02 | Phase 5 |
-| INT-03 | Phase 5 |
-| INT-04 | Phase 5 |
-| USR-01 | Phase 6 |
-| USR-02 | Phase 6 |
-| USR-03 | Phase 6 |
-| USR-04 | Phase 6 |
-| USR-05 | Phase 6 |
-| USR-06 | Phase 6 |
+| UI-01 | Phase 1 |
+| UI-02 | Phase 1 |
+| UI-03 | Phase 1 |
+| UI-04 | Phase 1 |
+| UI-05 | Phase 1 |
+| UI-06 | Phase 1 |
+| UI-07 | Phase 1 |
+| UI-08 | Phase 1 |
+| UI-09 | Phase 2 |
+| UI-10 | Phase 2 |
+| UI-11 | Phase 2 |
+| UI-12 | Phase 2 |
+| UI-13 | Phase 2 |
+| UI-14 | Phase 2 |
+| UI-15 | Phase 2 |
+| UI-16 | Phase 2 |
+| UI-17 | Phase 2 |
+| UI-18 | Phase 3 |
+| UI-19 | Phase 3 |
+| UI-20 | Phase 3 |
+| UI-21 | Phase 3 |
+| UI-22 | Phase 3 |
+| UI-23 | Phase 3 |
+| UI-24 | Phase 3 |
+| UI-25 | Phase 3 |
+| UI-26 | Phase 3 |
+| UI-27 | Phase 3 |
+| UI-28 | Phase 3 |
+| UI-29 | Phase 3 |
+| UI-30 | Phase 3 |
+| UI-31 | Phase 3 |
+| UI-32 | Phase 3 |
+| UI-33 | Phase 3 |
+| UI-34 | Phase 3 |
+| UI-35 | Phase 4 |
+| UI-36 | Phase 4 |
+| UI-37 | Phase 4 |
+| UI-38 | Phase 4 |
 
-**Total: 48/48 requirements mapped. No orphans.**
+**Total: 38/38 requirements mapped. No orphans.**
 
 ---
-
-## Key Architecture Notes
-
-- **Phase 1 is strictly sequential:** CI/CD → schema → Valkey → auth → workspace middleware → design system. Each step gates the next.
-- **Phases 2-6 are parallelisable** once Phase 1 is stable. Test cases (Phase 2), runs/dashboard (Phase 3), ingestion (Phase 4), integrations (Phase 5), and RBAC (Phase 6) are independent delivery tracks.
-- **Real-time transport:** SSE + Valkey pub/sub per run_id. Not WebSocket. Test SSE on Railway URL in week 1 of Phase 3.
-- **Data access:** postgres.js raw SQL for all runtime queries. Drizzle ORM for schema definition and drizzle-kit for migration generation only.
-- **Multi-tenancy:** App-layer workspace_id enforcement (compile-time) + PostgreSQL RLS with SET LOCAL (transaction-scoped) as defense-in-depth.
-- **Steps storage:** Normalized test_case_steps table, not JSONB.
-
----
-
-*Roadmap created: 2026-03-08*
-*Last updated: 2026-03-10 — Phase 6 planned (5 plans, 5 waves)*
+*Roadmap created: 2026-03-11*
+*Last updated: 2026-03-11*

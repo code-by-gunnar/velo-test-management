@@ -49,13 +49,13 @@ export default function ProjectSettingsPage({
                 className={clsx(
                   "relative py-3 text-sm font-medium transition-colors",
                   activeTab === tab.key
-                    ? "text-cobalt"
+                    ? "text-primary"
                     : "text-gray-500 hover:text-gray-700"
                 )}
               >
                 {tab.label}
                 {activeTab === tab.key && (
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-cobalt rounded-t" />
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary rounded-t" />
                 )}
               </button>
             ))}

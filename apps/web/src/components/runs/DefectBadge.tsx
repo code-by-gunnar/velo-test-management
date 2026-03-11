@@ -13,7 +13,7 @@ function statusStyle(status: string): string {
     return "bg-pass-bg text-pass-text border-pass/20"
   }
   if (s === "in progress" || s === "started" || s === "in_progress") {
-    return "bg-cobalt-light text-cobalt border-cobalt/20"
+    return "bg-primary-selected text-primary border-primary/20"
   }
   if (s === "cancelled" || s === "canceled") {
     return "bg-skipped-bg text-skipped-text border-skipped/20"

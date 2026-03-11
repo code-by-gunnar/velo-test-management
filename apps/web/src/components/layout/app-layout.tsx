@@ -11,8 +11,10 @@ export function AppLayout({ slug, projectKey, children }: AppLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-mist">
       <Sidebar slug={slug} {...(projectKey !== undefined ? { projectKey } : {})} />
-      <main className="flex-1 overflow-y-auto">
-        {children}
+      <main className="flex-1 overflow-hidden p-4">
+        <div className="flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-card">
+          {children}
+        </div>
       </main>
     </div>
   )

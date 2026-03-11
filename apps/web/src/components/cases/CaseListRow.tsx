@@ -18,7 +18,7 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
   },
   medium: {
     label: "Medium",
-    className: "bg-cobalt/5 text-cobalt border-cobalt/20",
+    className: "bg-primary/5 text-primary border-primary/20",
   },
   low: {
     label: "Low",
@@ -62,10 +62,10 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
   return (
     <tr
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, borderRadius: 8 }}
       className={clsx(
-        "group cursor-pointer border-b border-gray-100 transition-colors",
-        isDragging ? "opacity-50 bg-cobalt/5" : isSelected ? "bg-cobalt/5" : "hover:bg-gray-50"
+        "group cursor-pointer transition-colors",
+        isDragging ? "opacity-50 bg-primary/5" : isSelected ? "bg-primary-selected" : "bg-gray-50 hover:bg-gray-100"
       )}
       onClick={(e) => {
         // Only open panel if clicking the row itself, not the checkbox or drag handle
@@ -94,14 +94,14 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onToggleSelect(index, e.nativeEvent instanceof MouseEvent ? (e.nativeEvent as MouseEvent).shiftKey : false)}
-          className="h-3.5 w-3.5 rounded border-gray-300 accent-cobalt"
+          className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
           aria-label={`Select ${testCase.title}`}
         />
       </td>
 
       {/* Title */}
       <td className="py-2.5 pr-4">
-        <span className="text-sm text-gray-900 group-hover:text-cobalt">{testCase.title}</span>
+        <span className="text-sm text-gray-900 group-hover:text-primary">{testCase.title}</span>
       </td>
 
       {/* Suite (only in All Cases view) */}

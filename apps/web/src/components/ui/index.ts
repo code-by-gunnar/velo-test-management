@@ -1,4 +1,6 @@
 export { Button } from "./button"
 export { Card, CardHeader, CardTitle } from "./card"
 export { Input, Label, FormField } from "./input"
+export { PriorityBadge, type Priority } from "./priority-badge"
 export { StatusBadge, type TestStatus } from "./status-badge"
+export { ToastProvider, useToast, type ToastType } from "./toast"

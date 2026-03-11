@@ -29,7 +29,7 @@ interface RunCardProps {
 const RUN_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   active: {
     label: "Active",
-    className: "bg-cobalt/10 text-cobalt border-cobalt/20",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   completed: {
     label: "Completed",
@@ -86,9 +86,9 @@ export function RunCard({ run, onClick, liveStats }: RunCardProps) {
       }}
       className={clsx(
         "flex cursor-pointer flex-col gap-3 rounded-lg border bg-white p-4 shadow-sm",
-        "transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt focus-visible:ring-offset-2",
+        "transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
         isActive
-          ? "border-cobalt/30 ring-1 ring-cobalt/20 animate-pulse-border"
+          ? "border-primary/30 ring-1 ring-primary/20 animate-pulse-border"
           : "border-gray-200"
       )}
     >

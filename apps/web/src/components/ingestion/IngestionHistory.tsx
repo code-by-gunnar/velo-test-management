@@ -148,7 +148,7 @@ export function IngestionHistory({
                     {run.run_id ? (
                       <Link
                         href={`/app/${slug}/${projectKey}/runs/${run.run_id}`}
-                        className="text-cobalt underline hover:text-cobalt-dark text-xs"
+                        className="text-primary underline hover:text-primary-hover text-xs"
                       >
                         View run
                       </Link>

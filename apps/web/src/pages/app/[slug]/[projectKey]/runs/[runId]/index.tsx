@@ -45,7 +45,7 @@ interface RunDetailPageProps {
 // ── Status config ─────────────────────────────────────────────────────────────
 
 const RUN_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  active: { label: "Active", className: "bg-cobalt/10 text-cobalt border-cobalt/20" },
+  active: { label: "Active", className: "bg-primary/10 text-primary border-primary/20" },
   completed: { label: "Completed", className: "bg-pass-bg text-pass-text border-pass/20" },
   aborted: { label: "Aborted", className: "bg-gray-100 text-gray-500 border-gray-200" },
 }
@@ -206,7 +206,7 @@ export default function RunDetailPage({
             <button
               type="button"
               onClick={() => void router.push(`/app/${slug}/${projectKey}/runs`)}
-              className="hover:text-cobalt hover:underline"
+              className="hover:text-primary hover:underline"
             >
               Test Runs
             </button>
@@ -416,7 +416,7 @@ export default function RunDetailPage({
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
-                                      className="mt-1 block text-xs text-cobalt underline hover:no-underline"
+                                      className="mt-1 block text-xs text-primary underline hover:no-underline"
                                     >
                                       {item.defect_external_id ?? "View in tracker"}
                                     </a>
