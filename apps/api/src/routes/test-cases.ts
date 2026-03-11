@@ -54,21 +54,21 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const cases = await withWorkspace(workspaceId, async (tx) => {
         const suiteFilter = suite_id
-          ? `AND tc.suite_id = '${suite_id}'`
-          : ""
+          ? tx`AND tc.suite_id = ${suite_id}::uuid`
+          : tx``
 
-        return tx.unsafe(`
+        return tx`
           SELECT tc.id, tc.suite_id, tc.title, tc.preconditions, tc.priority, tc.position,
                  COUNT(tcs.id)::int AS step_count
           FROM   test_cases tc
           LEFT JOIN test_case_steps tcs ON tcs.test_case_id = tc.id
-          WHERE  tc.project_id = '${projectId}'
+          WHERE  tc.project_id = ${projectId}::uuid
             AND  tc.deleted_at IS NULL
             ${suiteFilter}
           GROUP BY tc.id
           ORDER BY tc.position
           LIMIT  500
-        `)
+        `
       })
 
       return reply.send(cases)
@@ -130,68 +130,60 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        // 1. Check tier limit: count non-deleted cases in this project
-        const countRows = await tx.unsafe(`
+        const countRows = await tx`
           SELECT COUNT(*)::int AS n
           FROM test_cases
-          WHERE project_id = '${projectId}'
+          WHERE project_id = ${projectId}::uuid
             AND deleted_at IS NULL
-        `)
+        `
         const count = parseInt(String((countRows[0] as unknown as { n: number }).n ?? "0"))
 
         if (count >= FREE_TIER_MAX_TEST_CASES) {
-          return null // signal tier limit exceeded
+          return null
         }
 
-        // 2. Compute position: MAX(position) in this project+suite + 1000
-        const suiteFilter = suite_id ? `AND suite_id = '${suite_id}'` : `AND suite_id IS NULL`
-        const maxRows = await tx.unsafe(`
+        const suiteFilter = suite_id ? tx`AND suite_id = ${suite_id}::uuid` : tx`AND suite_id IS NULL`
+        const maxRows = await tx`
           SELECT COALESCE(MAX(position), 0) AS max_pos
           FROM test_cases
-          WHERE project_id = '${projectId}'
+          WHERE project_id = ${projectId}::uuid
             ${suiteFilter}
             AND deleted_at IS NULL
-        `)
+        `
         const maxPos = parseInt(String((maxRows[0] as unknown as { max_pos: number }).max_pos ?? "0"))
         const position = maxPos + 1000
 
         const caseId = uuidv7()
-        const safeTitle = title.replace(/'/g, "''")
-        const safePreconditions = preconditions ? preconditions.replace(/'/g, "''") : null
 
-        // 3. INSERT test_cases row
-        await tx.unsafe(`
+        await tx`
           INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
           VALUES (
-            '${caseId}',
+            ${caseId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            ${suite_id ? `'${suite_id}'` : "NULL"},
-            '${safeTitle}',
-            ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
-            '${priority}',
+            ${projectId}::uuid,
+            ${suite_id ?? null}::uuid,
+            ${title},
+            ${preconditions ?? null},
+            ${priority},
             ${position}
           )
-        `)
+        `
 
-        // 4. INSERT steps (all in same transaction)
         for (let i = 0; i < steps.length; i++) {
           const step = steps[i]!
           const stepId = uuidv7()
           const stepOrder = (i + 1) * 1000
-          const safeAction = step.action.replace(/'/g, "''")
-          const safeExpected = step.expected_result ? step.expected_result.replace(/'/g, "''") : null
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
             VALUES (
-              '${stepId}',
-              '${caseId}',
+              ${stepId}::uuid,
+              ${caseId}::uuid,
               ${stepOrder},
-              '${safeAction}',
-              ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+              ${step.action},
+              ${step.expected_result ?? null}
             )
-          `)
+          `
         }
 
         return { caseId, stepCount: steps.length, position }
@@ -236,7 +228,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const rows = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT
             tc.id, tc.suite_id, tc.title, tc.preconditions, tc.priority, tc.position, tc.created_at,
             COALESCE(
@@ -252,12 +244,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             ) AS steps
           FROM test_cases tc
           LEFT JOIN test_case_steps tcs ON tcs.test_case_id = tc.id
-          WHERE tc.id = '${caseId}'
-            AND tc.project_id = '${projectId}'
+          WHERE tc.id = ${caseId}::uuid
+            AND tc.project_id = ${projectId}::uuid
             AND tc.deleted_at IS NULL
             AND tc.workspace_id = current_setting('app.workspace_id', true)::uuid
           GROUP BY tc.id
-        `)
+        `
       })
 
       if (rows.length === 0) return reply.status(404).send({ error: "Test case not found" })
@@ -321,49 +313,41 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const updated = await withWorkspace(workspaceId, async (tx) => {
-        const safeTitle = title.replace(/'/g, "''")
-        const safePreconditions = preconditions ? preconditions.replace(/'/g, "''") : null
-
-        // 1. UPDATE test_cases row
-        const updateRows = await tx.unsafe(`
+        const updateRows = await tx`
           UPDATE test_cases
-          SET title = '${safeTitle}',
-              preconditions = ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
-              priority = '${priority}',
-              suite_id = ${suite_id ? `'${suite_id}'` : "NULL"},
+          SET title = ${title},
+              preconditions = ${preconditions ?? null},
+              priority = ${priority},
+              suite_id = ${suite_id ?? null}::uuid,
               updated_at = NOW()
-          WHERE id = '${caseId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${caseId}::uuid
+            AND project_id = ${projectId}::uuid
             AND deleted_at IS NULL
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
-        `)
+        `
 
         if (updateRows.length === 0) return null
 
-        // 2. DELETE all existing steps for this case
-        await tx.unsafe(`
-          DELETE FROM test_case_steps WHERE test_case_id = '${caseId}'
-        `)
+        await tx`
+          DELETE FROM test_case_steps WHERE test_case_id = ${caseId}::uuid
+        `
 
-        // 3. INSERT new steps
         for (let i = 0; i < steps.length; i++) {
           const step = steps[i]!
           const stepId = uuidv7()
           const stepOrder = (i + 1) * 1000
-          const safeAction = step.action.replace(/'/g, "''")
-          const safeExpected = step.expected_result ? step.expected_result.replace(/'/g, "''") : null
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
             VALUES (
-              '${stepId}',
-              '${caseId}',
+              ${stepId}::uuid,
+              ${caseId}::uuid,
               ${stepOrder},
-              '${safeAction}',
-              ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+              ${step.action},
+              ${step.expected_result ?? null}
             )
-          `)
+          `
         }
 
         return { caseId }
@@ -400,13 +384,13 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await withWorkspace(workspaceId, async (tx) => {
-        await tx.unsafe(`
+        await tx`
           UPDATE test_cases
           SET deleted_at = NOW()
-          WHERE id = '${caseId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${caseId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
       })
 
       return reply.status(204).send()
@@ -453,50 +437,45 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       await withWorkspace(workspaceId, async (tx) => {
         if (position === -1) {
-          // Gap collapsed — renumber all non-deleted cases in this case's suite
-          // 1. Get this case's suite_id
-          const tcRows = await tx.unsafe(`
+          const tcRows = await tx`
             SELECT suite_id FROM test_cases
-            WHERE id = '${caseId}'
-              AND project_id = '${projectId}'
+            WHERE id = ${caseId}::uuid
+              AND project_id = ${projectId}::uuid
               AND deleted_at IS NULL
               AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          `)
+          `
           if (tcRows.length === 0) return
 
           const suiteId: string | null = (tcRows[0] as unknown as { suite_id: string | null }).suite_id ?? null
           const suiteFilter = suiteId !== null
-            ? `AND suite_id = '${suiteId}'`
-            : "AND suite_id IS NULL"
+            ? tx`AND suite_id = ${suiteId}::uuid`
+            : tx`AND suite_id IS NULL`
 
-          // 2. Fetch all non-deleted cases in same suite ordered by current position
-          const cases = await tx.unsafe(`
+          const cases = await tx`
             SELECT id FROM test_cases
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               ${suiteFilter}
               AND deleted_at IS NULL
               AND workspace_id = current_setting('app.workspace_id', true)::uuid
             ORDER BY position
-          `)
+          `
 
-          // 3. Renumber each at 1000-increments
           for (let i = 0; i < cases.length; i++) {
             const row = cases[i] as unknown as { id: string }
-            await tx.unsafe(`
+            await tx`
               UPDATE test_cases SET position = ${(i + 1) * 1000}
-              WHERE id = '${row.id}'
-            `)
+              WHERE id = ${row.id}::uuid
+            `
           }
         } else {
-          // Single-row update — this is the common path (O(1) query)
-          await tx.unsafe(`
+          await tx`
             UPDATE test_cases
             SET position = ${position}, updated_at = NOW()
-            WHERE id = '${caseId}'
-              AND project_id = '${projectId}'
+            WHERE id = ${caseId}::uuid
+              AND project_id = ${projectId}::uuid
               AND deleted_at IS NULL
               AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          `)
+          `
         }
       })
 
@@ -526,7 +505,20 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { action: string; case_ids: string[]; target_suite_id?: string | null }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/bulk",
-    { preHandler: [requireEditor] },
+    {
+      preHandler: [requireEditor],
+      schema: {
+        body: {
+          type: "object",
+          required: ["action", "case_ids"],
+          properties: {
+            action: { type: "string", enum: ["move", "copy", "delete"] },
+            case_ids: { type: "array", items: { type: "string" }, minItems: 1 },
+            target_suite_id: { type: ["string", "null"] },
+          },
+        },
+      },
+    },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
 
@@ -544,35 +536,35 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "target_suite_id required for move/copy" })
       }
 
+      if (!case_ids.every(isUuid)) {
+        return reply.status(400).send({ error: "Invalid case_id format" })
+      }
+
       if (action === "move") {
         const targetSuite = target_suite_id ?? null
         await withWorkspace(workspaceId, async (tx) => {
-          await tx.unsafe(`
+          await tx`
             UPDATE test_cases
-            SET suite_id = ${targetSuite !== null ? `'${targetSuite}'` : "NULL"},
+            SET suite_id = ${targetSuite}::uuid,
                 updated_at = NOW()
-            WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
-              AND project_id = '${projectId}'
-          `)
+            WHERE id = ANY(${case_ids}::uuid[])
+              AND project_id = ${projectId}::uuid
+          `
         })
         return reply.status(204).send()
       }
 
       if (action === "copy") {
-        // For each source case: generate new UUID in app layer, insert new case + steps.
-        // CRITICAL: steps use newCaseId (not srcId) to prevent orphaned steps (Pitfall 5).
         let created = 0
         await withWorkspace(workspaceId, async (tx) => {
           for (const caseId of case_ids) {
-            if (!isUuid(caseId)) continue
-
-            const srcRows = await tx.unsafe(`
+            const srcRows = await tx`
               SELECT id, title, preconditions, priority, position
               FROM test_cases
-              WHERE id = '${caseId}'
+              WHERE id = ${caseId}::uuid
                 AND deleted_at IS NULL
                 AND workspace_id = current_setting('app.workspace_id', true)::uuid
-            `)
+            `
             if (srcRows.length === 0) continue
             const src = srcRows[0] as unknown as {
               id: string
@@ -582,32 +574,30 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
               position: number
             }
 
-            const steps = await tx.unsafe(`
+            const steps = await tx`
               SELECT step_order, action, expected_result
               FROM test_case_steps
-              WHERE test_case_id = '${caseId}'
+              WHERE test_case_id = ${caseId}::uuid
               ORDER BY step_order
-            `)
+            `
 
             const newCaseId = uuidv7()
             const targetSuite = target_suite_id ?? null
-            const safeTitle = src.title.replace(/'/g, "''")
-            const safePreconditions = src.preconditions ? src.preconditions.replace(/'/g, "''") : null
 
-            await tx.unsafe(`
+            await tx`
               INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
               VALUES (
-                '${newCaseId}',
+                ${newCaseId}::uuid,
                 current_setting('app.workspace_id', true)::uuid,
-                '${projectId}',
-                ${targetSuite !== null ? `'${targetSuite}'` : "NULL"},
-                '${safeTitle}',
-                ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
-                '${src.priority}',
+                ${projectId}::uuid,
+                ${targetSuite}::uuid,
+                ${src.title},
+                ${src.preconditions ?? null},
+                ${src.priority},
                 ${src.position},
-                ${request.userId ? `'${request.userId}'` : "NULL"}
+                ${request.userId ?? null}::uuid
               )
-            `)
+            `
 
             for (const step of steps) {
               const s = step as unknown as {
@@ -615,19 +605,17 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
                 action: string
                 expected_result: string | null
               }
-              const safeAction = s.action.replace(/'/g, "''")
-              const safeExpected = s.expected_result ? s.expected_result.replace(/'/g, "''") : null
 
-              await tx.unsafe(`
+              await tx`
                 INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
                 VALUES (
-                  '${uuidv7()}',
-                  '${newCaseId}',
+                  ${uuidv7()}::uuid,
+                  ${newCaseId}::uuid,
                   ${s.step_order},
-                  '${safeAction}',
-                  ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+                  ${s.action},
+                  ${s.expected_result ?? null}
                 )
-              `)
+              `
             }
 
             created++
@@ -638,12 +626,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (action === "delete") {
         await withWorkspace(workspaceId, async (tx) => {
-          await tx.unsafe(`
+          await tx`
             UPDATE test_cases
             SET deleted_at = NOW()
-            WHERE id = ANY(ARRAY[${case_ids.map((id) => `'${id}'`).join(",")}]::uuid[])
-              AND project_id = '${projectId}'
-          `)
+            WHERE id = ANY(${case_ids}::uuid[])
+              AND project_id = ${projectId}::uuid
+          `
         })
         return reply.status(204).send()
       }
@@ -685,9 +673,6 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const buffer = await data.toBuffer()
 
-      // Use explicit column mapping from query params if provided (forwarded from UI).
-      // Build object conditionally to avoid setting optional keys to undefined
-      // (required by exactOptionalPropertyTypes: true in tsconfig).
       const { colTitle, colAction, colExpected, colPreconditions, colPriority } = request.query
       let explicit: ExplicitColumnMapping | undefined
       if (colTitle ?? colAction) {
@@ -712,72 +697,63 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       await withWorkspace(workspaceId, async (tx) => {
         for (const tc of parsed) {
-          // Check free tier limit per case (re-count inside transaction)
-          const countRows = await tx.unsafe(`
+          const countRows = await tx`
             SELECT COUNT(*)::int AS n
             FROM test_cases
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               AND deleted_at IS NULL
-          `)
+          `
           const count = parseInt(
             String((countRows[0] as unknown as { n: number }).n ?? "0")
           )
 
-          if (count >= FREE_TIER_MAX_TEST_CASES) break // Stop at tier cap
+          if (count >= FREE_TIER_MAX_TEST_CASES) break
 
-          const maxRows = await tx.unsafe(`
+          const maxRows = await tx`
             SELECT COALESCE(MAX(position), 0) AS max_pos
             FROM test_cases
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               AND suite_id IS NULL
               AND deleted_at IS NULL
-          `)
+          `
           const maxPos = parseInt(
             String((maxRows[0] as unknown as { max_pos: number }).max_pos ?? "0")
           )
           const position = maxPos + 1000
 
           const newCaseId = uuidv7()
-          const safeTitle = tc.title.replace(/'/g, "''")
-          const safePreconditions = tc.preconditions
-            ? tc.preconditions.replace(/'/g, "''")
-            : null
           const priority = tc.priority ?? "medium"
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
             VALUES (
-              '${newCaseId}',
+              ${newCaseId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
-              '${projectId}',
+              ${projectId}::uuid,
               NULL,
-              '${safeTitle}',
-              ${safePreconditions !== null ? `'${safePreconditions}'` : "NULL"},
-              '${priority}',
+              ${tc.title},
+              ${tc.preconditions ?? null},
+              ${priority},
               ${position},
-              ${request.userId ? `'${request.userId}'` : "NULL"}
+              ${request.userId ?? null}::uuid
             )
-          `)
+          `
 
           for (let i = 0; i < tc.steps.length; i++) {
             const step = tc.steps[i]!
             const stepId = uuidv7()
             const stepOrder = (i + 1) * 1000
-            const safeAction = step.action.replace(/'/g, "''")
-            const safeExpected = step.expected_result
-              ? step.expected_result.replace(/'/g, "''")
-              : null
 
-            await tx.unsafe(`
+            await tx`
               INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
               VALUES (
-                '${stepId}',
-                '${newCaseId}',
+                ${stepId}::uuid,
+                ${newCaseId}::uuid,
                 ${stepOrder},
-                '${safeAction}',
-                ${safeExpected !== null ? `'${safeExpected}'` : "NULL"}
+                ${step.action},
+                ${step.expected_result ?? null}
               )
-            `)
+            `
           }
 
           importedCount++

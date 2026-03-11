@@ -3,9 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { requireEditor } from "../plugins/require-editor.js"
 
-// UUID v7 validation regex (matches uuidv7 format)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-// Also accept UUID v4 for existing data compatibility
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function isUuid(value: string): boolean {
@@ -45,16 +43,11 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const suites = await withWorkspace(workspaceId, async (tx) => {
-        // Recursive CTE: workspace_id filter on BOTH anchor AND recursive branch.
-        // Uses tx.unsafe because:
-        //  - current_setting() is a PostgreSQL function reference (not parameterizable)
-        //  - projectId is UUID-validated above before interpolation
-        //  - withWorkspace has already validated workspaceId as UUID
-        return tx.unsafe(`
+        return tx`
           WITH RECURSIVE suite_tree AS (
             SELECT id, name, parent_id, position, 0 AS depth
             FROM   suites
-            WHERE  project_id = '${projectId}'
+            WHERE  project_id = ${projectId}::uuid
               AND  parent_id IS NULL
               AND  workspace_id = current_setting('app.workspace_id', true)::uuid
 
@@ -66,7 +59,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
             WHERE  s.workspace_id = current_setting('app.workspace_id', true)::uuid
           )
           SELECT * FROM suite_tree ORDER BY depth, position
-        `)
+        ` as unknown as { id: string; name: string; parent_id: string | null; position: number; depth: number }[]
       })
 
       return reply.send(suites)
@@ -109,38 +102,34 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const suite = await withWorkspace(workspaceId, async (tx) => {
-        // Compute position: MAX(position) among siblings + 1000, or 1000 if no siblings
         const parentFilter = parent_id
-          ? `parent_id = '${parent_id}'`
-          : `parent_id IS NULL`
+          ? tx`parent_id = ${parent_id}::uuid`
+          : tx`parent_id IS NULL`
 
-        const maxRows = await tx.unsafe(`
+        const maxRows = await tx`
           SELECT COALESCE(MAX(position), 0) AS max_pos
           FROM suites
-          WHERE project_id = '${projectId}'
+          WHERE project_id = ${projectId}::uuid
             AND ${parentFilter}
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        ` as unknown as { max_pos: string | number }[]
 
-        const maxPos = parseInt(String((maxRows[0] as unknown as { max_pos: string | number }).max_pos ?? "0"))
+        const maxPos = parseInt(String(maxRows[0]?.max_pos ?? "0"))
         const position = maxPos + 1000
         const id = uuidv7()
 
-        // Escape single quotes in name to prevent SQL injection
-        const safeName = name.replace(/'/g, "''")
-
-        const inserted = await tx.unsafe(`
+        const inserted = await tx`
           INSERT INTO suites (id, workspace_id, project_id, parent_id, name, position)
           VALUES (
-            '${id}',
+            ${id}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            ${parent_id ? `'${parent_id}'` : "NULL"},
-            '${safeName}',
+            ${projectId}::uuid,
+            ${parent_id ?? null}::uuid,
+            ${name},
             ${position}
           )
           RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
-        `)
+        `
 
         return inserted[0]
       })
@@ -179,17 +168,15 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suiteId" })
       }
 
-      const safeName = name.replace(/'/g, "''")
-
       const updated = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           UPDATE suites
-          SET name = '${safeName}', updated_at = NOW()
-          WHERE id = '${suiteId}'
-            AND project_id = '${projectId}'
+          SET name = ${name}, updated_at = NOW()
+          WHERE id = ${suiteId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id, name, position, parent_id
-        `)
+        `
         return rows[0]
       })
 
@@ -237,54 +224,50 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (position === -1) {
-        // Gap collapsed — renumber all siblings under same parent_id
         await withWorkspace(workspaceId, async (tx) => {
-          // 1. Get this suite's parent_id
-          const suiteRows = await tx.unsafe(`
+          const suiteRows = await tx`
             SELECT parent_id FROM suites
-            WHERE id = '${suiteId}'
-              AND project_id = '${projectId}'
+            WHERE id = ${suiteId}::uuid
+              AND project_id = ${projectId}::uuid
               AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          `)
+          ` as unknown as { parent_id: string | null }[]
           if (suiteRows.length === 0) return
 
-          const parentId: string | null = (suiteRows[0] as unknown as { parent_id: string | null }).parent_id ?? null
+          const parentId: string | null = suiteRows[0]?.parent_id ?? null
           const parentFilter = parentId !== null
-            ? `AND parent_id = '${parentId}'`
-            : "AND parent_id IS NULL"
+            ? tx`AND parent_id = ${parentId}::uuid`
+            : tx`AND parent_id IS NULL`
 
-          // 2. Fetch all siblings ordered by current position
-          const siblings = await tx.unsafe(`
+          const siblings = await tx`
             SELECT id FROM suites
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               ${parentFilter}
               AND workspace_id = current_setting('app.workspace_id', true)::uuid
             ORDER BY position
-          `)
+          ` as unknown as { id: string }[]
 
-          // 3. Renumber each at 1000-increments
           for (let i = 0; i < siblings.length; i++) {
-            const row = siblings[i] as unknown as { id: string }
-            await tx.unsafe(`
-              UPDATE suites SET position = ${(i + 1) * 1000}
-              WHERE id = '${row.id}'
-            `)
+            const row = siblings[i] as { id: string }
+            const newPos = (i + 1) * 1000
+            await tx`
+              UPDATE suites SET position = ${newPos}
+              WHERE id = ${row.id}::uuid
+            `
           }
         })
 
         return reply.status(204).send()
       }
 
-      // Single-row update — common path (O(1) query)
       const updated = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           UPDATE suites
           SET position = ${position}, updated_at = NOW()
-          WHERE id = '${suiteId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${suiteId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id, name, position, parent_id
-        `)
+        `
         return rows[0]
       })
 
@@ -313,12 +296,12 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await withWorkspace(workspaceId, async (tx) => {
-        await tx.unsafe(`
+        await tx`
           DELETE FROM suites
-          WHERE id = '${suiteId}'
-            AND project_id = '${projectId}'
+          WHERE id = ${suiteId}::uuid
+            AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
       })
 
       return reply.status(204).send()

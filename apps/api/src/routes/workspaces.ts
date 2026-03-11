@@ -447,19 +447,17 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const result = await withWorkspace(workspaceId, async (tx) => {
-      // Build SET clause dynamically
-      const sets: string[] = ["updated_at = NOW()"]
-      if (name) sets.push(`name = '${name.replace(/'/g, "''")}'`)
-      if (project_key) sets.push(`project_key = '${project_key.replace(/'/g, "''")}'`)
+      const nameFrag = name ? tx`name = ${name},` : tx``
+      const keyFrag = project_key ? tx`project_key = ${project_key},` : tx``
 
-      const rows = await tx.unsafe(`
+      const rows = await tx`
         UPDATE projects
-        SET ${sets.join(", ")}
-        WHERE id = '${projectId}'
+        SET ${nameFrag} ${keyFrag} updated_at = NOW()
+        WHERE id = ${projectId}::uuid
           AND workspace_id = current_setting('app.workspace_id', true)::uuid
           AND deleted_at IS NULL
         RETURNING id, name, project_key, description
-      `)
+      `
       return rows.length > 0 ? rows[0] : null
     })
 
@@ -481,14 +479,14 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const result = await withWorkspace(workspaceId, async (tx) => {
-      const rows = await tx.unsafe(`
+      const rows = await tx`
         UPDATE projects
         SET deleted_at = NOW(), updated_at = NOW()
-        WHERE id = '${projectId}'
+        WHERE id = ${projectId}::uuid
           AND workspace_id = current_setting('app.workspace_id', true)::uuid
           AND deleted_at IS NULL
         RETURNING id
-      `)
+      `
       return rows.length > 0 ? "ok" : "not_found"
     })
 
@@ -510,7 +508,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const members = await withWorkspace(workspaceId, async (tx) => {
-      return tx.unsafe(`
+      return tx`
         SELECT
           wm.user_id,
           u.email,
@@ -521,7 +519,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
         WHERE wm.workspace_id = current_setting('app.workspace_id', true)::uuid
           AND wm.is_active = true
         ORDER BY wm.created_at ASC
-      `)
+      `
     })
 
     return reply.send(members)

@@ -75,25 +75,25 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
 
       const result = await withWorkspace(workspaceId, async (tx) => {
         // 1. Update item status
-        const updateRows = await tx.unsafe(`
+        const updateRows = await tx`
           UPDATE run_items
-          SET status = '${status}',
-              executed_by = '${executedBy}',
+          SET status = ${status},
+              executed_by = ${executedBy}::uuid,
               executed_at = NOW(),
               updated_at = NOW()
-          WHERE id = '${itemId}'
+          WHERE id = ${itemId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING run_id, case_title
-        `)
+        ` as unknown as { run_id: string; case_title: string | null }[]
 
         if (updateRows.length === 0) return null
 
-        const updated = updateRows[0] as unknown as { run_id: string; case_title: string | null }
+        const updated = updateRows[0]!
         const runId = updated.run_id
         const caseTitle = updated.case_title
 
         // 2. Compute stats for this run
-        const statsRows = await tx.unsafe(`
+        const statsRows = await tx`
           SELECT
             COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE status = 'pass')::int AS pass,
@@ -102,41 +102,41 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
             COUNT(*) FILTER (WHERE status = 'skipped')::int AS skipped,
             COUNT(*) FILTER (WHERE status = 'untested')::int AS untested
           FROM run_items
-          WHERE run_id = '${runId}'
-        `)
-
-        const stats = statsRows[0] as unknown as {
+          WHERE run_id = ${runId}::uuid
+        ` as unknown as {
           total: number
           pass: number
           fail: number
           blocked: number
           skipped: number
           untested: number
-        }
+        }[]
+
+        const stats = statsRows[0]!
 
         // 3. Recompute run status: if no untested items remain, auto-complete the run
         const isComplete = stats.untested === 0
-        await tx.unsafe(`
+        await tx`
           UPDATE test_runs
           SET status = CASE
-            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = '${runId}') = 0
+            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = ${runId}::uuid) = 0
               THEN 'completed'::run_status
             ELSE 'active'::run_status
           END,
           completed_at = CASE
-            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = '${runId}') = 0
+            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = ${runId}::uuid) = 0
               THEN NOW()
             ELSE NULL
           END,
           updated_at = NOW()
-          WHERE id = '${runId}'
-        `)
+          WHERE id = ${runId}::uuid
+        `
 
         // 4. Fetch project_id and run name for webhook payloads
-        const runRows = await tx.unsafe(`
-          SELECT project_id, name FROM test_runs WHERE id = '${runId}'
-        `)
-        const run = runRows[0] as unknown as { project_id: string; name: string }
+        const runRows = await tx`
+          SELECT project_id, name FROM test_runs WHERE id = ${runId}::uuid
+        ` as unknown as { project_id: string; name: string }[]
+        const run = runRows[0]!
 
         return { itemId, status, runId, caseTitle, stats, projectId: run.project_id, runName: run.name, isComplete }
       })
@@ -227,15 +227,13 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid itemId" })
       }
 
-      const safeComment = comment.replace(/'/g, "''")
-
       await withWorkspace(workspaceId, async (tx) => {
-        await tx.unsafe(`
+        await tx`
           UPDATE run_items
-          SET comment = '${safeComment}', updated_at = NOW()
-          WHERE id = '${itemId}'
+          SET comment = ${comment}, updated_at = NOW()
+          WHERE id = ${itemId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
       })
 
       return reply.status(204).send()
@@ -283,23 +281,22 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const commentId = uuidv7()
-      const safeComment = comment.replace(/'/g, "''")
       const createdBy = request.userId
 
       const created = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           INSERT INTO run_item_step_comments
             (id, workspace_id, run_item_id, step_order, comment, created_by)
           VALUES (
-            '${commentId}',
+            ${commentId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${itemId}',
+            ${itemId}::uuid,
             ${step_order},
-            '${safeComment}',
-            ${createdBy ? `'${createdBy}'` : "NULL"}
+            ${comment},
+            ${createdBy ?? null}
           )
           RETURNING id, workspace_id, run_item_id, step_order, comment, created_by, created_at
-        `)
+        `
 
         return rows[0]
       })
@@ -325,13 +322,13 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const comments = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT id, workspace_id, run_item_id, step_order, comment, created_by, created_at
           FROM run_item_step_comments
-          WHERE run_item_id = '${itemId}'
+          WHERE run_item_id = ${itemId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           ORDER BY step_order, created_at
-        `)
+        `
       })
 
       return reply.send(comments)

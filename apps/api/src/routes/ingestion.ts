@@ -93,28 +93,29 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         parsed = parseJUnitXml(rawBytes.toString("utf8"))
       } catch (err) {
         // Insert failed ingestion record
+        const errorMessage = String(err instanceof Error ? err.message : err)
         try {
           await withWorkspace(workspaceId, async (tx) => {
-            await tx.unsafe(`
+            await tx`
               INSERT INTO ci_ingestion_runs (id, workspace_id, project_id, api_key_id, format, r2_key, status, error_message)
               VALUES (
-                '${ingestionId}',
+                ${ingestionId}::uuid,
                 current_setting('app.workspace_id', true)::uuid,
-                '${projectId}',
-                '${keyId}',
+                ${projectId}::uuid,
+                ${keyId}::uuid,
                 'junit',
-                '${r2Key}',
+                ${r2Key},
                 'parse_error',
-                '${String(err instanceof Error ? err.message : err).replace(/'/g, "''")}'
+                ${errorMessage}
               )
-            `)
+            `
           })
         } catch {
           // best-effort
         }
         return reply.status(422).send({
           error: "JUnit XML parse error",
-          detail: String(err instanceof Error ? err.message : err),
+          detail: errorMessage,
         })
       }
 
@@ -123,11 +124,11 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
       try {
         const cases = await withWorkspace(workspaceId, async (tx) => {
-          return (await tx.unsafe(`
+          return (await tx`
             SELECT id, title FROM test_cases
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               AND deleted_at IS NULL
-          `)) as Array<{ id: string; title: string }>
+          `) as unknown as Array<{ id: string; title: string }>
         })
         for (const tc of cases) {
           caseNameMap.set(tc.title.toLowerCase(), tc.id)
@@ -140,7 +141,6 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       // Insert run, items, and ingestion record in one transaction
       const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ")
       const runName = `CI: JUnit Import ${timestamp}`
-      const safeRunName = runName.replace(/'/g, "''")
 
       let runId: string
       let totalTests: number
@@ -149,18 +149,18 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       const txResult = await withWorkspace(workspaceId, async (tx) => {
         const newRunId = uuidv7()
 
-        await tx.unsafe(`
+        await tx`
           INSERT INTO test_runs (id, workspace_id, project_id, name, status, started_at, completed_at)
           VALUES (
-            '${newRunId}',
+            ${newRunId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            '${safeRunName}',
+            ${projectId}::uuid,
+            ${runName},
             'completed',
             NOW(),
             NOW()
           )
-        `)
+        `
 
         let matched = 0
         for (const tc of parsed) {
@@ -173,45 +173,40 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
           if (caseId) matched++
 
-          const caseIdVal = caseId ? `'${caseId}'` : "NULL"
-          const safeTitle = tc.name.replace(/'/g, "''")
           const statusVal = mapStatus(tc.status)
-          const commentVal = tc.failureMessage
-            ? `'${tc.failureMessage.replace(/'/g, "''")}'`
-            : "NULL"
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status, source, comment)
             VALUES (
-              '${itemId}',
+              ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
-              '${newRunId}',
-              ${caseIdVal},
-              '${safeTitle}',
-              '${statusVal}',
+              ${newRunId}::uuid,
+              ${caseId}::uuid,
+              ${tc.name},
+              ${statusVal},
               'ci',
-              ${commentVal}
+              ${tc.failureMessage ?? null}
             )
-          `)
+          `
         }
 
         const total = parsed.length
 
-        await tx.unsafe(`
+        await tx`
           INSERT INTO ci_ingestion_runs (id, workspace_id, project_id, run_id, api_key_id, format, r2_key, status, total_tests, matched_tests)
           VALUES (
-            '${ingestionId}',
+            ${ingestionId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            '${newRunId}',
-            '${keyId}',
+            ${projectId}::uuid,
+            ${newRunId}::uuid,
+            ${keyId}::uuid,
             'junit',
-            '${r2Key}',
+            ${r2Key},
             'success',
             ${total},
             ${matched}
           )
-        `)
+        `
 
         return { newRunId, total, matched }
       })
@@ -301,28 +296,29 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         parsed = parseAllureJson(rawString)
       } catch (err) {
+        const errorMessage = String(err instanceof Error ? err.message : err)
         try {
           await withWorkspace(workspaceId, async (tx) => {
-            await tx.unsafe(`
+            await tx`
               INSERT INTO ci_ingestion_runs (id, workspace_id, project_id, api_key_id, format, r2_key, status, error_message)
               VALUES (
-                '${ingestionId}',
+                ${ingestionId}::uuid,
                 current_setting('app.workspace_id', true)::uuid,
-                '${projectId}',
-                '${keyId}',
+                ${projectId}::uuid,
+                ${keyId}::uuid,
                 'allure',
-                '${r2Key}',
+                ${r2Key},
                 'parse_error',
-                '${String(err instanceof Error ? err.message : err).replace(/'/g, "''")}'
+                ${errorMessage}
               )
-            `)
+            `
           })
         } catch {
           // best-effort
         }
         return reply.status(422).send({
           error: "Allure JSON parse error",
-          detail: String(err instanceof Error ? err.message : err),
+          detail: errorMessage,
         })
       }
 
@@ -330,11 +326,11 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       const caseNameMap = new Map<string, string>()
       try {
         const cases = await withWorkspace(workspaceId, async (tx) => {
-          return (await tx.unsafe(`
+          return (await tx`
             SELECT id, title FROM test_cases
-            WHERE project_id = '${projectId}'
+            WHERE project_id = ${projectId}::uuid
               AND deleted_at IS NULL
-          `)) as Array<{ id: string; title: string }>
+          `) as unknown as Array<{ id: string; title: string }>
         })
         for (const tc of cases) {
           caseNameMap.set(tc.title.toLowerCase(), tc.id)
@@ -345,23 +341,22 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
       const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ")
       const runName = `CI: Allure Import ${timestamp}`
-      const safeRunName = runName.replace(/'/g, "''")
 
       const txResult = await withWorkspace(workspaceId, async (tx) => {
         const newRunId = uuidv7()
 
-        await tx.unsafe(`
+        await tx`
           INSERT INTO test_runs (id, workspace_id, project_id, name, status, started_at, completed_at)
           VALUES (
-            '${newRunId}',
+            ${newRunId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            '${safeRunName}',
+            ${projectId}::uuid,
+            ${runName},
             'completed',
             NOW(),
             NOW()
           )
-        `)
+        `
 
         let matched = 0
         for (const tc of parsed) {
@@ -373,45 +368,40 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
           if (caseId) matched++
 
-          const caseIdVal = caseId ? `'${caseId}'` : "NULL"
-          const safeTitle = tc.name.replace(/'/g, "''")
           const statusVal = mapStatus(tc.status)
-          const commentVal = tc.failureMessage
-            ? `'${tc.failureMessage.replace(/'/g, "''")}'`
-            : "NULL"
 
-          await tx.unsafe(`
+          await tx`
             INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status, source, comment)
             VALUES (
-              '${itemId}',
+              ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
-              '${newRunId}',
-              ${caseIdVal},
-              '${safeTitle}',
-              '${statusVal}',
+              ${newRunId}::uuid,
+              ${caseId}::uuid,
+              ${tc.name},
+              ${statusVal},
               'ci',
-              ${commentVal}
+              ${tc.failureMessage ?? null}
             )
-          `)
+          `
         }
 
         const total = parsed.length
 
-        await tx.unsafe(`
+        await tx`
           INSERT INTO ci_ingestion_runs (id, workspace_id, project_id, run_id, api_key_id, format, r2_key, status, total_tests, matched_tests)
           VALUES (
-            '${ingestionId}',
+            ${ingestionId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
-            '${projectId}',
-            '${newRunId}',
-            '${keyId}',
+            ${projectId}::uuid,
+            ${newRunId}::uuid,
+            ${keyId}::uuid,
             'allure',
-            '${r2Key}',
+            ${r2Key},
             'success',
             ${total},
             ${matched}
           )
-        `)
+        `
 
         return { newRunId, total, matched }
       })
@@ -448,11 +438,11 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx.unsafe(`
+        const rows = await tx`
           SELECT id, r2_key FROM ci_ingestion_runs
-          WHERE id = '${ingestionId}'
+          WHERE id = ${ingestionId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `)
+        `
         if (rows.length === 0) return null
         return rows[0] as unknown as { id: string; r2_key: string }
       })
@@ -491,16 +481,16 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const runs = await withWorkspace(workspaceId, async (tx) => {
-        return tx.unsafe(`
+        return tx`
           SELECT
             id, format, status, total_tests, matched_tests,
             error_message, created_at, run_id
           FROM ci_ingestion_runs
-          WHERE project_id = '${projectId}'
+          WHERE project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           ORDER BY created_at DESC
           LIMIT 100
-        `)
+        `
       })
 
       return reply.send(runs)
