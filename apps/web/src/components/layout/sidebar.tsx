@@ -102,8 +102,8 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       )}>
         {!collapsed && (
           <>
-            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={24} height={24} className="shrink-0" />
-            <span className="flex-1 truncate text-sm font-semibold text-gray-800 font-display">Velo</span>
+            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={28} height={28} className="shrink-0" />
+            <span className="flex-1 truncate text-base font-bold text-gray-900 font-display">Velo</span>
           </>
         )}
         <button

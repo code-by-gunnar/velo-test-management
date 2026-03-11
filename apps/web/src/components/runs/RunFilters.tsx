@@ -32,7 +32,7 @@ export function RunFilters({ filters, onChange, assignees }: RunFiltersProps) {
         }}
         className={clsx(
           "rounded-md border px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
-          filters.status ? "border-primary bg-primary/5 font-medium text-primary" : "border-gray-200 bg-white text-gray-700"
+          filters.status ? "border-gray-300 bg-white font-medium text-gray-900" : "border-gray-200 bg-white text-gray-700"
         )}
         aria-label="Filter by status"
       >
@@ -55,7 +55,7 @@ export function RunFilters({ filters, onChange, assignees }: RunFiltersProps) {
           }}
           className={clsx(
             "rounded-md border px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
-            filters.assigned_to ? "border-primary bg-primary/5 font-medium text-primary" : "border-gray-200 bg-white text-gray-700"
+            filters.assigned_to ? "border-gray-300 bg-white font-medium text-gray-900" : "border-gray-200 bg-white text-gray-700"
           )}
           aria-label="Filter by assignee"
         >
