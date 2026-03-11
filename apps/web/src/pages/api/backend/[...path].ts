@@ -14,19 +14,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // so the browser sees /api/backend/workspaces instead of /api/backend/api/workspaces.
   const apiUrl = `${process.env.API_URL}/api/${path}${queryString ? `?${queryString}` : ""}`
 
-  // Read raw body from stream
-  const rawBody = await new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = []
-    req.on("data", (chunk: Buffer) => chunks.push(chunk))
-    req.on("end", () => resolve(Buffer.concat(chunks)))
-    req.on("error", reject)
-  })
+  // Only buffer the body for methods that carry one — skip for GET/HEAD
+  const rawBody = (req.method !== "GET" && req.method !== "HEAD")
+    ? await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = []
+        req.on("data", (chunk: Buffer) => chunks.push(chunk))
+        req.on("end", () => resolve(Buffer.concat(chunks)))
+        req.on("error", reject)
+      })
+    : Buffer.alloc(0)
 
   // Get the session token — server-side cookie read, same-origin, always works.
   // Auth.js v5 uses __Secure- prefix on HTTPS (Vercel production/preview).
-  const token =
-    req.cookies["__Secure-authjs.session-token"] ??
-    req.cookies["authjs.session-token"]
+  const isSecureCookie = !!req.cookies["__Secure-authjs.session-token"]
+  const token = isSecureCookie
+    ? req.cookies["__Secure-authjs.session-token"]
+    : req.cookies["authjs.session-token"]
 
   const forwardHeaders: Record<string, string> = {}
   if (rawBody.length > 0) {
@@ -34,6 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (token) {
     forwardHeaders["authorization"] = `Bearer ${token}`
+    // Hint which cookie name derived the JWE key — avoids trial-and-error decryption
+    forwardHeaders["x-token-secure"] = isSecureCookie ? "1" : "0"
   }
 
   const fetchRes = await fetch(apiUrl, {
@@ -45,8 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // If the API returns 401, the session is invalid (deactivated user, expired token, etc.).
   // Clear the Auth.js session cookie so the next page load redirects to /login.
   if (fetchRes.status === 401 && token) {
-    const isSecure = req.headers["x-forwarded-proto"] === "https" || req.url?.startsWith("https")
-    const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token"
+    const cookieName = isSecureCookie ? "__Secure-authjs.session-token" : "authjs.session-token"
+    const isSecure = isSecureCookie
     res.setHeader(
       "Set-Cookie",
       `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${isSecure ? "; Secure" : ""}`
