@@ -57,6 +57,38 @@ async function runFixups() {
     await fixupClient.unsafe(
       `ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL`
     )
+    // Phase 3: run_item_step_comments table (migration 0003 skipped in prior deploy)
+    await fixupClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS run_item_step_comments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        run_item_id UUID NOT NULL REFERENCES run_items(id) ON DELETE CASCADE,
+        step_order INTEGER NOT NULL,
+        comment TEXT NOT NULL,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_risc_run_item
+        ON run_item_step_comments (run_item_id, step_order)
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE run_item_step_comments ENABLE ROW LEVEL SECURITY
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE run_item_step_comments FORCE ROW LEVEL SECURITY
+    `)
+    await fixupClient.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = 'run_item_step_comments' AND policyname = 'workspace_isolation'
+        ) THEN
+          CREATE POLICY workspace_isolation ON run_item_step_comments
+            USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
+        END IF;
+      END $$
+    `)
     // Phase 6: workspace_invitations table (migration 0006 journal entry without SQL)
     await fixupClient.unsafe(`
       CREATE TABLE IF NOT EXISTS workspace_invitations (
