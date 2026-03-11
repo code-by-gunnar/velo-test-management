@@ -66,6 +66,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
   const handleImportSuccess = () => {
     setImportOpen(false)
     void refetchCases()
+    void refetchSuites()
   }
 
   // Find selected suite for breadcrumb

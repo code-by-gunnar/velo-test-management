@@ -18,7 +18,7 @@ interface FilePickerProps {
 }
 
 const SAMPLE_CSV_ROWS = [
-  ["title", "action", "expected result", "priority"],
+  ["title", "suite", "action", "expected result", "priority"],
   ["User can log in", "Enter valid credentials and click Sign In", "Dashboard loads", "high"],
   ["User sees error on bad password", "Enter wrong password and click Sign In", "Error message displayed", "medium"],
   ["User can reset password", "Click Forgot Password and enter email", "Reset email sent confirmation", "medium"],
@@ -149,7 +149,7 @@ function MappingStep({
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
           Column Mapping
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {/* Title — required */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-700">
@@ -161,6 +161,23 @@ function MappingStep({
               className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
             >
               <option value="">-- select --</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Suite — optional */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Suite / Area</label>
+            <select
+              value={columnMapping.suite ?? ""}
+              onChange={updateField("suite")}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
+            >
+              <option value="">-- (none) --</option>
               {headers.map((h) => (
                 <option key={h} value={h}>
                   {h}

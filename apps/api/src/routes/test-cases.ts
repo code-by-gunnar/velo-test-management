@@ -653,6 +653,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       colExpected?: string
       colPreconditions?: string
       colPriority?: string
+      colSuite?: string
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/import",
@@ -673,15 +674,16 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const buffer = await data.toBuffer()
 
-      const { colTitle, colAction, colExpected, colPreconditions, colPriority } = request.query
+      const { colTitle, colAction, colExpected, colPreconditions, colPriority, colSuite } = request.query
       let explicit: ExplicitColumnMapping | undefined
-      if (colTitle ?? colAction) {
+      if (colTitle ?? colAction ?? colSuite) {
         explicit = {}
         if (colTitle) explicit.title = colTitle
         if (colAction) explicit.action = colAction
         if (colExpected) explicit.expected = colExpected
         if (colPreconditions) explicit.preconditions = colPreconditions
         if (colPriority) explicit.priority = colPriority
+        if (colSuite) explicit.suite = colSuite
       }
 
       let parsed: TestCaseImport[]
@@ -696,6 +698,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       let importedCount = 0
 
       await withWorkspace(workspaceId, async (tx) => {
+        // Suite name → UUID cache (find-or-create during import)
+        const suiteCache = new Map<string, string>()
+
         for (const tc of parsed) {
           const countRows = await tx`
             SELECT COUNT(*)::int AS n
@@ -709,11 +714,55 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
           if (count >= FREE_TIER_MAX_TEST_CASES) break
 
+          // Resolve suite_id from suite name (find-or-create)
+          let suiteId: string | null = null
+          if (tc.suite) {
+            const cached = suiteCache.get(tc.suite)
+            if (cached) {
+              suiteId = cached
+            } else {
+              // Look up existing suite by name (case-insensitive)
+              const existing = await tx`
+                SELECT id FROM suites
+                WHERE project_id = ${projectId}::uuid
+                  AND LOWER(name) = LOWER(${tc.suite})
+                LIMIT 1
+              `
+              if (existing.length > 0) {
+                suiteId = (existing[0] as unknown as { id: string }).id
+              } else {
+                // Create new suite
+                suiteId = uuidv7()
+                const suiteMaxRows = await tx`
+                  SELECT COALESCE(MAX(position), 0) AS max_pos
+                  FROM suites
+                  WHERE project_id = ${projectId}::uuid
+                    AND parent_id IS NULL
+                `
+                const suiteMaxPos = parseInt(
+                  String((suiteMaxRows[0] as unknown as { max_pos: number }).max_pos ?? "0")
+                )
+                await tx`
+                  INSERT INTO suites (id, workspace_id, project_id, parent_id, name, position)
+                  VALUES (
+                    ${suiteId}::uuid,
+                    current_setting('app.workspace_id', true)::uuid,
+                    ${projectId}::uuid,
+                    NULL,
+                    ${tc.suite},
+                    ${suiteMaxPos + 1000}
+                  )
+                `
+              }
+              suiteCache.set(tc.suite, suiteId)
+            }
+          }
+
           const maxRows = await tx`
             SELECT COALESCE(MAX(position), 0) AS max_pos
             FROM test_cases
             WHERE project_id = ${projectId}::uuid
-              AND suite_id IS NULL
+              AND suite_id ${suiteId ? tx`= ${suiteId}::uuid` : tx`IS NULL`}
               AND deleted_at IS NULL
           `
           const maxPos = parseInt(
@@ -730,7 +779,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
               ${newCaseId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
               ${projectId}::uuid,
-              NULL,
+              ${suiteId},
               ${tc.title},
               ${tc.preconditions ?? null},
               ${priority},

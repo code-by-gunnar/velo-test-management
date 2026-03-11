@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useCallback } from "react"
 import { clsx } from "clsx"
 import { useUserRole } from "@/hooks/useUserRole"
 import {
@@ -16,6 +16,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable"
+import { Trash2 } from "lucide-react"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { SuiteTreeItem } from "./SuiteTreeItem"
 
@@ -33,6 +34,16 @@ function computeNewPosition(
   const next = sorted[newIndex + 1]?.position ?? (sorted[newIndex]!.position + 2000)
   const newPos = Math.floor((prev + next) / 2)
   return newPos === prev ? -1 : newPos
+}
+
+// Collect all suite IDs from a tree (including nested children)
+function collectAllIds(suites: Suite[]): string[] {
+  const ids: string[] = []
+  for (const s of suites) {
+    ids.push(s.id)
+    if (s.children.length > 0) ids.push(...collectAllIds(s.children))
+  }
+  return ids
 }
 
 interface SuiteTreeProps {
@@ -62,6 +73,12 @@ export function SuiteTree({
   const [rootSuites, setRootSuites] = useState<Suite[]>(tree)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Select mode state
+  const [selectMode, setSelectMode] = useState(false)
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false)
+
   // Keep local root suites in sync when tree prop changes (e.g., refetch)
   // Use a ref to detect external tree changes vs. local optimistic updates
   const prevTreeRef = useRef(tree)
@@ -74,6 +91,54 @@ export function SuiteTree({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+
+  const toggleCheck = useCallback((id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setCheckedIds(new Set())
+    setConfirmingBulkDelete(false)
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    const allIds = collectAllIds(rootSuites)
+    setCheckedIds((prev) => {
+      if (prev.size === allIds.length) return new Set()
+      return new Set(allIds)
+    })
+  }, [rootSuites])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (checkedIds.size === 0) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/bulk-delete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [...checkedIds] }),
+        }
+      )
+      if (res.ok) {
+        // If selected suite was deleted, clear selection
+        if (selected && checkedIds.has(selected)) {
+          onSelect(null)
+        }
+        onSuiteCreated?.()
+        exitSelectMode()
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [checkedIds, workspaceId, projectId, selected, onSelect, onSuiteCreated, exitSelectMode])
 
   async function handleSuiteDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -147,30 +212,104 @@ export function SuiteTree({
     }
   }
 
+  const allIds = collectAllIds(rootSuites)
+  const allChecked = allIds.length > 0 && checkedIds.size === allIds.length
+
   return (
     <div
       className="flex h-full flex-col overflow-hidden"
       onKeyDown={(e) => {
+        if (e.key === "Escape" && selectMode) {
+          exitSelectMode()
+          return
+        }
         // N key when tree is focused (not in input) starts create
-        if (e.key === "n" && !creating && (e.target as HTMLElement).tagName !== "INPUT") {
+        if (e.key === "n" && !creating && !selectMode && (e.target as HTMLElement).tagName !== "INPUT") {
           startCreate()
         }
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-3">
+      <div className="flex items-center justify-between border-b border-gray-200 px-3" style={{ minHeight: 52 }}>
         <span className="text-xs font-semibold uppercase text-gray-500" style={{ fontSize: 12, letterSpacing: '0.5px' }}>Suites</span>
-        <button
-          type="button"
-          onClick={startCreate}
-          disabled={!canEdit}
-          className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-primary"
-          title={canEdit ? "New suite" : "Editor access required"}
-          aria-label="New suite"
-        >
-          +
-        </button>
+        <div className="flex items-center gap-1">
+          {canEdit && !selectMode && rootSuites.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-xs hover:bg-gray-100 hover:text-gray-600"
+              title="Select suites"
+              aria-label="Select suites"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+          {!selectMode && (
+            <button
+              type="button"
+              onClick={startCreate}
+              disabled={!canEdit}
+              className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-primary"
+              title={canEdit ? "New suite" : "Editor access required"}
+              aria-label="New suite"
+            >
+              +
+            </button>
+          )}
+          {selectMode && (
+            <button
+              type="button"
+              onClick={exitSelectMode}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Select mode action bar */}
+      {selectMode && (
+        <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allChecked}
+              onChange={toggleSelectAll}
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
+            />
+            All
+          </label>
+          {checkedIds.size > 0 && !confirmingBulkDelete && (
+            <button
+              type="button"
+              onClick={() => setConfirmingBulkDelete(true)}
+              className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Delete {checkedIds.size}
+            </button>
+          )}
+          {confirmingBulkDelete && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => { void handleBulkDelete() }}
+                disabled={isDeleting}
+                className="text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting…" : "Confirm"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingBulkDelete(false)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto px-2 py-1">
@@ -186,23 +325,25 @@ export function SuiteTree({
         ) : (
           <>
         {/* All Cases root */}
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className={clsx(
-            "flex w-full items-center gap-2 rounded-md px-2 text-sm text-left transition-colors",
-            selected === null
-              ? "bg-primary-selected text-primary font-medium"
-              : "text-gray-800 hover:bg-gray-100"
-          )}
-          style={{ height: 32, padding: '6px 8px' }}
-        >
-          <span className="text-gray-400">◈</span>
-          <span>All Cases</span>
-        </button>
+        {!selectMode && (
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={clsx(
+              "flex w-full items-center gap-2 rounded-md px-2 text-sm text-left transition-colors",
+              selected === null
+                ? "bg-primary-selected text-primary font-medium"
+                : "text-gray-800 hover:bg-gray-100"
+            )}
+            style={{ height: 32, padding: '6px 8px' }}
+          >
+            <span className="text-gray-400">◈</span>
+            <span>All Cases</span>
+          </button>
+        )}
 
         {/* Inline input — appears at top of suite list */}
-        {canEdit && creating && (
+        {canEdit && creating && !selectMode && (
           <div className="px-1 py-1">
             <input
               ref={inputRef}
@@ -236,6 +377,10 @@ export function SuiteTree({
                 workspaceId={workspaceId}
                 projectId={projectId}
                 onSuiteReordered={onSuiteReordered}
+                onSuiteChanged={onSuiteCreated}
+                selectMode={selectMode}
+                checkedIds={checkedIds}
+                onToggleCheck={toggleCheck}
               />
             ))}
           </SortableContext>

@@ -307,6 +307,43 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(204).send()
     }
   )
+  // ── POST /suites/bulk-delete — delete multiple suites at once ─────────────
+  // Body: { ids: string[] }
+  // test_cases.suite_id is ON DELETE SET NULL — cases are unparented, not deleted
+  fastify.post<{
+    Params: { workspaceId: string; projectId: string }
+    Body: { ids: string[] }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/suites/bulk-delete",
+    { preHandler: [requireEditor] },
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+      const { ids } = request.body ?? {}
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({ error: "ids array is required" })
+      }
+
+      if (ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+        return reply.status(400).send({ error: "Invalid suite id in array" })
+      }
+
+      await withWorkspace(workspaceId, async (tx) => {
+        await tx`
+          DELETE FROM suites
+          WHERE id = ANY(${ids}::uuid[])
+            AND project_id = ${projectId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+      })
+
+      return reply.status(204).send()
+    }
+  )
 }
 
 export default suitesRoutes

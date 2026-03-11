@@ -9,6 +9,7 @@ export interface TestCaseImport {
   title: string
   preconditions?: string
   priority?: "critical" | "high" | "medium" | "low"
+  suite?: string
   steps: ParsedStep[]
 }
 
@@ -19,6 +20,7 @@ function detectColumns(headers: string[]): {
   expected?: number
   preconditions?: number
   priority?: number
+  suite?: number
 } {
   const mapping: {
     title?: number
@@ -26,6 +28,7 @@ function detectColumns(headers: string[]): {
     expected?: number
     preconditions?: number
     priority?: number
+    suite?: number
   } = {}
   headers.forEach((h, i) => {
     const lower = h.toLowerCase().trim()
@@ -35,6 +38,7 @@ function detectColumns(headers: string[]): {
     if (["preconditions", "precondition", "prerequisites"].includes(lower))
       mapping.preconditions = i
     if (["priority", "severity"].includes(lower)) mapping.priority = i
+    if (["suite", "area", "module", "section", "folder", "group"].includes(lower)) mapping.suite = i
   })
   return mapping
 }
@@ -71,6 +75,10 @@ function groupMultiRow(
         const pri = normalizePriority(row[cols.priority] ?? "")
         if (pri) tc.priority = pri
       }
+      if (cols.suite !== undefined) {
+        const s = row[cols.suite]?.trim()
+        if (s) tc.suite = s
+      }
       cases.set(title, tc)
     }
 
@@ -91,6 +99,7 @@ export interface ExplicitColumnMapping {
   expected?: string
   preconditions?: string
   priority?: string
+  suite?: string
 }
 
 // Build column index map from an explicit user-supplied header → field mapping
@@ -105,6 +114,7 @@ function applyExplicitMapping(
     if (explicit.expected && h === explicit.expected) mapping.expected = i
     if (explicit.preconditions && h === explicit.preconditions) mapping.preconditions = i
     if (explicit.priority && h === explicit.priority) mapping.priority = i
+    if (explicit.suite && h === explicit.suite) mapping.suite = i
   })
   // Fall back to auto-detection for any field not explicitly mapped.
   // Spread auto first, then overwrite only the fields that were explicitly resolved
@@ -116,6 +126,7 @@ function applyExplicitMapping(
   if (mapping.expected !== undefined) result.expected = mapping.expected
   if (mapping.preconditions !== undefined) result.preconditions = mapping.preconditions
   if (mapping.priority !== undefined) result.priority = mapping.priority
+  if (mapping.suite !== undefined) result.suite = mapping.suite
   return result
 }
 
