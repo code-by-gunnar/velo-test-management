@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useCallback } from "react"
 import { clsx } from "clsx"
 
 interface StepRowProps {
@@ -36,6 +36,17 @@ export function StepRow({
     el.style.height = el.scrollHeight + "px"
   }
 
+  // Auto-resize on mount when pre-filled with text
+  const actionMountRef = useCallback((el: HTMLTextAreaElement | null) => {
+    actionRef(el)
+    if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px" }
+  }, [actionRef])
+
+  const expectedMountRef = useCallback((el: HTMLTextAreaElement | null) => {
+    expectedRef(el)
+    if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px" }
+  }, [expectedRef])
+
   const handleActionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Tab" && !e.shiftKey) {
       e.preventDefault()
@@ -62,7 +73,7 @@ export function StepRow({
   return (
     <div className={clsx("grid grid-cols-2 gap-2", index > 0 && "mt-1")}>
       <textarea
-        ref={actionRef}
+        ref={actionMountRef}
         rows={1}
         value={action}
         readOnly={readOnly}
@@ -74,7 +85,7 @@ export function StepRow({
         aria-label={`Step ${index + 1} action`}
       />
       <textarea
-        ref={expectedRef}
+        ref={expectedMountRef}
         rows={1}
         value={expected_result}
         readOnly={readOnly}

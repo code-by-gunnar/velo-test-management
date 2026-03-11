@@ -309,10 +309,10 @@ export function CasePanel({
                       </div>
                       {viewData.steps.map((step, i) => (
                         <div key={i} className="grid grid-cols-2 gap-2">
-                          <div className="rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
+                          <div className="whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
                             {step.action || <span className="text-gray-300">—</span>}
                           </div>
-                          <div className="rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
+                          <div className="whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
                             {step.expected_result || <span className="text-gray-300">—</span>}
                           </div>
                         </div>
