@@ -539,7 +539,7 @@ export function ExecutionScreen({
                 value={commentValue}
                 onChange={handleCommentChange}
                 onFocus={() => setCommentFocused(true)}
-                onBlur={() => setCommentFocused(false)}
+                onBlur={() => { setCommentFocused(false); if (!commentSaved) saveComment() }}
                 onKeyDown={handleCommentKeyDown}
                 rows={2}
                 placeholder="Add a note about this test case…"
