@@ -6,6 +6,7 @@ import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -533,6 +534,39 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Tell Fastify we are managing the response ourselves
       reply.hijack()
+    }
+  )
+  // ── DELETE /runs/:runId — hard delete run + items (admin only) ────────────
+  fastify.delete<{
+    Params: { workspaceId: string; runId: string }
+  }>(
+    "/api/workspaces/:workspaceId/runs/:runId",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { workspaceId, runId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(runId)) {
+        return reply.status(400).send({ error: "Invalid runId" })
+      }
+
+      await withWorkspace(workspaceId, async (tx) => {
+        // Delete step comments, defects, run items, then the run itself
+        await tx`DELETE FROM run_item_step_comments WHERE run_item_id IN (
+          SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+        )`
+        await tx`DELETE FROM defects WHERE run_item_id IN (
+          SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+        )`
+        await tx`DELETE FROM run_items WHERE run_id = ${runId}::uuid`
+        await tx`DELETE FROM test_runs WHERE id = ${runId}::uuid
+          AND workspace_id = current_setting('app.workspace_id', true)::uuid`
+      })
+
+      return reply.status(204).send()
     }
   )
 }

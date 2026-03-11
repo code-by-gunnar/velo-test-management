@@ -95,6 +95,7 @@ export function ExecutionScreen({
   const [caseDetailCache, setCaseDetailCache] = useState<Record<string, CaseDetail>>({})
   const [stepCommentCache, setStepCommentCache] = useState<Record<string, StepComment[]>>({})
   const [loadingCase, setLoadingCase] = useState(false)
+  const [deletedCaseIds, setDeletedCaseIds] = useState<Set<string>>(new Set())
   const [done, setDone] = useState(false)
   const [commentValue, setCommentValue] = useState("")
   const [commentSaved, setCommentSaved] = useState(true)
@@ -117,11 +118,15 @@ export function ExecutionScreen({
     setLoadingCase(true)
     fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`)
       .then((res) => {
+        if (res.status === 404) {
+          setDeletedCaseIds((prev) => new Set(prev).add(caseId))
+          return null
+        }
         if (!res.ok) throw new Error(`Failed to fetch case: ${res.status}`)
         return res.json() as Promise<CaseDetail>
       })
       .then((detail) => {
-        setCaseDetailCache((prev) => ({ ...prev, [caseId]: detail }))
+        if (detail) setCaseDetailCache((prev) => ({ ...prev, [caseId]: detail }))
       })
       .catch(() => {
         // Continue without steps
@@ -321,6 +326,7 @@ export function ExecutionScreen({
 
   if (!currentItem) return null
 
+  const isCaseDeleted = deletedCaseIds.has(currentItem.test_case_id)
   const steps = currentDetail?.steps ?? []
   const stepComments = stepCommentCache[currentItem.id] ?? []
   const isCurrentUntested = UNTESTED_STATUSES.has(currentItem.status)
@@ -459,7 +465,14 @@ export function ExecutionScreen({
               </div>
             )}
 
-            {!loadingCase && steps.length > 0 && (
+            {!loadingCase && isCaseDeleted && (
+              <div className="rounded-lg border border-gray-200 bg-white p-6 text-center mb-4">
+                <p className="text-sm text-gray-500">This test case has been deleted.</p>
+                <p className="mt-1 text-xs text-gray-400">Steps are no longer available. You can still record a verdict.</p>
+              </div>
+            )}
+
+            {!loadingCase && !isCaseDeleted && steps.length > 0 && (
               <div className="rounded-lg border border-gray-200 bg-white mb-4 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
@@ -500,7 +513,7 @@ export function ExecutionScreen({
               </div>
             )}
 
-            {!loadingCase && steps.length === 0 && currentDetail && (
+            {!loadingCase && !isCaseDeleted && steps.length === 0 && currentDetail && (
               <div className="rounded-lg border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400 mb-4">
                 No steps defined for this test case.
               </div>
