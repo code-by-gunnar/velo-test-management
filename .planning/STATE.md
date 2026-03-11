@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 6 — Team and Access Control
-current_plan: 06-04 complete
-status: planning
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-03-10T20:42:56.909Z"
+current_phase: 5 — Integrations and API
+current_plan: 05-03 complete
+status: in_progress
+stopped_at: Phase 6 complete, resuming Phase 5
+last_updated: "2026-03-11"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 34
-  completed_plans: 30
-  percent: 88
+  completed_plans: 27
+  percent: 79
 ---
 
 # State: Velo
@@ -35,18 +35,18 @@ progress:
 
 ## Current Position
 
-**Current phase:** 6 — Team and Access Control
-**Current plan:** 06-04 complete
+**Current phase:** 5 — Integrations and API
+**Current plan:** Resuming Phase 5 (05-02, 05-03 complete)
 **Status:** In progress
 
 **Progress:**
-[█████████░] 88%
+[████████░░] 79%
 Phase 3 [██████████] 100% Test Runs and Dashboard (6/6 plans complete)
 Phase 4 [██████████] 100% CI Ingestion (5/5 plans complete, UAT verified)
-Phase 5 [███░░░░░░░] 33%  Integrations and API (2/6 plans complete)
-Phase 6 [██████░░░░] 67%  Team and Access Control (4/6 plans complete)
+Phase 5 [████████░░] 83%  Integrations and API (5/6 plans complete)
+Phase 6 [██████████] 100% Team and Access Control (5/5 plans complete, UAT verified)
 
-**Overall:** 30/34 plans complete
+**Overall:** 27/34 plans complete
 
 ---
 
@@ -59,7 +59,7 @@ Phase 6 [██████░░░░] 67%  Team and Access Control (4/6 plans
 | 3. Test Runs and Dashboard | 10 | 6 | Complete (all 6 plans delivered) |
 | 4. CI Ingestion | 4 | 5 | In progress (04-01 Wave 0 complete) |
 | 5. Integrations and API | 4 | 6 | In progress (05-02, 05-03 complete) |
-| 6. Team and Access Control | 6 | 6 | In progress (06-01, 06-02, 06-03, 06-04 complete) |
+| 6. Team and Access Control | 6 | 5 | Complete (all USR requirements verified in production) |
 
 ---
 
@@ -219,13 +219,13 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-03-10T20:42:56.902Z
+**Last session:** 2026-03-11
 
-**Stopped at:** Completed 06-04-PLAN.md
+**Stopped at:** Phase 6 complete — resuming Phase 5 remaining plans
 
-**To resume work:** Continue Phase 6 plan 06-05.
+**To resume work:** Continue Phase 5 plan 05-04 (Linear webhook + outbound webhooks).
 
-**Context summary:** Phase 6 plans 06-01 through 06-04 complete. Invitation CRUD done (USR-01, USR-02). Role management + frontend (USR-03). Member deactivation with Valkey blocklist + immediate session invalidation (USR-04). TeamPanel component built with invite form, pending invites, member list with role dropdown and deactivate-with-confirm. Accept-invite landing page handles token acceptance, auth redirect, and error states. Next: 06-05 covers remaining Phase 6 plans.
+**Context summary:** Phase 6 fully complete with additional RBAC enforcement work beyond original plans: live role lookup from Valkey/DB in session plugin, requireEditor preHandler on 17 write routes, frontend disabled UI gating via useUserRole hook, deactivation force-logout via gateway cookie clearing + client-side fetch interceptor. All USR-01 through USR-05 verified working in production. Phase 5 remaining: 05-01 (migration/stubs — may be partially done from 05-02/05-03), 05-04 (Linear webhook + outbound webhooks), 05-05 (frontend integrations settings), 05-06 (UAT).
 
 ---
 
