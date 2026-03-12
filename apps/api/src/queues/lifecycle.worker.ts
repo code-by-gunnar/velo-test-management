@@ -202,7 +202,7 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           await lifecycleQueue.add(
             "workspace-delete",
             { type: "workspace-delete", workspaceId: ws.id, requestedBy: "sweep" },
-            { jobId: `ws-delete:${ws.id}` }
+            { jobId: `ws-delete-${ws.id}` }
           )
         }
 
@@ -211,7 +211,7 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           await lifecycleQueue.add(
             "user-erasure",
             { type: "user-erasure", userId: er.user_id, workspaceId: er.workspace_id },
-            { jobId: `user-erase:${er.user_id}` }
+            { jobId: `user-erase-${er.user_id}` }
           )
         }
 

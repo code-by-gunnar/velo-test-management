@@ -66,10 +66,10 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       let steps: Record<string, unknown>[] = []
       if (caseIds.length > 0) {
         steps = await tx`
-          SELECT case_id, step_order, action, expected_result
+          SELECT test_case_id, step_order, action, expected_result
           FROM test_case_steps
-          WHERE case_id = ANY(${caseIds}::uuid[])
-          ORDER BY case_id, step_order
+          WHERE test_case_id = ANY(${caseIds}::uuid[])
+          ORDER BY test_case_id, step_order
         `
       }
 
@@ -85,7 +85,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       let runItems: Record<string, unknown>[] = []
       if (runIds.length > 0) {
         runItems = await tx`
-          SELECT ri.id, ri.run_id, ri.case_id, ri.case_title, ri.status, ri.executed_by, ri.executed_at
+          SELECT ri.id, ri.run_id, ri.test_case_id, ri.case_title, ri.status, ri.executed_by, ri.executed_at
           FROM run_items ri
           WHERE ri.run_id = ANY(${runIds}::uuid[])
           ORDER BY ri.run_id
@@ -111,7 +111,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       // Nest steps into cases
       const stepsMap = new Map<string, Record<string, unknown>[]>()
       for (const step of data.steps) {
-        const caseId = step.case_id as string
+        const caseId = step.test_case_id as string
         if (!stepsMap.has(caseId)) stepsMap.set(caseId, [])
         stepsMap.get(caseId)!.push(step)
       }
@@ -141,7 +141,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Flatten cases with steps inline
       const flatCases = data.cases.map((c: Record<string, unknown>) => {
-        const caseSteps = data.steps.filter((s: Record<string, unknown>) => s.case_id === c.id)
+        const caseSteps = data.steps.filter((s: Record<string, unknown>) => s.test_case_id === c.id)
         return {
           ...c,
           step_count: caseSteps.length,

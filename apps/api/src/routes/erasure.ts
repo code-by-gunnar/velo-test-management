@@ -30,7 +30,7 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const scheduledAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    const jobId = `user-erase:${userId}`
+    const jobId = `user-erase-${userId}`
 
     // Insert erasure request
     const [row] = await sql`
@@ -98,7 +98,7 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
     void lifecycleQueue.add(
       "lifecycle-warning",
       { type: "lifecycle-warning", warningType: "user-erasure", entityId: userId },
-      { delay: warningDelay, jobId: `user-erase:${userId}:warning` }
+      { delay: warningDelay, jobId: `user-erase-${userId}-warning` }
     ).catch((err: unknown) => {
       console.error("[erasure] Failed to enqueue erasure warning job:", err)
     })
@@ -132,7 +132,7 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Also remove the warning job
     try {
-      const warningJob = await lifecycleQueue.getJob(`user-erase:${userId}:warning`)
+      const warningJob = await lifecycleQueue.getJob(`user-erase-${userId}-warning`)
       if (warningJob) await warningJob.remove()
     } catch {
       // Warning job may not exist or already processed — not critical

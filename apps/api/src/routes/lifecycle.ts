@@ -44,7 +44,7 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const scheduledAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    const jobId = `ws-delete:${workspaceId}`
+    const jobId = `ws-delete-${workspaceId}`
 
     await sql`
       UPDATE workspaces
@@ -112,7 +112,7 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     void lifecycleQueue.add(
       "lifecycle-warning",
       { type: "lifecycle-warning", warningType: "workspace-deletion", entityId: workspaceId },
-      { delay: warningDelay, jobId: `ws-delete:${workspaceId}:warning` }
+      { delay: warningDelay, jobId: `ws-delete-${workspaceId}-warning` }
     ).catch((err: unknown) => {
       console.error("[lifecycle] Failed to enqueue deletion warning job:", err)
     })
@@ -159,7 +159,7 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Also remove the warning job
     try {
-      const warningJob = await lifecycleQueue.getJob(`ws-delete:${workspaceId}:warning`)
+      const warningJob = await lifecycleQueue.getJob(`ws-delete-${workspaceId}-warning`)
       if (warningJob) await warningJob.remove()
     } catch {
       // Warning job may not exist or already processed — not critical

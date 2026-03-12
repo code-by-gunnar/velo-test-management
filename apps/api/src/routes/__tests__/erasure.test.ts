@@ -132,13 +132,13 @@ describe("Erasure routes (UER-01, UER-02, UER-04)", () => {
       SELECT status, job_id FROM user_erasure_requests WHERE user_id = ${userId}::uuid
     `
     expect((row as { status: string }).status).toBe("pending")
-    expect((row as { job_id: string }).job_id).toBe(`user-erase:${userId}`)
+    expect((row as { job_id: string }).job_id).toBe(`user-erase-${userId}`)
 
     // Verify lifecycle queue called
     expect(mockLifecycleAdd).toHaveBeenCalledWith(
       "user-erasure",
       expect.objectContaining({ type: "user-erasure", userId }),
-      expect.objectContaining({ jobId: `user-erase:${userId}` })
+      expect.objectContaining({ jobId: `user-erase-${userId}` })
     )
 
     // Verify Valkey blocklist was set (pipeline used for workspace blocklisting)
