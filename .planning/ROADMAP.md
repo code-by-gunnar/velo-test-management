@@ -12,7 +12,7 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 
 - [x] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
 - [x] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
-- [ ] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
+- [x] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
 - [ ] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
 
 ## Phase Details
@@ -59,7 +59,12 @@ Plans:
   2. Export format choice (JSON or CSV) works correctly -- JSON preserves nested structure, CSV flattens for spreadsheet compatibility
   3. Pending workspace deletion status is visible in workspace settings showing scheduled date, time remaining, and a cancel button
   4. Pending user erasure status is visible in profile settings showing scheduled date, time remaining, and a cancel button
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [x] 03-01-PLAN.md -- Workspace data export API (ZIP with JSON/CSV)
+- [x] 03-02-PLAN.md -- Workspace deletion status panel in settings (Danger Zone tab)
+- [x] 03-03-PLAN.md -- User erasure status and request UI in profile page
 
 ### Phase 4: Notifications & Verification
 **Goal**: All lifecycle events trigger the correct email notifications, and integration tests verify idempotent deletion, cancellation, sweep recovery, and the full request-to-completion lifecycle
@@ -69,7 +74,12 @@ Plans:
   1. All active workspace members receive an email when an admin requests workspace deletion, including the scheduled deletion date and advice to export data
   2. Three email touchpoints fire per lifecycle event: request acknowledged (with scheduled date), warning before grace period expires, and completion confirmation
   3. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors, including new integration tests for lifecycle workers
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md -- Lifecycle email templates, extended queue types, worker handlers, and batch-send helper
+- [ ] 04-02-PLAN.md -- Wire notifications into lifecycle routes + erasure routes + lifecycle worker (3 touchpoints per event)
+- [ ] 04-03-PLAN.md -- Integration tests for lifecycle and erasure routes + full CI verification
 
 ## Progress
 
@@ -80,8 +90,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Schema & Foundation | 3/3 | Complete | 2026-03-12 |
 | 2. Lifecycle Workers & API | 3/3 | Complete | 2026-03-12 |
-| 3. Export & Frontend | 1/3 | In Progress|  |
-| 4. Notifications & Verification | 0/? | Not started | - |
+| 3. Export & Frontend | 3/3 | Complete | 2026-03-12 |
+| 4. Notifications & Verification | 0/3 | Planned | - |
 
 ## Coverage Map
 
