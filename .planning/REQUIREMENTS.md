@@ -136,7 +136,7 @@ Repeatable job at 3 AM daily. Catches expired grace periods where the delayed jo
 | WEX-01 | Phase 3 | Pending |
 | WEX-02 | Phase 3 | Pending |
 | WEX-03 | Phase 3 | Pending |
-| TRN-02 | Phase 3 | Pending |
+| TRN-02 | Phase 3 | Complete |
 | WLC-05 | Phase 4 | Pending |
 | TRN-03 | Phase 4 | Pending |
 
