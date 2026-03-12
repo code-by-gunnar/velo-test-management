@@ -3,6 +3,7 @@ import { sql } from "../db/client.js"
 import { valkey } from "../lib/valkey.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { logAuditEvent } from "../lib/audit-log.js"
+import { sendLifecycleEmails } from "../lib/email.js"
 
 const erasureRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -64,10 +65,42 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
       workspaces_blocked: workspaces.length,
     })
 
-    return reply.status(201).send({
+    void reply.status(201).send({
       erasure_request_id: (row as { id: string }).id,
       status: "pending",
       scheduled_at: scheduledAt.toISOString(),
+    })
+
+    // ── TRN-03: Send erasure acknowledgment email ──────────────────────────
+    const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+    void (async () => {
+      try {
+        const [user] = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${userId}::uuid`
+        if (!user?.email) return
+
+        const formattedDate = scheduledAt.toLocaleDateString("en-GB", {
+          day: "numeric", month: "long", year: "numeric",
+        })
+
+        await sendLifecycleEmails(
+          [user.email],
+          "Account erasure scheduled",
+          "user-erasure-requested",
+          { scheduledDate: formattedDate, cancelUrl: `${WEB_URL}/profile` }
+        )
+      } catch (err) {
+        console.error("[erasure] Failed to send erasure notification email:", err)
+      }
+    })()
+
+    // ── TRN-03: Enqueue warning email 3 days before expiry ──────────────
+    const warningDelay = (7 - 3) * 24 * 60 * 60 * 1000 // 4 days
+    void lifecycleQueue.add(
+      "lifecycle-warning",
+      { type: "lifecycle-warning", warningType: "user-erasure", entityId: userId },
+      { delay: warningDelay, jobId: `user-erase:${userId}:warning` }
+    ).catch((err: unknown) => {
+      console.error("[erasure] Failed to enqueue erasure warning job:", err)
     })
   })
 
@@ -95,6 +128,14 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
       if (job) await job.remove()
     } catch {
       // Job may have already been processed or removed — not critical
+    }
+
+    // Also remove the warning job
+    try {
+      const warningJob = await lifecycleQueue.getJob(`user-erase:${userId}:warning`)
+      if (warningJob) await warningJob.remove()
+    } catch {
+      // Warning job may not exist or already processed — not critical
     }
 
     // Mark request as cancelled
