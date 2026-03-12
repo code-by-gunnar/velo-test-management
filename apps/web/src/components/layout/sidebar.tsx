@@ -3,7 +3,7 @@ import Image from "next/image"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
-import { useCallback, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useUserRole } from "@/hooks/useUserRole"
 import {
   LayoutGrid,
@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  LogOut,
+  User,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -271,24 +273,108 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-gray-200 p-2">
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          title={collapsed ? (displayName || "Sign out") : undefined}
-          className={clsx(
-            "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-800 hover:bg-gray-100 transition-colors",
-            collapsed ? "justify-center px-2" : "px-2"
-          )}
-        >
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
-            {initials}
-          </div>
-          {!collapsed && (
-            <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Sign out"}</span>
-          )}
-        </button>
-      </div>
+      <UserMenu
+        slug={slug}
+        collapsed={collapsed}
+        initials={initials}
+        displayName={displayName}
+      />
     </aside>
+  )
+}
+
+// ── User popover menu ─────────────────────────────────────────────────────────
+
+function UserMenu({
+  slug,
+  collapsed,
+  initials,
+  displayName,
+}: {
+  slug: string
+  collapsed: boolean
+  initials: string
+  displayName: string
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Fetch avatar URL once on mount
+  useEffect(() => {
+    fetch("/api/backend/me/avatar-url")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url: string | null } | null) => {
+        if (data?.url) setAvatarUrl(data.url)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [open])
+
+  const avatar = avatarUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={avatarUrl}
+      alt=""
+      className="h-6 w-6 shrink-0 rounded-sm object-cover"
+    />
+  ) : (
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
+      {initials}
+    </div>
+  )
+
+  return (
+    <div className="relative border-t border-gray-200 p-2" ref={menuRef}>
+      {open && (
+        <div className="absolute bottom-full left-2 right-2 mb-1 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              void router.push(`/app/${slug}/profile`)
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <User size={14} className="text-gray-400" />
+            Profile
+          </button>
+          <div className="mx-2 my-1 border-t border-gray-100" />
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <LogOut size={14} className="text-gray-400" />
+            Sign out
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={collapsed ? (displayName || "Menu") : undefined}
+        className={clsx(
+          "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-800 hover:bg-gray-100 transition-colors",
+          collapsed ? "justify-center px-2" : "px-2"
+        )}
+      >
+        {avatar}
+        {!collapsed && (
+          <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Menu"}</span>
+        )}
+      </button>
+    </div>
   )
 }
