@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useUserRole } from "@/hooks/useUserRole"
 import {
   DndContext,
@@ -16,10 +16,15 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { Button } from "@/components/ui"
+import { ArrowUp, ArrowDown } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { CaseListRow } from "./CaseListRow"
 import { BulkActionBar } from "./BulkActionBar"
+
+type SortField = "title" | "suite" | "priority"
+type SortDir = "asc" | "desc"
+const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
 // Compute mid-gap position for drag reorder.
 // Returns -1 if gap has collapsed (positions equal), signaling server renumber.
@@ -67,6 +72,52 @@ export function CaseList({
   const { canEdit } = useUserRole()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDir === "asc") {
+        setSortDir("desc")
+      } else {
+        // Third click clears sort (back to position order)
+        setSortField(null)
+        setSortDir("asc")
+      }
+    } else {
+      setSortField(field)
+      setSortDir("asc")
+    }
+  }
+
+  const suiteNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of suites) map.set(s.id, s.name)
+    return map
+  }, [suites])
+
+  const sortedCases = useMemo(() => {
+    if (!sortField) return cases
+    const sorted = [...cases].sort((a, b) => {
+      let cmp = 0
+      switch (sortField) {
+        case "title":
+          cmp = a.title.localeCompare(b.title)
+          break
+        case "suite": {
+          const aName = a.suite_id ? (suiteNameMap.get(a.suite_id) ?? "") : ""
+          const bName = b.suite_id ? (suiteNameMap.get(b.suite_id) ?? "") : ""
+          cmp = aName.localeCompare(bName)
+          break
+        }
+        case "priority":
+          cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9)
+          break
+      }
+      return sortDir === "desc" ? -cmp : cmp
+    })
+    return sorted
+  }, [cases, sortField, sortDir, suiteNameMap])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -224,28 +275,23 @@ export function CaseList({
                       aria-label="Select all"
                     />
                   </th>
-                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    Title
-                  </th>
+                  <SortHeader field="title" label="Title" sortField={sortField} sortDir={sortDir} onToggle={toggleSort} />
                   {!selectedSuite && (
-                    <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Suite
-                    </th>
+                    <SortHeader field="suite" label="Suite" sortField={sortField} sortDir={sortDir} onToggle={toggleSort} />
                   )}
-                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    Priority
-                  </th>
+                  <SortHeader field="priority" label="Priority" sortField={sortField} sortDir={sortDir} onToggle={toggleSort} />
                   <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
                     Steps
                   </th>
                 </tr>
               </thead>
               <SortableContext
-                items={cases.map((c) => c.id)}
+                items={sortedCases.map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
+                disabled={!!sortField}
               >
                 <tbody>
-                  {cases.map((tc, index) => (
+                  {sortedCases.map((tc, index) => (
                     <CaseListRow
                       key={tc.id}
                       testCase={tc}
@@ -319,5 +365,41 @@ export function CaseList({
         />
       )}
     </div>
+  )
+}
+
+function SortHeader({
+  field,
+  label,
+  sortField,
+  sortDir,
+  onToggle,
+}: {
+  field: SortField
+  label: string
+  sortField: SortField | null
+  sortDir: SortDir
+  onToggle: (field: SortField) => void
+}) {
+  const active = sortField === field
+  return (
+    <th className="py-2.5 pr-4 text-left">
+      <button
+        type="button"
+        onClick={() => onToggle(field)}
+        className="group inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600"
+      >
+        {label}
+        {active ? (
+          sortDir === "asc" ? (
+            <ArrowUp className="h-3 w-3 text-primary" />
+          ) : (
+            <ArrowDown className="h-3 w-3 text-primary" />
+          )
+        ) : (
+          <ArrowUp className="h-3 w-3 opacity-0 group-hover:opacity-30" />
+        )}
+      </button>
+    </th>
   )
 }

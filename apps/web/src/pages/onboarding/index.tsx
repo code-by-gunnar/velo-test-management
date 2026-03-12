@@ -139,7 +139,7 @@ export default function OnboardingPage() {
                 </div>
                 <p className="text-xs text-gray-400">You can change this once after creation.</p>
               </FormField>
-              <Button onClick={createWorkspace} disabled={!state.workspaceName || loading}>
+              <Button size="md" onClick={createWorkspace} disabled={!state.workspaceName || loading}>
                 {loading ? "Creating..." : "Continue"}
               </Button>
             </div>
@@ -170,7 +170,7 @@ export default function OnboardingPage() {
                 />
                 <p className="text-xs text-gray-400">Lowercase letters and numbers only. Cannot be changed.</p>
               </FormField>
-              <Button onClick={createProject} disabled={!state.projectName || !state.projectKey || loading}>
+              <Button size="md" onClick={createProject} disabled={!state.projectName || !state.projectKey || loading}>
                 {loading ? "Creating..." : "Continue"}
               </Button>
             </div>
@@ -194,7 +194,7 @@ export default function OnboardingPage() {
                   <p className="text-xs text-gray-500">Pre-populates your project with example test suites and cases. Fully editable.</p>
                 </div>
               </label>
-              <Button onClick={finish} disabled={loading}>
+              <Button size="md" onClick={finish} disabled={loading}>
                 {loading ? "Setting up..." : "Go to dashboard"}
               </Button>
             </div>
