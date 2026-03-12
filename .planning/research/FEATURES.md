@@ -1,106 +1,122 @@
-# Feature Landscape: GDPR & Data Lifecycle
+# Feature Landscape: v1.2 Social Auth (Google + GitHub OAuth)
 
-**Domain:** GDPR compliance for multi-tenant SaaS
-**Project:** Velo v1.1
+**Domain:** OAuth sign-in/sign-up for existing SaaS with email/password auth
+**Project:** Velo v1.2
 **Researched:** 2026-03-12
-**Legal basis:** Contract performance (not consent) — eliminates cookie banners, consent withdrawal flows, CMP tooling
+**Overall confidence:** HIGH (Auth.js v5 has first-class OAuth provider support; patterns well-established)
 
 ---
 
-## Table Stakes (Must-Have for UK GDPR Compliance)
+## Table Stakes
 
-### Privacy Policy Page
-- **Article 13 transparency obligation** — legally required before processing any personal data
-- Static `/privacy` page with data controller identity, processing purposes, legal basis, retention periods, user rights
-- Complexity: LOW (static page, content needs legal review)
-- Dependencies: None — can ship first
+Features users expect from any SaaS with social auth. Missing = product feels half-finished.
 
-### Right to Erasure — Individual User (Article 17)
-- User can request deletion of their personal data from profile/settings
-- 7-day grace period with cancellation
-- Anonymize PII (name → "Deleted User", email → `deleted-{uuid}@deleted.invalid`, avatar deleted from R2)
-- Preserve test history (runs, comments) with anonymized references — cascade-deleting would break other users' data
-- Complexity: HIGH (anonymization across multiple tables, R2 cleanup, session invalidation)
-- Dependencies: Privacy policy (must explain rights before enabling them)
-
-### Right to Erasure — Workspace (Article 17)
-- Admin can request workspace deletion from settings
-- 30-day grace period with cancellation
-- Hard delete ALL workspace data: users removed from workspace, test cases, suites, runs, run items, comments, defects, API keys, invitations, CI ingestion data
-- Delete R2 objects (avatars, CI payloads) by workspace prefix
-- Complexity: HIGH (cascade delete across 15+ tables, R2 bulk cleanup, BullMQ scheduled jobs)
-- Dependencies: User erasure (individual rights must work independently of workspace lifecycle)
-
-### Data Export / Portability (Article 20)
-- User can download all their personal data as JSON
-- Scope: name, email, avatar URL, workspace memberships, roles
-- Lightweight — Velo stores minimal PII
-- Complexity: LOW (single API endpoint, JSON response)
-- Dependencies: None
-
-### Grace Period + Cancellation
-- Workspace deletion: 30-day grace, admin can cancel anytime during grace
-- User erasure: 7-day grace, user can cancel anytime during grace
-- ICO best practice — prevents accidental irreversible deletion
-- Complexity: MEDIUM (BullMQ delayed jobs with deterministic jobId for cancellation)
-- Dependencies: Workspace deletion and user erasure features
-
-### Scheduled Hard-Delete Jobs
-- BullMQ delayed jobs execute after grace period expires
-- Must be idempotent (safe to retry on failure)
-- Daily sweep job as safety net for any missed delayed jobs
-- Complexity: MEDIUM (new lifecycle queue, worker with progress tracking)
-- Dependencies: BullMQ queue setup
-
-### Erasure Status Visibility
-- Show pending deletion/erasure status in account settings and workspace settings
-- Article 12 transparency — user must know the status of their request
-- Complexity: LOW (read deletion_requested_at columns, display banner)
-- Dependencies: Deletion request endpoints
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| "Continue with Google" button on login page | Every dev-tool SaaS offers this; users expect zero-friction entry | Low | One Auth.js provider + env vars |
+| "Continue with GitHub" button on login page | GitHub is the default identity for developers; absence is a red flag for dev tools | Low | One Auth.js provider + env vars |
+| Social auth on signup page too | Users land on signup via marketing; buttons must appear on both paths | Low | Reuse same provider config, apply to both routes |
+| Auto-link when OAuth email matches existing account | Standard behavior (Supabase, Clerk, Auth0 all do this); users expect to "just work" regardless of which method they used first | Medium | Requires `allowDangerousEmailAccountLinking: true` on trusted providers + custom `signIn` callback to handle credentials-provider users |
+| New OAuth users land in workspace onboarding | OAuth users who have never signed up before must go through the same workspace creation flow as email users | Medium | Check for `workspace_id` in JWT on first login; redirect to onboarding if absent |
+| OAuth users bypass email OTP | Provider has already verified the email; demanding a second OTP verification is jarring and unusual | Low | Set `email_verified = true` for OAuth users in the user record; skip the OTP step in the auth callback |
+| Existing JWT/session fields preserved | `workspace_id`, `role`, and custom claims must populate correctly for OAuth sessions — feature parity with email sessions | Medium | Custom `jwt` and `session` callbacks must hydrate these fields from the DB for OAuth users the same way they do for credentials users |
+| "Sign in" and "Sign up" are the same OAuth action | OAuth has no separate "create account" concept — clicking "Continue with Google" on either page works | Low | Both pages point to the same `signIn("google")` call; JIT provisioning in the callback handles new vs returning users |
 
 ---
 
-## Differentiators (Beyond Minimum Compliance — Builds Trust)
+## Differentiators
 
-### Self-Serve Erasure
-- No support ticket needed — user/admin can request from UI
-- ICO explicitly recommends self-serve rights mechanisms
-- Complexity: MEDIUM (UI flows in settings pages)
+Features that build trust and polish. Not expected at launch, but add meaningful value.
 
-### Deletion Confirmation Emails
-- Email at request time, warning before grace expires, confirmation after deletion
-- Uses existing Resend integration
-- Complexity: LOW (3 email templates, BullMQ triggers)
-
-### Workspace Deletion Member Notifications
-- Notify workspace members when admin requests deletion
-- Give members time to export their data before workspace is gone
-- Complexity: LOW (email to all active members)
-
-### R2 Avatar Deletion in Erasure Job
-- Delete user's avatar from R2 during anonymization
-- Prevents zombie object storage files
-- Complexity: LOW (single R2 delete call)
-
-### Internal Erasure Audit Log
-- Log erasure requests with UUIDs and timestamps only (no PII in the log itself)
-- Supports ICO audit if questioned
-- TTL on audit entries (e.g., 2 years)
-- Complexity: LOW (simple table insert)
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| "Connected accounts" section in profile settings | Users want to know which providers are linked; surfaces transparency about their identity | Medium | Requires reading `accounts` table (Auth.js adapter model); display Google/GitHub connection status with link timestamps |
+| Show provider icon next to linked account | Visual cue — small Google/GitHub logo next to connected provider — reinforces what's linked | Low | Static SVG icons from provider brand assets |
+| Graceful "account already exists" error page | If auto-link fails for any reason, show a helpful message ("You previously signed in with email — use that to sign in, then connect Google in settings") rather than a cryptic Auth.js error | Low | Custom error page at `/auth/error` |
+| Avatar seeded from OAuth provider on first login | GitHub and Google both return a profile image; auto-populate avatar instead of leaving it blank | Low | Read `image` from the OAuth profile in the `signIn` callback; write to R2 or store URL if no avatar exists yet |
 
 ---
 
-## Anti-Features (Deliberately NOT Building)
+## Anti-Features
 
-| Feature | Why Not |
-|---------|---------|
-| Cookie consent banner | Session cookie is strictly necessary (exempt). No analytics cookies. |
-| Consent management platform | Legal basis is contract, not consent. No consent to manage. |
-| DPA / Terms of Service | Needs legal review, not code. Defer to lawyer. |
-| Full Article 30 RoPA | Article 30(5) exempts <250 employees for non-high-risk processing. |
-| DSAR automation tooling | mailto: link is compliant at current scale. |
-| Right to restriction / right to object | Irrelevant for contract-basis processing. |
-| Automated decision-making disclosures (Article 22) | Velo makes no automated decisions about users. |
+Features to explicitly NOT build in this milestone.
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Account unlinking (disconnect a provider) | Adds UI complexity, risk of lockout if email/password not set, and requires careful UX to prevent users locking themselves out | Defer — display connected accounts as read-only for now |
+| Apple Sign-In | Requires Apple Developer account ($99/yr), notarization, and has additional UX requirements (hide email relay). Low dev-tool relevance. | Defer to future milestone |
+| Microsoft / Azure AD SSO | Enterprise SAML/OIDC pattern, not needed for 20-200 person startup ICP | Defer; belongs in enterprise tier |
+| "Link account while signed in" flow | Adds a second OAuth flow specifically for merging, with distinct UI and error handling. Auto-link on email match covers 95% of the need. | Auto-link on sign-in covers this without a dedicated flow |
+| OAuth refresh token storage | Velo does not call Google/GitHub APIs on the user's behalf — no need to store or refresh OAuth tokens | Discard access tokens after session creation; do not store in DB |
+| Separate "sign up with OAuth" page | OAuth is inherently JIT — no pre-registration form needed | One callback handler creates the user if they don't exist |
+| Username from GitHub as display name | GitHub usernames (e.g., `gunnarx2`) make poor display names; full name from GitHub profile is better | Use `profile.name` from the OAuth profile, fall back to `profile.login` only if name is null |
+
+---
+
+## Feature Dependencies
+
+```
+Existing Auth.js v5 JWT/session pipeline
+    └─→ Google provider (AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET)
+    └─→ GitHub provider (AUTH_GITHUB_ID, AUTH_GITHUB_SECRET)
+        └─→ allowDangerousEmailAccountLinking on both providers
+            └─→ Custom signIn callback: JIT user provision + auto-link logic
+                └─→ Custom jwt callback: hydrate workspace_id + role for OAuth users
+                    └─→ Social buttons on login + signup pages
+                        └─→ OAuth bypass of email_verified check
+                        └─→ Avatar seeding from OAuth profile (differentiator)
+                        └─→ Connected accounts display in profile (differentiator)
+```
+
+---
+
+## Critical Decisions Affecting Features
+
+### Auto-Link via `allowDangerousEmailAccountLinking`
+
+Auth.js v5 disables automatic OAuth-to-credentials account linking by default because it's insecure between arbitrary providers. The "dangerous" label applies when the provider cannot be trusted to verify emails. However:
+
+- Google verifies emails on all accounts — HIGH confidence
+- GitHub verifies emails on public accounts (though users can set a noreply address for commits, the primary account email returned via OAuth is verified)
+- Both are appropriate to trust with `allowDangerousEmailAccountLinking: true`
+
+The custom `signIn` callback must still handle the edge case where a credentials-provider user (no `accounts` row for OAuth) exists with the same email — Auth.js does not automatically link credentials sessions.
+
+**Verdict:** Use `allowDangerousEmailAccountLinking: true` on both Google and GitHub providers. Add a `signIn` callback that upserts the OAuth account link when an email match is found against an existing credentials user.
+
+### GitHub Email Privacy
+
+GitHub users can set their commit email to a noreply address (`ID+user@users.noreply.github.com`), but this only affects git operations. The email returned via OAuth is the user's primary verified account email — not the noreply alias. This is safe to use for account lookup and linking.
+
+Edge case: users with no public email on GitHub. The GitHub OAuth API returns `null` for email if the user has no public email. Velo must request the `user:email` scope to get the verified primary email via a secondary API call — Auth.js handles this automatically for the GitHub provider.
+
+**Verdict:** Request `user:email` scope (Auth.js GitHub provider default). Handle the case where email is null gracefully — require the user to add an email to their GitHub account before they can use GitHub OAuth.
+
+### New OAuth Users and Workspace Onboarding
+
+Velo is multi-tenant. A new OAuth user has no workspace. The post-sign-in redirect logic must check for `workspace_id` in the JWT and route to workspace creation if absent. This is identical to the email/password new user flow and reuses the same onboarding page.
+
+**Verdict:** The `jwt` callback populates `workspace_id` from the DB. If null, the session middleware redirects to `/onboarding`. No new onboarding UI needed — the OAuth path converges with the existing flow.
+
+---
+
+## MVP Recommendation
+
+**Minimum for v1.2 ship:**
+
+1. Google OAuth provider configured with `allowDangerousEmailAccountLinking: true`
+2. GitHub OAuth provider configured with `allowDangerousEmailAccountLinking: true`
+3. Custom `signIn` callback: JIT provision new users, auto-link email matches from credentials accounts
+4. Custom `jwt`/`session` callbacks: hydrate `workspace_id` + `role` for OAuth users
+5. Social buttons on `/auth/signin` and `/auth/signup` pages
+6. OAuth users skip email OTP verification
+7. Avatar seeded from provider profile on first login (low effort, high polish)
+8. Graceful `/auth/error` page for OAuthAccountNotLinked errors
+
+**Defer from MVP:**
+
+- Connected accounts settings page — useful but not blocking
+- Account unlinking — defer entirely
 
 ---
 
@@ -108,30 +124,26 @@
 
 | Feature | Effort | Priority |
 |---------|--------|----------|
-| Privacy policy page | 1 day | P0 |
-| Data export endpoint | 1 day | P0 |
-| User erasure (anonymize) | 2-3 days | P0 |
-| Workspace deletion (hard delete) | 2-3 days | P0 |
-| Grace period + cancellation | 1 day | P0 |
-| Scheduled cleanup jobs | 1 day | P0 |
-| Erasure status UI | 0.5 day | P1 |
-| Deletion confirmation emails | 0.5 day | P1 |
-| Member notifications | 0.5 day | P1 |
-| **Total** | **~9 days** | |
+| Google + GitHub provider config + env vars | 0.5 day | P0 |
+| signIn callback: JIT provision + auto-link | 1 day | P0 |
+| jwt/session callbacks: hydrate workspace_id + role | 0.5 day | P0 |
+| Social buttons on login + signup pages | 0.5 day | P0 |
+| OAuth bypass of email OTP check | 0.5 day | P0 |
+| Avatar seed from OAuth profile | 0.5 day | P1 |
+| /auth/error graceful error page | 0.5 day | P1 |
+| Connected accounts in profile settings | 1 day | P2 |
+| **Total (MVP P0+P1)** | **~3.5 days** | |
+| **Total (all P0–P2)** | **~4.5 days** | |
 
 ---
 
-## Dependency Order
+## Sources
 
-```
-Privacy Policy (no deps)
-    └─→ Data Export (no deps)
-        └─→ User Erasure + Cancellation
-            └─→ Workspace Deletion + Member Notifications
-                └─→ Scheduled Cleanup Jobs
-                    └─→ Status UI + Confirmation Emails
-```
-
----
-
-*Sources: ICO Right to Erasure guidance, EDPB 2025 coordinated enforcement report, GDPR Articles 12/13/17/20, ICO Data Portability guidance*
+- [Auth.js v5 Google Provider docs](https://authjs.dev/getting-started/providers/google) — HIGH confidence
+- [Auth.js v5 GitHub Provider docs](https://authjs.dev/getting-started/providers/github) — HIGH confidence
+- [Auth.js v5 Configuring OAuth Providers](https://authjs.dev/guides/configuring-oauth-providers) — HIGH confidence
+- [Auth.js allowDangerousEmailAccountLinking — nextauthjs/next-auth Discussion #9992](https://github.com/nextauthjs/next-auth/issues/9992) — MEDIUM confidence (issue discussion, consistent with docs)
+- [Supabase identity linking (email-based auto-link precedent)](https://supabase.com/docs/guides/auth/auth-identity-linking) — MEDIUM confidence
+- [Clerk account linking strategy (email as common identifier)](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/account-linking) — MEDIUM confidence
+- [GitHub email addresses docs (OAuth vs commit noreply)](https://docs.github.com/en/account-and-profile/reference/email-addresses-reference) — HIGH confidence
+- [Login/Signup UX 2025 best practices — Authgear](https://www.authgear.com/post/login-signup-ux-guide) — MEDIUM confidence
