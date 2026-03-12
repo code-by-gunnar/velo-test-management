@@ -1,152 +1,119 @@
 ---
 phase: 01-foundation
-plan: "02"
-subsystem: database
-tags: [postgres, drizzle, drizzle-kit, drizzle-orm, postgres.js, uuidv7, migrations]
+plan: 02
+subsystem: auth
+tags: [fastify, postgres, oauth, jwt, tdd, vitest, integration-tests]
 
-# Dependency graph
 requires:
-  - phase: 01-foundation plan 01
-    provides: pnpm monorepo scaffold with apps/api Fastify server bootable
-provides:
-  - Full PostgreSQL schema for all Phase 1-3 entities (12 tables, 5 enums)
-  - Drizzle-generated SQL migration file committed to git
-  - Programmatic migrator runs on Fastify startup (idempotent)
-  - Runtime postgres.js pooled client at apps/api/src/db/client.ts
-affects:
-  - All future phases (every feature reads/writes to this schema)
-  - Phase 2 (test cases, suites — tables defined here)
-  - Phase 3 (test runs, run items — tables defined here)
-  - Phase 4 (CI ingestion writes to run_items and defects)
-  - Phase 5 (defects.external_id/url used for Linear integration)
-  - Phase 6 (workspace_members.role used for RBAC)
+  - phase: 01-01
+    provides: "migration 0009 adding user_oauth_accounts table; null password_hash guard in verify-credentials"
 
-# Tech tracking
+provides:
+  - "POST /api/auth/oauth-signin endpoint with 5-path resolution (INF-08)"
+  - "Integration tests covering all 5 OAuth paths plus null password_hash guard"
+
+affects: [phase-2-authjs-callback, social-auth]
+
 tech-stack:
-  added:
-    - postgres (postgres.js v3 — runtime query client)
-    - uuidv7 (UUID v7 time-ordered primary key generation)
-    - drizzle-orm (dev — schema definition + programmatic migrator)
-    - drizzle-kit (dev — SQL migration generation)
+  added: []
   patterns:
-    - UUID v7 primary keys on all tables via $defaultFn(() => uuidv7())
-    - workspace_id FK denormalized on every tenant-scoped table
-    - Gap-based integer position columns (suites, test_cases) for drag-drop
-    - Separate migration client (max: 1) from app pool client (max: 10)
-    - pgEnum for all controlled vocabularies (plan_tier, workspace_role, test_priority, test_status, run_status)
-    - CHECK constraints enforce project_key lowercase and format at DB layer
+    - "Error code capture pattern: set errorCode inside sql.begin(), handle reply.send() after transaction"
+    - "TDD RED->GREEN: failing tests committed first, then implementation to pass"
+    - "ON CONFLICT (provider, provider_account_id) DO NOTHING for idempotent oauth account inserts"
 
 key-files:
   created:
-    - apps/api/src/db/schema.ts
-    - apps/api/src/db/client.ts
-    - apps/api/drizzle/0000_wandering_blue_shield.sql
-    - apps/api/drizzle/meta/_journal.json
-    - apps/api/drizzle/meta/0000_snapshot.json
-    - apps/api/drizzle.config.ts
-    - apps/api/.env.example
+    - "apps/api/src/routes/__tests__/auth.test.ts (OAuth signin describe block — 7 new tests)"
   modified:
-    - apps/api/src/server.ts
-    - apps/api/package.json
-    - .gitignore
+    - "apps/api/src/routes/auth.ts (POST /api/auth/oauth-signin route added)"
 
 key-decisions:
-  - "drizzle-orm as dev-only dep: used only for schema definition and migrator, not runtime queries"
-  - "uuidv7 npm package for UUID v7 PKs: PostgreSQL 18+ adds native uuidv7(), PG 16 requires app-layer generation"
-  - "drizzle/ migration files committed to git (not gitignored): enables reproducible migrations in CI and on Railway"
-  - "Phase 2/3 tables (suites, test_cases, test_runs, run_items) defined in Phase 1 schema: avoids mid-phase migrations during seeding"
+  - "reply.send() called outside sql.begin() transaction block to avoid race conditions with test DB verification (CLAUDE.md rule)"
+  - "Error codes captured as local variables inside transaction, not thrown as exceptions, to keep reply.send() outside sql.begin()"
+  - "TypeScript null guard on step 7 fullUser query using rows[0] pattern with explicit if-check (avoids tsc strict error)"
+  - "sql.end() moved from first describe afterAll to OAuth describe afterAll to prevent connection closure before OAuth tests run"
 
 patterns-established:
-  - "UUID v7 PK pattern: uuid('id').primaryKey().$defaultFn(() => uuidv7()) on every table"
-  - "Tenant isolation pattern: workspace_id uuid NOT NULL FK on every tenant-scoped table"
-  - "Gap-based ordering: integer position DEFAULT 0 with increments of 1000 for drag-drop reorder"
-  - "Migration idempotency: programmatic migrate() runs on every Fastify startup, safe in CI"
+  - "Error-capture pattern: let errorCode = null; inside tx set errorCode; after tx if errorCode then reply.status(409)"
+  - "OAuth JIT provision: INSERT with email_verified=true and password_hash=NULL"
+  - "Auto-link: UPDATE email_verified=true on existing user before inserting oauth account"
 
-requirements-completed: [INFRA-03, INFRA-05]
+requirements-completed: [INF-08]
 
-# Metrics
-duration: 5min
-completed: 2026-03-08
+duration: 7min
+completed: 2026-03-12
 ---
 
-# Phase 1 Plan 02: Database Schema + Migrations Summary
+# Phase 1 Plan 2: OAuth Signin Fastify Route Summary
 
-**Drizzle schema for 12 PostgreSQL tables and 5 enums covering all Phase 1-3 entities, with SQL migrations generated and a programmatic migrator wired into Fastify startup**
+**POST /api/auth/oauth-signin with 5-path resolution (JIT provision, returning user, auto-link, unverified email block, provider conflict block) plus full TDD integration test coverage**
 
 ## Performance
 
-- **Duration:** 5 min
-- **Started:** 2026-03-08T21:33:04Z
-- **Completed:** 2026-03-08T21:38:19Z
-- **Tasks:** 3
-- **Files modified:** 10
+- **Duration:** ~7 min
+- **Started:** 2026-03-12T23:23:00Z
+- **Completed:** 2026-03-12T23:28:14Z
+- **Tasks:** 2 (TDD: RED + GREEN)
+- **Files modified:** 2
 
 ## Accomplishments
 
-- Full entity schema defined: users, workspaces, workspace_members, projects, suites, test_cases, test_case_steps, test_runs, run_items, defects, verification_tokens, password_reset_tokens
-- SQL migration file generated by drizzle-kit and committed to git
-- Programmatic migrator runs on Fastify startup — schema stays up-to-date on every deploy
-- Runtime postgres.js pooled client created (separate from single-connection migrator client)
+- Wrote 7 failing integration tests covering all 5 OAuth resolution paths plus guard and schema validation (RED phase)
+- Implemented `POST /api/auth/oauth-signin` handling all 5 paths inside a single `sql.begin()` transaction (GREEN phase)
+- Full CI simulation passes: lint + typecheck + 192 tests
 
 ## Task Commits
 
-Each task was committed atomically:
-
-1. **Task 1: Install database dependencies and configure Drizzle** - `fd02e70` (chore)
-2. **Task 2: Define the full Phase 1 + Phase 2 entity schema** - `680223f` (feat)
-3. **Task 3: Generate migrations and wire programmatic migrator** - `024fb89` (feat)
+1. **Task 1: Integration tests (RED)** - `b071716` (test)
+2. **Task 2: oauth-signin implementation (GREEN)** - `459d5f5` (feat)
 
 ## Files Created/Modified
 
-- `apps/api/src/db/schema.ts` - Full entity schema: 12 tables, 5 pgEnums, UUID v7 PKs, workspace_id FKs, gap-based position columns
-- `apps/api/src/db/client.ts` - Runtime postgres.js pooled connection (max: 10)
-- `apps/api/drizzle/0000_wandering_blue_shield.sql` - Generated SQL migration (12 tables, 5 enums, FKs, CHECK constraints)
-- `apps/api/drizzle/meta/` - Drizzle migration journal and snapshot metadata
-- `apps/api/drizzle.config.ts` - Drizzle Kit config pointing at ./src/db/schema.ts, output ./drizzle
-- `apps/api/.env.example` - Template for required environment variables
-- `apps/api/src/server.ts` - Updated with programmatic migrator before server listen
-- `apps/api/package.json` - Added postgres, uuidv7 dependencies; drizzle-orm, drizzle-kit devDependencies; db:generate, db:migrate, db:studio scripts
-- `.gitignore` - Removed erroneous `drizzle/` entry so migration files are tracked in git
+- `apps/api/src/routes/__tests__/auth.test.ts` — Added `describe("OAuth signin")` block with 7 tests; fixed afterAll sql.end() ordering to prevent connection closure before OAuth tests
+- `apps/api/src/routes/auth.ts` — Added `POST /api/auth/oauth-signin` route with 7-step transaction handler
 
 ## Decisions Made
 
-- **drizzle-orm as devDependency only:** Schema definition and the programmatic migrator are the only Drizzle uses at runtime. All application queries use postgres.js raw SQL to avoid Drizzle fighting recursive CTEs and aggregate queries.
-- **uuidv7 npm package:** PostgreSQL 16 has no native `uuidv7()` function (that is PostgreSQL 18+). Using the `uuidv7` package at the application layer provides time-ordered UUID v7 PKs consistently.
-- **Migration files committed to git:** Enables deterministic schema history, reproducible CI, and Railway deploy correctness. Removed `drizzle/` from .gitignore.
-- **Phase 2/3 tables defined in Plan 2:** Suites, test_cases, test_runs, run_items are defined now so the sample data seed in Plan 6 works without requiring a mid-phase migration.
+- Error codes (`unverified_email`, `provider_conflict`) are captured as local variables inside the transaction and handled via `reply.send()` after the transaction — this is required by the `reply.send() outside withWorkspace` rule in CLAUDE.md
+- Used `rows[0]` destructuring with explicit `if (fullUser)` check for the step 7 final fetch to satisfy TypeScript strict mode (destructuring from query results is typed as possibly undefined)
+- Moved `sql.end()` from the first describe block's `afterAll` to the OAuth describe block's `afterAll` to prevent the postgres connection from closing before the second describe block's tests run
 
 ## Deviations from Plan
 
 ### Auto-fixed Issues
 
-**1. [Rule 1 - Bug] Removed `drizzle/` from .gitignore**
-- **Found during:** Task 3 (Generate migrations and commit)
-- **Issue:** The .gitignore from Plan 1 contained `drizzle/`, which prevented the generated migration files from being tracked in git. The plan explicitly states "Commit all generated files to git."
-- **Fix:** Removed `drizzle/` line from root .gitignore
-- **Files modified:** `.gitignore`
-- **Verification:** `git add apps/api/drizzle/` succeeded; migration files committed
-- **Committed in:** `024fb89` (Task 3 commit)
+**1. [Rule 1 - Bug] Fixed TypeScript strict error on fullUser possibly undefined**
+- **Found during:** Task 2 (typecheck after implementation)
+- **Issue:** `const [fullUser] = await q\`...\`` typed as possibly undefined by tsc
+- **Fix:** Changed to `const rows = await q\`...\`; const fullUser = rows[0]; if (fullUser) { ... }`
+- **Files modified:** apps/api/src/routes/auth.ts
+- **Verification:** `pnpm --recursive typecheck` passes with zero errors
+- **Committed in:** 459d5f5 (Task 2 commit)
+
+**2. [Rule 1 - Bug] Fixed sql.end() closing connection before OAuth tests run**
+- **Found during:** Task 1 (RED phase test run)
+- **Issue:** First describe block's `afterAll` called `sql.end()`, causing CONNECTION_ENDED errors in subsequent OAuth tests
+- **Fix:** Removed `sql.end()` from first describe's afterAll, kept only in OAuth describe's afterAll
+- **Files modified:** apps/api/src/routes/__tests__/auth.test.ts
+- **Verification:** All 192 tests pass in a single run
+- **Committed in:** b071716 (Task 1 commit)
 
 ---
 
-**Total deviations:** 1 auto-fixed (Rule 1 - bug in gitignore)
-**Impact on plan:** Essential fix for correctness — migration files must be tracked in git for CI and Railway deploy. No scope creep.
+**Total deviations:** 2 auto-fixed (both Rule 1 — correctness bugs)
+**Impact on plan:** Both fixes necessary for test suite correctness and TypeScript compliance. No scope creep.
 
 ## Issues Encountered
 
-- No local PostgreSQL or Docker available in the execution environment. `drizzle-kit generate` only reads the TypeScript schema (no live DB connection required), so migrations were generated successfully. Verification steps requiring `psql` (confirm tables exist after migrate, confirm enums) cannot be performed locally — these will be verified when the Railway environment is configured with DATABASE_URL.
-
-## User Setup Required
-
-Before first deploy, set `DATABASE_URL` in Railway environment and deploy. The programmatic migrator will apply `0000_wandering_blue_shield.sql` on first startup, creating all tables and enums.
+None beyond the auto-fixed issues above.
 
 ## Next Phase Readiness
 
-- Schema is complete for all Phase 1-3 features
-- Runtime postgres.js client is ready at `apps/api/src/db/client.ts`
-- Migration will run automatically on next `pnpm dev` or Railway deploy (requires live DATABASE_URL)
-- Plan 3 (Auth) can proceed — users table and verification_tokens table exist
+- `POST /api/auth/oauth-signin` is ready for Phase 2 (Auth.js signIn callback wiring)
+- Response shape matches `verify-credentials` exactly: `{ id, email, name, workspace_id, workspace_slug, role }`
+- Error codes `unverified_email` and `provider_conflict` are ready for Phase 2 Auth.js callback to map to user-facing messages
+- Pitfalls to address in Phase 2: Set-Cookie multi-value fix, workspace_id injection in signIn callback, GitHub user:email scope, allowDangerousEmailAccountLinking flag
 
 ---
 *Phase: 01-foundation*
-*Completed: 2026-03-08*
+*Completed: 2026-03-12*
