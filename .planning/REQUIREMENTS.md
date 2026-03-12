@@ -29,7 +29,7 @@ Requirements for adding Google and GitHub OAuth alongside existing email/passwor
 
 ### Infrastructure
 
-- [ ] **INF-05**: Schema migration adds `user_oauth_accounts` table and makes `password_hash` nullable
+- [x] **INF-05**: Schema migration adds `user_oauth_accounts` table and makes `password_hash` nullable
 - [ ] **INF-06**: Pages Router `[...nextauth].ts` bridge correctly forwards multiple `Set-Cookie` headers
 - [ ] **INF-07**: GDPR erasure worker deletes `user_oauth_accounts` rows during user anonymization
 - [ ] **INF-08**: Fastify `POST /api/auth/oauth-signin` endpoint handles user resolution (new, returning, auto-link)
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INF-05 | Phase 1 | Pending |
+| INF-05 | Phase 1 | Complete |
 | INF-08 | Phase 1 | Pending |
 | INF-06 | Phase 2 | Pending |
 | OAP-01 | Phase 2 | Pending |

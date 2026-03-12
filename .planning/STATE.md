@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Social Auth
-status: roadmap_ready
-stopped_at: null
-last_updated: "2026-03-12T18:30:00.000Z"
-last_activity: 2026-03-12 -- Roadmap created, ready to plan Phase 1
+status: in_progress
+stopped_at: "Completed 01-01-PLAN.md"
+last_updated: "2026-03-12T23:22:00Z"
+last_activity: 2026-03-12 -- Executed 01-01: migration 0009 + null password guard
 progress:
   total_phases: 4
   completed_phases: 0
@@ -49,8 +49,8 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: Phase 1 -- Schema & Fastify Route
-Plan: Not started
-Status: Roadmap ready, pending plan-phase
+Plan: 1 of 2 complete (01-01 done)
+Status: In progress
 
 ```
 Progress: [ ] Phase 1  [ ] Phase 2  [ ] Phase 3  [ ] Phase 4
@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - Google + GitHub only (most common for dev-tool SaaS)
 - Auth.js v5 built-in providers (no custom OAuth)
 - Zero new npm packages -- all provider logic in existing next-auth
+- [Phase 01-foundation]: Null password_hash guard returns identical 401 error message as wrong password to prevent OAuth-account enumeration
 
 ### Critical Implementation Notes
 
@@ -91,7 +92,7 @@ Recent decisions affecting current work:
 - [ ] `workspace_id` injection in `signIn` callback (verify with page refresh)
 - [ ] GitHub `user:email` scope + null email fallback via `/user/emails` API
 - [ ] `allowDangerousEmailAccountLinking: true` on both providers
-- [ ] `verify-credentials` null `password_hash` safety confirmed before migration
+- [x] `verify-credentials` null `password_hash` safety confirmed before migration
 - [ ] Erasure worker explicit DELETE for anonymization path
 - [ ] Two GitHub OAuth Apps registered (dev + prod separate callback URLs)
 
@@ -105,7 +106,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T18:30:00.000Z
-Stopped at: null
+Last session: 2026-03-12T23:22:00.471Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 1`
+Next action: `/gsd:execute-phase 1 plan 2` (01-02: Fastify OAuth route)

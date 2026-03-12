@@ -26,7 +26,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
   1. Migration 0009 runs cleanly -- `user_oauth_accounts` table exists with `UNIQUE(provider, provider_account_id)` and `ON DELETE CASCADE`, and `users.password_hash` accepts NULL
   2. `POST /api/auth/oauth-signin` returns a user object with `{ id, email, name, workspace_id, workspace_slug, role }` for all three paths: new user (JIT provisioned), returning user (looked up by oauth account row), and auto-link (email-match with existing credentials user)
   3. Integration tests confirm the endpoint is idempotent -- calling it twice for the same `(provider, provider_account_id)` does not create duplicate rows
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 07-01-PLAN.md -- Migration 0009 + Drizzle schema + null password_hash guard
 - [ ] 07-02-PLAN.md -- POST /api/auth/oauth-signin endpoint + integration tests
@@ -70,7 +70,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Fastify Route | 0/2 | Planning complete | - |
+| 1. Schema & Fastify Route | 1/2 | In Progress|  |
 | 2. Auth.js Config & OAuth Chain | 0/? | Not started | - |
 | 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
