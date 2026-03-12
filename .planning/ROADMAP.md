@@ -10,7 +10,7 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
+- [x] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
 - [ ] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
 - [ ] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
 - [ ] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
@@ -29,9 +29,9 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- GDPR lifecycle database migration (workspace deletion columns, erasure requests table, audit log table)
-- [ ] 01-02-PLAN.md -- BullMQ lifecycle queue, worker skeleton with daily sweep, audit log helper
-- [ ] 01-03-PLAN.md -- Public privacy policy page (/privacy)
+- [x] 01-01-PLAN.md -- GDPR lifecycle database migration (workspace deletion columns, erasure requests table, audit log table)
+- [x] 01-02-PLAN.md -- BullMQ lifecycle queue, worker skeleton with daily sweep, audit log helper
+- [x] 01-03-PLAN.md -- Public privacy policy page (/privacy)
 
 ### Phase 2: Lifecycle Workers & API
 **Goal**: Admins can request and cancel workspace deletion, users can request and cancel personal erasure, and expired grace periods execute the correct cleanup (hard-delete workspace data, anonymize user PII, purge R2 objects)
@@ -43,7 +43,12 @@ Plans:
   3. When workspace grace period expires, worker collects R2 keys BEFORE cascade, batch-deletes R2 objects, then hard-deletes the workspace row (CASCADE handles child tables), with atomic status claim preventing concurrent execution
   4. User can request erasure -- system creates `user_erasure_requests` row, enqueues delayed job, and immediately writes `deactivated:{workspaceId}:{userId}` to Valkey blocklist (existing session plugin returns 401)
   5. When user erasure grace period expires, worker anonymizes all PII fields (name, email via `deleted-{uuid}@deleted.invalid`, password_hash, avatar_url after R2 delete, pending_email) and the user row is preserved so `created_by` references resolve to "Deleted User"
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md -- Workspace deletion API routes (request + cancel + status)
+- [ ] 02-02-PLAN.md -- User erasure API routes (request + cancel + status + session invalidation)
+- [ ] 02-03-PLAN.md -- Lifecycle workers: workspace hard-delete with R2 cleanup + user PII anonymization
 
 ### Phase 3: Export & Frontend
 **Goal**: Admins can export all workspace data, and all lifecycle status (pending deletion, pending erasure, scheduled dates, cancel buttons) is visible in the appropriate settings pages
@@ -73,7 +78,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Foundation | 0/3 | Not started | - |
+| 1. Schema & Foundation | 3/3 | Complete | 2026-03-12 |
 | 2. Lifecycle Workers & API | 0/? | Not started | - |
 | 3. Export & Frontend | 0/? | Not started | - |
 | 4. Notifications & Verification | 0/? | Not started | - |
