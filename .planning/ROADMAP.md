@@ -11,7 +11,7 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
-- [ ] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
+- [x] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
 - [ ] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
 - [ ] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
 
@@ -46,9 +46,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Workspace deletion API routes (request + cancel + status)
-- [ ] 02-02-PLAN.md -- User erasure API routes (request + cancel + status + session invalidation)
-- [ ] 02-03-PLAN.md -- Lifecycle workers: workspace hard-delete with R2 cleanup + user PII anonymization
+- [x] 02-01-PLAN.md -- Workspace deletion API routes (request + cancel + status)
+- [x] 02-02-PLAN.md -- User erasure API routes (request + cancel + status + session invalidation)
+- [x] 02-03-PLAN.md -- Lifecycle workers: workspace hard-delete with R2 cleanup + user PII anonymization
 
 ### Phase 3: Export & Frontend
 **Goal**: Admins can export all workspace data, and all lifecycle status (pending deletion, pending erasure, scheduled dates, cancel buttons) is visible in the appropriate settings pages
@@ -79,8 +79,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Schema & Foundation | 3/3 | Complete | 2026-03-12 |
-| 2. Lifecycle Workers & API | 0/? | Not started | - |
-| 3. Export & Frontend | 0/? | Not started | - |
+| 2. Lifecycle Workers & API | 3/3 | Complete | 2026-03-12 |
+| 3. Export & Frontend | 1/3 | In Progress|  |
 | 4. Notifications & Verification | 0/? | Not started | - |
 
 ## Coverage Map
