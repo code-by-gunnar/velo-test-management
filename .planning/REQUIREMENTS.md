@@ -1,145 +1,91 @@
-# Requirements: v1.1 GDPR & Data Lifecycle
+# Requirements: Velo v1.2 Social Auth
 
-**Milestone:** v1.1
-**Created:** 2026-03-12
-**Status:** Approved
+**Defined:** 2026-03-12
+**Core Value:** Ship a focused, keyboard-first test management tool that startups actually want to use — no Jira complexity, no enterprise bloat.
 
----
+## v1.2 Requirements
 
-## Workspace Lifecycle
+Requirements for adding Google and GitHub OAuth alongside existing email/password auth.
 
-### WLC-01 — Request Workspace Deletion
-Admin can request workspace deletion from workspace settings. System records `deletion_requested_at`, `deletion_scheduled_at` (now + 30 days), `deletion_requested_by`, and sets `deletion_status = 'pending_deletion'`. A BullMQ delayed job is enqueued with deterministic `jobId: ws-delete:{workspaceId}`.
+### OAuth Providers
 
-### WLC-02 — Cancel Workspace Deletion
-Admin can cancel a pending deletion during the 30-day grace period. System removes the BullMQ job by `jobId`, clears all `deletion_*` columns. Cancellation is independent of any member's individual erasure request (GM1).
+- [ ] **OAP-01**: User can sign in or sign up using their Google account
+- [ ] **OAP-02**: User can sign in or sign up using their GitHub account
+- [ ] **OAP-03**: OAuth users bypass email OTP verification (provider already verified email)
+- [ ] **OAP-04**: GitHub OAuth handles private-email users by requesting `user:email` scope
 
-### WLC-03 — Hard-Delete Workspace
-When the grace period expires, the lifecycle worker: (1) collects all R2 keys by workspace prefix, (2) batch-deletes R2 objects, (3) cleans up Valkey keys by workspace pattern, (4) hard-deletes the workspace row (CASCADE handles all child tables). Uses atomic status claim to prevent concurrent execution (GC4).
+### Account Linking
 
-### WLC-04 — R2 Cleanup Before CASCADE
-R2 object keys (avatars, CI payloads) are enumerated BEFORE the DB CASCADE fires. After CASCADE, FK references are gone and key paths cannot be reconstructed (GC2).
+- [ ] **ALK-01**: OAuth sign-in auto-links to existing account when email matches (no duplicate accounts)
+- [ ] **ALK-02**: New OAuth users are JIT-provisioned and routed to workspace onboarding
+- [ ] **ALK-03**: OAuth sessions carry identical JWT fields (workspace_id, role, id) as credentials sessions
 
-### WLC-05 — Member Deletion Notifications
-All active workspace members receive an email notification when an admin requests workspace deletion. Notification includes the scheduled deletion date and advises members to export data if needed.
+### UI
 
----
+- [ ] **UI-01**: Login page displays "Continue with Google" and "Continue with GitHub" buttons with visual separator
+- [ ] **UI-02**: Signup page displays the same social auth buttons
+- [ ] **UI-03**: Custom `/auth/error` page shows actionable messages for auth failures (not generic Auth.js errors)
+- [ ] **UI-04**: User avatar is seeded from OAuth provider profile picture on first sign-in
 
-## User Erasure
+### Infrastructure
 
-### UER-01 — Request User Erasure
-User can request erasure of their personal data from profile settings. System creates a `user_erasure_requests` row with `status = 'pending'` and `scheduled_at = now + 7 days`. A BullMQ delayed job is enqueued with `jobId: user-erase:{userId}`.
+- [ ] **INF-05**: Schema migration adds `user_oauth_accounts` table and makes `password_hash` nullable
+- [ ] **INF-06**: Pages Router `[...nextauth].ts` bridge correctly forwards multiple `Set-Cookie` headers
+- [ ] **INF-07**: GDPR erasure worker deletes `user_oauth_accounts` rows during user anonymization
+- [ ] **INF-08**: Fastify `POST /api/auth/oauth-signin` endpoint handles user resolution (new, returning, auto-link)
 
-### UER-02 — Cancel User Erasure
-User can cancel a pending erasure during the 7-day grace period. System removes the BullMQ job, sets erasure request `status = 'cancelled'`. Independent of workspace deletion lifecycle (GM1).
+## Future Requirements
 
-### UER-03 — Anonymize PII
-When the grace period expires, the lifecycle worker anonymizes all PII fields: `name → 'Deleted User'`, `email → 'deleted-{uuid}@deleted.invalid'`, `password_hash → NULL`, `avatar_url → NULL` (after R2 delete), `pending_email → NULL`. The `deleted-{uuid}@deleted.invalid` pattern frees the original email for re-registration (GC5). Covers ALL PII-bearing columns (GC3).
+Deferred to future milestone. Tracked but not in current roadmap.
 
-### UER-04 — Immediate Session Invalidation
-At erasure REQUEST time (not grace period end), write `deactivated:{workspaceId}:{userId}` to Valkey blocklist. Existing session plugin returns 401 immediately. JWT tokens are functionally dead even though they still exist (GC1).
+### Connected Accounts
 
-### UER-05 — Preserved References
-User row is anonymized, not deleted. `created_by` UUIDs in `test_cases`, `run_items`, `run_item_step_comments`, and `defects` still resolve via JOIN — but now display "Deleted User" instead of the real name.
+- **CON-01**: User can view linked OAuth providers in profile settings
+- **CON-02**: User can unlink an OAuth provider from their account (with lockout prevention)
 
----
+### Additional Providers
 
-## Workspace Export
+- **PRV-01**: User can sign in with Apple
+- **PRV-02**: User can sign in with Microsoft / Azure AD (enterprise SSO)
 
-### WEX-01 — Export Workspace Data
-Workspace admin can trigger a full workspace export from settings. System generates a ZIP file containing workspace data in the user's chosen format.
+## Out of Scope
 
-### WEX-02 — Export Content
-Export includes: test cases with steps, suites (hierarchy preserved), test runs with results, and workspace/project settings. Each entity type is a separate file within the ZIP.
-
-### WEX-03 — Format Options
-User chooses between JSON and CSV format at export time. JSON preserves nested structure (steps within cases). CSV flattens for spreadsheet compatibility.
-
----
-
-## Transparency
-
-### TRN-01 — Privacy Policy Page
-Static `/privacy` page with data controller identity, processing purposes, legal basis (contract performance), retention periods, and user rights (Articles 13/14). Accessible without authentication.
-
-### TRN-02 — Erasure Status UI
-Pending deletion/erasure status is visible in workspace settings and profile settings respectively. Shows scheduled date, time remaining, and cancel button. Article 12 transparency compliance.
-
-### TRN-03 — Confirmation Emails
-Three email touchpoints per lifecycle event: (1) request acknowledged with scheduled date, (2) warning before grace period expires, (3) completion confirmation. Uses existing Resend integration.
-
----
-
-## Infrastructure
-
-### INF-01 — Lifecycle Queue
-New BullMQ `lifecycle` queue (separate from `email` queue). Handles `workspace-delete`, `user-erasure`, and `sweep-expired` job types. Delayed jobs with deterministic `jobId` for cancellation.
-
-### INF-02 — Idempotent Workers
-Every worker step uses check-then-act pattern. Atomic status claim (`UPDATE ... SET status = 'processing' WHERE status = 'pending_deletion' RETURNING id`) prevents concurrent execution. Each step is independently retryable (GC4).
-
-### INF-03 — Daily Sweep
-Repeatable job at 3 AM daily. Catches expired grace periods where the delayed job failed. Queries `workspaces WHERE deletion_scheduled_at < NOW() AND deletion_status = 'pending_deletion'` and `user_erasure_requests WHERE scheduled_at < NOW() AND status = 'pending'`.
-
-### INF-04 — Erasure Audit Log
-`erasure_audit_log` table records all lifecycle events. Stores UUIDs and timestamps only — never PII (GM2). Entries have a 2-year TTL. Supports ICO audit if questioned.
-
----
-
-## Schema Additions
-
-### Workspace Deletion Columns (on `workspaces` table)
-- `deletion_requested_at TIMESTAMPTZ`
-- `deletion_scheduled_at TIMESTAMPTZ`
-- `deletion_requested_by UUID REFERENCES users(id) ON DELETE SET NULL`
-- `deletion_job_id TEXT`
-- `deletion_status TEXT` — NULL | 'pending_deletion' | 'processing' | 'completed'
-
-### New Tables
-- `user_erasure_requests` — tracks individual erasure lifecycle
-- `erasure_audit_log` — non-PII audit trail
-
----
-
-## Pitfall Cross-References
-
-| Req | Pitfall | Mitigation |
-|-----|---------|------------|
-| WLC-03, INF-02 | GC4 (non-idempotent jobs) | Atomic status claim, check-then-act |
-| WLC-04 | GC2 (R2 orphans) | Enumerate keys BEFORE CASCADE |
-| UER-03 | GC3 (weak anonymization) | All PII fields covered |
-| UER-03 | GC5 (email UNIQUE) | `deleted-{uuid}@deleted.invalid` pattern |
-| UER-04 | GC1 (JWT sessions) | Valkey blocklist at request time |
-| UER-02, WLC-02 | GM1 (restore vs erasure) | Independent lifecycle tracking |
-| INF-04 | GM2 (audit log PII) | UUIDs only, 2-year TTL |
-
----
+| Feature | Reason |
+|---------|--------|
+| Account unlinking | Lockout risk, complex UX — defer to future milestone |
+| Apple Sign-In | Apple Developer account required, low dev-tool relevance |
+| Microsoft / Azure AD SSO | Enterprise tier feature, not needed for startup ICP |
+| OAuth refresh token storage | Velo doesn't call Google/GitHub APIs on user's behalf |
+| "Link account while signed in" flow | Auto-link on email match covers 95% of the need |
+| Dark mode | Deferred to future milestone |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INF-01 | Phase 1 | Pending |
-| INF-02 | Phase 1 | Pending |
-| INF-03 | Phase 1 | Pending |
-| INF-04 | Phase 1 | Pending |
-| TRN-01 | Phase 1 | Pending |
-| WLC-01 | Phase 2 | Pending |
-| WLC-02 | Phase 2 | Pending |
-| WLC-03 | Phase 2 | Pending |
-| WLC-04 | Phase 2 | Pending |
-| UER-01 | Phase 2 | Pending |
-| UER-02 | Phase 2 | Pending |
-| UER-03 | Phase 2 | Pending |
-| UER-04 | Phase 2 | Pending |
-| UER-05 | Phase 2 | Pending |
-| WEX-01 | Phase 3 | Pending |
-| WEX-02 | Phase 3 | Pending |
-| WEX-03 | Phase 3 | Pending |
-| TRN-02 | Phase 3 | Complete |
-| WLC-05 | Phase 4 | Pending |
-| TRN-03 | Phase 4 | Complete |
+| OAP-01 | Pending | Pending |
+| OAP-02 | Pending | Pending |
+| OAP-03 | Pending | Pending |
+| OAP-04 | Pending | Pending |
+| ALK-01 | Pending | Pending |
+| ALK-02 | Pending | Pending |
+| ALK-03 | Pending | Pending |
+| UI-01 | Pending | Pending |
+| UI-02 | Pending | Pending |
+| UI-03 | Pending | Pending |
+| UI-04 | Pending | Pending |
+| INF-05 | Pending | Pending |
+| INF-06 | Pending | Pending |
+| INF-07 | Pending | Pending |
+| INF-08 | Pending | Pending |
+
+**Coverage:**
+- v1.2 requirements: 15 total
+- Mapped to phases: 0
+- Unmapped: 15 ⚠️
 
 ---
-
-*Sources: ARCHITECTURE.md, FEATURES.md, PITFALLS.md, SUMMARY.md*
+*Requirements defined: 2026-03-12*
+*Last updated: 2026-03-12 after initial definition*
