@@ -91,11 +91,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.workspace_slug = u.workspace_slug ?? null
         token.role = u.role ?? null
       }
-      // Called by useSession().update({ workspace_id, workspace_slug, role }) after onboarding wizard
+      // Called by useSession().update({ ... }) after onboarding wizard or profile edits
       if (trigger === "update" && session) {
         if (session.workspace_id !== undefined) token.workspace_id = session.workspace_id
         if (session.workspace_slug !== undefined) token.workspace_slug = session.workspace_slug
         if (session.role !== undefined) token.role = session.role
+        if (session.name !== undefined) token.name = session.name
+        if (session.email !== undefined) token.email = session.email
       }
       return token
     },

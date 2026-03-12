@@ -24,6 +24,7 @@ import linearRoutes from "./routes/linear.js"
 import linearWebhookRoutes from "./routes/linear-webhook.js"
 import webhookRoutes from "./routes/webhooks.js"
 import v1Routes from "./routes/v1.js"
+import profileRoutes from "./routes/profile.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -123,6 +124,13 @@ async function runFixups() {
       CREATE INDEX IF NOT EXISTS idx_invitations_workspace_email
         ON workspace_invitations (workspace_id, email)
     `)
+    // Profile: avatar_url and pending_email columns on users
+    await fixupClient.unsafe(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)
+    `)
     console.log("Schema fixups complete")
   } finally {
     await fixupClient.end()
@@ -173,6 +181,7 @@ await fastify.register(ingestionRoutes)
 await fastify.register(linearRoutes)
 await fastify.register(webhookRoutes)
 await fastify.register(v1Routes)
+await fastify.register(profileRoutes)
 
 fastify.get("/robots.txt", async (_request, reply) => {
   return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")
