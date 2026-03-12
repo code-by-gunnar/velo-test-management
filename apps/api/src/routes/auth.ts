@@ -282,6 +282,184 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({ message: "If an account with that email exists, a reset link has been sent." })
   })
 
+  // ── POST /api/auth/oauth-signin ───────────────────────────────────────────
+  // Called by Auth.js signIn callback to resolve or provision an OAuth user.
+  // Handles 5 paths: returning user, auto-link, JIT provision, unverified email
+  // block, and second-provider block.
+  // NOT a public route — called server-to-server from Next.js.
+  fastify.post<{
+    Body: {
+      provider: "google" | "github"
+      providerAccountId: string
+      email: string
+      name?: string | null
+    }
+  }>("/api/auth/oauth-signin", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["provider", "providerAccountId", "email"],
+        properties: {
+          provider: { type: "string", enum: ["google", "github"] },
+          providerAccountId: { type: "string", maxLength: 255 },
+          email: { type: "string", format: "email" },
+          name: { type: "string", maxLength: 255, nullable: true },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { provider, providerAccountId, email, name } = request.body
+
+    let resolvedUser: {
+      id: string
+      email: string
+      name: string | null
+      workspace_id: string | null
+      workspace_slug: string | null
+      role: string | null
+    } | null = null
+    let errorCode: "unverified_email" | "provider_conflict" | null = null
+
+    await sql.begin(async (tx: TransactionSql) => {
+      const q = tx as unknown as Sql
+
+      // Step 1: Returning user check — look up by provider + providerAccountId
+      const [existingOAuth] = await q`
+        SELECT u.id, u.email, u.name,
+               wm.workspace_id, wm.role, w.slug AS workspace_slug
+        FROM user_oauth_accounts oa
+        JOIN users u ON u.id = oa.user_id
+        LEFT JOIN workspace_members wm ON wm.user_id = u.id AND wm.is_active = true
+        LEFT JOIN workspaces w ON w.id = wm.workspace_id
+        WHERE oa.provider = ${provider}
+          AND oa.provider_account_id = ${providerAccountId}
+        LIMIT 1
+      `
+      if (existingOAuth) {
+        resolvedUser = {
+          id: existingOAuth.id,
+          email: existingOAuth.email,
+          name: existingOAuth.name ?? null,
+          workspace_id: existingOAuth.workspace_id ?? null,
+          workspace_slug: existingOAuth.workspace_slug ?? null,
+          role: existingOAuth.role ?? null,
+        }
+        return
+      }
+
+      // Step 2: Email lookup — check for an existing user with this email
+      const [existingUser] = await q`
+        SELECT id, email, name, email_verified
+        FROM users
+        WHERE email = ${email.toLowerCase()}
+        LIMIT 1
+      `
+
+      // Step 3: Unverified email guard
+      if (existingUser && !existingUser.email_verified) {
+        errorCode = "unverified_email"
+        return
+      }
+
+      // Step 4: Second-provider guard
+      if (existingUser) {
+        const [otherProvider] = await q`
+          SELECT id FROM user_oauth_accounts
+          WHERE user_id = ${existingUser.id}::uuid
+            AND provider != ${provider}
+          LIMIT 1
+        `
+        if (otherProvider) {
+          errorCode = "provider_conflict"
+          return
+        }
+      }
+
+      // Step 5: Auto-link or JIT provision
+      let userId: string
+      if (existingUser) {
+        // Auto-link: mark email as verified (provider has verified it)
+        userId = existingUser.id
+        await q`
+          UPDATE users
+          SET email_verified = true, updated_at = NOW()
+          WHERE id = ${userId}::uuid
+        `
+      } else {
+        // JIT provision: create a new user
+        userId = uuidv7()
+        await q`
+          INSERT INTO users (id, email, name, email_verified, password_hash)
+          VALUES (
+            ${userId}::uuid,
+            ${email.toLowerCase()},
+            ${name ?? null},
+            true,
+            NULL
+          )
+        `
+      }
+
+      // Step 6: Insert oauth account (idempotent — ON CONFLICT DO NOTHING)
+      await q`
+        INSERT INTO user_oauth_accounts (id, user_id, provider, provider_account_id)
+        VALUES (
+          ${uuidv7()}::uuid,
+          ${userId}::uuid,
+          ${provider},
+          ${providerAccountId}
+        )
+        ON CONFLICT (provider, provider_account_id) DO NOTHING
+      `
+
+      // Step 7: Fetch full user with workspace fields for response
+      // fullUser is always defined here — we just inserted or verified the user row exists
+      const rows = await q`
+        SELECT u.id, u.email, u.name,
+               wm.workspace_id, wm.role, w.slug AS workspace_slug
+        FROM users u
+        LEFT JOIN workspace_members wm ON wm.user_id = u.id AND wm.is_active = true
+        LEFT JOIN workspaces w ON w.id = wm.workspace_id
+        WHERE u.id = ${userId}::uuid
+        LIMIT 1
+      `
+      const fullUser = rows[0]
+      if (fullUser) {
+        resolvedUser = {
+          id: fullUser.id as string,
+          email: fullUser.email as string,
+          name: (fullUser.name as string | null) ?? null,
+          workspace_id: (fullUser.workspace_id as string | null) ?? null,
+          workspace_slug: (fullUser.workspace_slug as string | null) ?? null,
+          role: (fullUser.role as string | null) ?? null,
+        }
+      }
+    })
+
+    // Handle error codes captured inside transaction (reply.send must be outside sql.begin)
+    if (errorCode === "unverified_email") {
+      return reply.status(409).send({
+        error: "unverified_email",
+        message: "An account with this email exists but hasn't been verified. Please verify your email first.",
+      })
+    }
+    if (errorCode === "provider_conflict") {
+      return reply.status(409).send({
+        error: "provider_conflict",
+        message: "This account is already linked to a different sign-in method.",
+      })
+    }
+
+    return reply.send({
+      id: resolvedUser!.id,
+      email: resolvedUser!.email,
+      name: resolvedUser!.name,
+      workspace_id: resolvedUser!.workspace_id,
+      workspace_slug: resolvedUser!.workspace_slug,
+      role: resolvedUser!.role,
+    })
+  })
+
   // ── POST /api/auth/reset-password ────────────────────────────────────────
   fastify.post<{
     Body: { email: string; token: string; password: string }
