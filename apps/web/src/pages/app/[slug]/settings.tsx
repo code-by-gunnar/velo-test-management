@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel"
 import { ApiReference } from "@/components/settings/ApiReference"
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel"
+import { DeletionPanel } from "@/components/settings/DeletionPanel"
 import { TeamPanel } from "@/components/settings/TeamPanel"
 import { clsx } from "clsx"
 
@@ -21,6 +22,7 @@ const TABS = [
   { key: "api-keys", label: "API Keys" },
   { key: "api-reference", label: "API Reference" },
   { key: "integrations", label: "Integrations" },
+  { key: "danger-zone", label: "Danger Zone" },
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]
@@ -98,6 +100,10 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
 
             {activeTab === "integrations" && (
               <IntegrationsPanel workspaceId={workspaceId} />
+            )}
+
+            {activeTab === "danger-zone" && (
+              <DeletionPanel workspaceId={workspaceId} userRole={userRole} />
             )}
           </div>
         </div>
