@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 // R2 configuration is loaded from environment variables.
@@ -111,6 +111,66 @@ export function buildR2Key(
 ): string {
   const ext = format === "junit" ? "xml" : "json"
   return `ingestion/${workspaceId}/${format}/${ingestionId}/payload.${ext}`
+}
+
+/**
+ * List all object keys under a given prefix (paginated).
+ * Returns an empty array if R2 is not configured.
+ */
+export async function listR2Objects(prefix: string): Promise<string[]> {
+  if (!R2_BUCKET_NAME || !r2Enabled()) return []
+
+  const client = getR2Client()
+  const keys: string[] = []
+  let continuationToken: string | undefined
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      })
+    )
+
+    if (response.Contents) {
+      for (const obj of response.Contents) {
+        if (obj.Key) keys.push(obj.Key)
+      }
+    }
+
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+  } while (continuationToken)
+
+  return keys
+}
+
+/**
+ * Batch-delete objects from R2 by key. Deletes in chunks of 1000
+ * (S3 API limit). Returns the count of keys submitted for deletion.
+ * Returns 0 if keys array is empty or R2 is not configured.
+ */
+export async function deleteR2Objects(keys: string[]): Promise<number> {
+  if (keys.length === 0 || !R2_BUCKET_NAME || !r2Enabled()) return 0
+
+  const client = getR2Client()
+  let deleted = 0
+
+  for (let i = 0; i < keys.length; i += 1000) {
+    const chunk = keys.slice(i, i + 1000)
+    await client.send(
+      new DeleteObjectsCommand({
+        Bucket: R2_BUCKET_NAME,
+        Delete: {
+          Objects: chunk.map((key) => ({ Key: key })),
+          Quiet: true,
+        },
+      })
+    )
+    deleted += chunk.length
+  }
+
+  return deleted
 }
 
 // Named export for backward compatibility (alias for getR2Client)
