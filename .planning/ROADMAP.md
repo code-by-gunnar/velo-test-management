@@ -26,7 +26,12 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
   2. BullMQ `lifecycle` queue exists (separate from `email` queue) and accepts delayed jobs with deterministic `jobId` for cancellation
   3. Daily sweep repeatable job is registered at 3 AM and queries for expired grace periods in both `workspaces` and `user_erasure_requests`
   4. `/privacy` page renders without authentication and contains data controller identity, processing purposes, legal basis, retention periods, and user rights
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- GDPR lifecycle database migration (workspace deletion columns, erasure requests table, audit log table)
+- [ ] 01-02-PLAN.md -- BullMQ lifecycle queue, worker skeleton with daily sweep, audit log helper
+- [ ] 01-03-PLAN.md -- Public privacy policy page (/privacy)
 
 ### Phase 2: Lifecycle Workers & API
 **Goal**: Admins can request and cancel workspace deletion, users can request and cancel personal erasure, and expired grace periods execute the correct cleanup (hard-delete workspace data, anonymize user PII, purge R2 objects)
@@ -68,7 +73,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Foundation | 0/? | Not started | - |
+| 1. Schema & Foundation | 0/3 | Not started | - |
 | 2. Lifecycle Workers & API | 0/? | Not started | - |
 | 3. Export & Frontend | 0/? | Not started | - |
 | 4. Notifications & Verification | 0/? | Not started | - |
