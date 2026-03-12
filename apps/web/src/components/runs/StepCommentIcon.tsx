@@ -145,7 +145,7 @@ export function StepCommentIcon({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-gray-300 hover:text-gray-500 -mr-1"
+              className="text-gray-300 hover:text-gray-500 -mr-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               aria-label="Close"
             >
               <X size={12} aria-hidden="true" />

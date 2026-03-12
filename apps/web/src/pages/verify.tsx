@@ -85,7 +85,7 @@ export default function VerifyPage() {
             <button
               type="button"
               onClick={resend}
-              className="text-primary hover:underline focus:outline-none"
+              className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
             >
               Resend code
             </button>

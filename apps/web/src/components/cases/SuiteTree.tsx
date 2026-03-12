@@ -237,7 +237,7 @@ export function SuiteTree({
             <button
               type="button"
               onClick={() => setSelectMode(true)}
-              className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-xs hover:bg-gray-100 hover:text-gray-600"
+              className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-xs hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               title="Select suites"
               aria-label="Select suites"
             >
@@ -249,7 +249,7 @@ export function SuiteTree({
               type="button"
               onClick={startCreate}
               disabled={!canEdit}
-              className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-primary"
+              className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-sm disabled:opacity-40 disabled:cursor-default enabled:hover:bg-gray-100 enabled:hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               title={canEdit ? "New suite" : "Editor access required"}
               aria-label="New suite"
             >
@@ -260,7 +260,7 @@ export function SuiteTree({
             <button
               type="button"
               onClick={exitSelectMode}
-              className="text-xs text-gray-400 hover:text-gray-600"
+              className="text-xs text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors"
             >
               Cancel
             </button>
@@ -353,7 +353,7 @@ export function SuiteTree({
               onKeyDown={handleKeyDown}
               onBlur={cancelCreate}
               placeholder="Suite name…"
-              className="w-full rounded border border-primary bg-white px-2 py-0.5 text-sm focus:outline-none"
+              className="w-full rounded border border-primary bg-white px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         )}

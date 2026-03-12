@@ -340,7 +340,7 @@ export function ExecutionScreen({
           <button
             type="button"
             onClick={() => setSidebarOpen((prev) => !prev)}
-            className="flex items-center justify-center w-8 h-8 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
             title="Case list"
             aria-label="Toggle case list"
           >
@@ -355,7 +355,7 @@ export function ExecutionScreen({
               type="button"
               onClick={() => navigateTo(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               title="Previous case"
               aria-label="Previous case"
             >
@@ -368,7 +368,7 @@ export function ExecutionScreen({
               type="button"
               onClick={() => navigateTo(currentIndex + 1)}
               disabled={currentIndex === items.length - 1}
-              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               title="Next case"
               aria-label="Next case"
             >
@@ -408,7 +408,7 @@ export function ExecutionScreen({
                     <button
                       type="button"
                       onClick={() => navigateTo(idx)}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
                         isCurrent
                           ? "bg-primary/5 text-primary font-medium"
                           : "text-gray-700 hover:bg-gray-50"

@@ -405,7 +405,7 @@ export default function RunDetailPage({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") void router.push(`/app/${slug}/${projectKey}/runs/${runId}/execute?item=${idx}`)
                       }}
-                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                     >
                       {/* Case title */}
                       <td className="py-3 pl-6 pr-4">
