@@ -57,6 +57,13 @@
       "when": 1741766400000,
       "tag": "0007_add_user_avatar_url",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1741795200000,
+      "tag": "0008_gdpr_lifecycle_tables",
+      "breakpoints": true
     }
   ]
 }
