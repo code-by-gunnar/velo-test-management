@@ -135,6 +135,59 @@ async function runFixups() {
     await fixupClient.unsafe(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255)
     `)
+    // GDPR lifecycle: workspace deletion columns (migration 0008)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMPTZ
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS deletion_scheduled_at TIMESTAMPTZ
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS deletion_requested_by UUID REFERENCES users(id) ON DELETE SET NULL
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS deletion_job_id TEXT
+    `)
+    await fixupClient.unsafe(`
+      ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS deletion_status TEXT
+    `)
+    // GDPR lifecycle: user erasure requests table (migration 0008)
+    await fixupClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS user_erasure_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+        requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        scheduled_at TIMESTAMPTZ NOT NULL,
+        completed_at TIMESTAMPTZ,
+        status TEXT NOT NULL DEFAULT 'pending',
+        job_id TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_erasure_requests_status ON user_erasure_requests (status, scheduled_at)
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_erasure_requests_user ON user_erasure_requests (user_id)
+    `)
+    // GDPR lifecycle: erasure audit log table (migration 0008)
+    await fixupClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS erasure_audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_type TEXT NOT NULL,
+        entity_id UUID NOT NULL,
+        action TEXT NOT NULL,
+        performed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        metadata JSONB
+      )
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON erasure_audit_log (entity_type, entity_id)
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_workspaces_deletion_status ON workspaces (deletion_status, deletion_scheduled_at) WHERE deletion_status IS NOT NULL
+    `)
     console.log("Schema fixups complete")
   } finally {
     await fixupClient.end()
