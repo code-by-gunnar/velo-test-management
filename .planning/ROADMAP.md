@@ -1,8 +1,8 @@
-# Roadmap: Velo UI Redesign — "Clean Elevation"
+# Roadmap: v1.1 GDPR & Data Lifecycle
 
 ## Overview
 
-Transform Velo from the "Industrial Notebook" dark-sidebar aesthetic to a clean, elevated, light design. Four phases: lay the design token foundation, restructure the sidebar and layout shell, restyle every component and page, then verify zero regressions. This is a visual reskin only — no functional changes, no API changes, no new components.
+Add GDPR data rights and workspace lifecycle management to Velo before launch. Four phases: lay the schema and infrastructure foundation (queue, audit log, privacy page), build the core lifecycle workers and API routes (workspace deletion + user erasure), add workspace export and the frontend UI for all lifecycle features, then wire up email notifications and run integration tests. Zero new npm packages -- everything builds on existing BullMQ, postgres.js, Resend, and R2 primitives.
 
 ## Phases
 
@@ -10,75 +10,56 @@ Transform Velo from the "Industrial Notebook" dark-sidebar aesthetic to a clean,
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
-- [x] **Phase 1: Design Foundation** - Design tokens, color palette, typography, spacing, shadows, and Tailwind config
-- [x] **Phase 2: Layout & Navigation** - White sidebar, app shell with floating card layout, 3-panel cases structure
-- [x] **Phase 3: Components & Pages** - Restyle all UI components and all application pages to new design language
-- [x] **Phase 4: Regression Verification** - Validate all keyboard shortcuts, page flows, SSE, and CI checks pass
+- [ ] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
+- [ ] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
+- [ ] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
+- [ ] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
 
 ## Phase Details
 
-### Phase 1: Design Foundation
-**Goal**: Every design token (colors, typography, spacing, shadows, radii) is updated and the Tailwind config reflects the new "Clean Elevation" design language
+### Phase 1: Schema & Foundation
+**Goal**: All database tables, columns, queue infrastructure, and the privacy policy page exist -- ready for workers and API routes to build on top
 **Depends on**: Nothing (first phase)
-**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08
+**Requirements**: INF-01, INF-02, INF-03, INF-04, TRN-01
 **Success Criteria** (what must be TRUE):
-  1. Page background renders as #E8EDF2 and cards render as #FFFFFF with the new shadow and border-radius tokens
-  2. DM Sans renders for all headings/display text and IBM Plex Sans renders for all body/UI text (visible in browser dev tools font panel)
-  3. Typography scale is consistent across the app — page titles are 28px/600, section labels are 12px/600 uppercase, body is 14px/400
-  4. All CSS custom properties in globals.css reflect the new palette and Tailwind config extends them correctly
-**Plans**: 2 plans
+  1. Migration adds deletion columns to `workspaces` table and creates `user_erasure_requests` and `erasure_audit_log` tables -- verified by running the migration and inspecting the schema
+  2. BullMQ `lifecycle` queue exists (separate from `email` queue) and accepts delayed jobs with deterministic `jobId` for cancellation
+  3. Daily sweep repeatable job is registered at 3 AM and queries for expired grace periods in both `workspaces` and `user_erasure_requests`
+  4. `/privacy` page renders without authentication and contains data controller identity, processing purposes, legal basis, retention periods, and user rights
+**Plans**: TBD
 
-Plans:
-- [x] 01-01: CSS custom properties and Tailwind config overhaul (colors, spacing, shadows, radii)
-- [x] 01-02: Font loading and typography scale (DM Sans, IBM Plex Sans, type scale)
-
-### Phase 2: Layout & Navigation
-**Goal**: The sidebar is white with blue active states, the app shell renders content as floating cards on the blue-gray surface, and the cases page has a 3-panel layout
+### Phase 2: Lifecycle Workers & API
+**Goal**: Admins can request and cancel workspace deletion, users can request and cancel personal erasure, and expired grace periods execute the correct cleanup (hard-delete workspace data, anonymize user PII, purge R2 objects)
 **Depends on**: Phase 1
-**Requirements**: UI-09, UI-10, UI-11, UI-12, UI-13, UI-14, UI-15, UI-16, UI-17
+**Requirements**: WLC-01, WLC-02, WLC-03, WLC-04, UER-01, UER-02, UER-03, UER-04, UER-05
 **Success Criteria** (what must be TRUE):
-  1. Sidebar renders as white (#FFFFFF) with a right border, 192px width, and collapses to 48px icon rail with localStorage persistence
-  2. Active nav item shows blue highlight (#EBF3FF bg, #2D7FF9 text), inactive items show dark text with gray hover
-  3. Main content area renders as a floating white card (12px radius, card shadow) on the #E8EDF2 page background
-  4. Cases page displays 3-panel layout: sidebar (192px) | suites panel (144px, white, right border) | main content
-  5. Workspace dropdown in sidebar shows avatar with initials, name, and chevron on gray background
-**Plans**: 2 plans
+  1. Admin can request workspace deletion -- system records `deletion_requested_at`, `deletion_scheduled_at` (now + 30 days), enqueues a BullMQ delayed job with `jobId: ws-delete:{workspaceId}`
+  2. Admin can cancel workspace deletion during the 30-day grace period -- BullMQ job is removed, all `deletion_*` columns are cleared
+  3. When workspace grace period expires, worker collects R2 keys BEFORE cascade, batch-deletes R2 objects, then hard-deletes the workspace row (CASCADE handles child tables), with atomic status claim preventing concurrent execution
+  4. User can request erasure -- system creates `user_erasure_requests` row, enqueues delayed job, and immediately writes `deactivated:{workspaceId}:{userId}` to Valkey blocklist (existing session plugin returns 401)
+  5. When user erasure grace period expires, worker anonymizes all PII fields (name, email via `deleted-{uuid}@deleted.invalid`, password_hash, avatar_url after R2 delete, pending_email) and the user row is preserved so `created_by` references resolve to "Deleted User"
+**Plans**: TBD
 
-Plans:
-- [x] 02-01: Sidebar restyling (white bg, nav items, workspace dropdown, collapse behavior)
-- [x] 02-02: App shell and cases 3-panel layout (floating card wrapper, suites panel)
-
-### Phase 3: Components & Pages
-**Goal**: Every UI component and every application page reflects the new design language — buttons, badges, cards, tables, inputs, and all 10 page groups are restyled
+### Phase 3: Export & Frontend
+**Goal**: Admins can export all workspace data, and all lifecycle status (pending deletion, pending erasure, scheduled dates, cancel buttons) is visible in the appropriate settings pages
 **Depends on**: Phase 2
-**Requirements**: UI-18, UI-19, UI-20, UI-21, UI-22, UI-23, UI-24, UI-25, UI-26, UI-27, UI-28, UI-29, UI-30, UI-31, UI-32, UI-33, UI-34
+**Requirements**: WEX-01, WEX-02, WEX-03, TRN-02
 **Success Criteria** (what must be TRUE):
-  1. Primary buttons render as #2D7FF9 with white text (8px radius, 40px height); secondary buttons render with blue border on white
-  2. Priority badges show the correct tier styling (High: solid blue, Medium: light blue, Low: gray) and status badges retain their muted pass/fail/blocked/skipped colors
-  3. All 10 page groups (auth, onboarding, dashboard, cases, runs, run detail, execution, settings, ingestion, toasts) visually match the new design language
-  4. Table rows are 56px with gray hover, uppercase headers on #F9FAFB background
-  5. Toast notifications render as white cards with 8px radius and toast shadow
-**Plans**: 3 plans
+  1. Workspace admin can trigger a full export from settings and download a ZIP containing test cases with steps, suites (hierarchy preserved), test runs with results, and workspace settings -- each entity type as a separate file
+  2. Export format choice (JSON or CSV) works correctly -- JSON preserves nested structure, CSV flattens for spreadsheet compatibility
+  3. Pending workspace deletion status is visible in workspace settings showing scheduled date, time remaining, and a cancel button
+  4. Pending user erasure status is visible in profile settings showing scheduled date, time remaining, and a cancel button
+**Plans**: TBD
 
-Plans:
-- [x] 03-01: Component restyling (Button, Card, Input, StatusBadge, PriorityBadge, Table rows)
-- [x] 03-02: Auth, onboarding, dashboard, and settings pages
-- [x] 03-03: Cases, runs, run detail, execution, ingestion pages, and toasts
-
-### Phase 4: Regression Verification
-**Goal**: Every existing interaction, keyboard shortcut, page flow, and real-time feature works identically after the redesign, and CI passes clean
+### Phase 4: Notifications & Verification
+**Goal**: All lifecycle events trigger the correct email notifications, and integration tests verify idempotent deletion, cancellation, sweep recovery, and the full request-to-completion lifecycle
 **Depends on**: Phase 3
-**Requirements**: UI-35, UI-36, UI-37, UI-38
+**Requirements**: WLC-05, TRN-03
 **Success Criteria** (what must be TRUE):
-  1. All execution keyboard shortcuts (P/F/B/S, Tab/Enter for step editing) work identically in the restyled execution screen
-  2. Complete page flow (auth -> onboarding -> dashboard -> cases -> runs -> execution) works end-to-end without visual or functional breakage
-  3. SSE live updates render correctly on the restyled runs dashboard and run detail page
-  4. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors
-**Plans**: 2 plans
-
-Plans:
-- [x] 04-01: Manual regression walkthrough and SSE verification
-- [x] 04-02: Lint, typecheck, and test suite pass
+  1. All active workspace members receive an email when an admin requests workspace deletion, including the scheduled deletion date and advice to export data
+  2. Three email touchpoints fire per lifecycle event: request acknowledged (with scheduled date), warning before grace period expires, and completion confirmation
+  3. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors, including new integration tests for lifecycle workers
+**Plans**: TBD
 
 ## Progress
 
@@ -87,56 +68,38 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Design Foundation | 2/2 | Complete | 2026-03-11 |
-| 2. Layout & Navigation | 2/2 | Complete | 2026-03-11 |
-| 3. Components & Pages | 3/3 | Complete | 2026-03-11 |
-| 4. Regression Verification | 2/2 | Complete | 2026-03-11 |
+| 1. Schema & Foundation | 0/? | Not started | - |
+| 2. Lifecycle Workers & API | 0/? | Not started | - |
+| 3. Export & Frontend | 0/? | Not started | - |
+| 4. Notifications & Verification | 0/? | Not started | - |
 
 ## Coverage Map
 
 | Requirement | Phase |
 |-------------|-------|
-| UI-01 | Phase 1 |
-| UI-02 | Phase 1 |
-| UI-03 | Phase 1 |
-| UI-04 | Phase 1 |
-| UI-05 | Phase 1 |
-| UI-06 | Phase 1 |
-| UI-07 | Phase 1 |
-| UI-08 | Phase 1 |
-| UI-09 | Phase 2 |
-| UI-10 | Phase 2 |
-| UI-11 | Phase 2 |
-| UI-12 | Phase 2 |
-| UI-13 | Phase 2 |
-| UI-14 | Phase 2 |
-| UI-15 | Phase 2 |
-| UI-16 | Phase 2 |
-| UI-17 | Phase 2 |
-| UI-18 | Phase 3 |
-| UI-19 | Phase 3 |
-| UI-20 | Phase 3 |
-| UI-21 | Phase 3 |
-| UI-22 | Phase 3 |
-| UI-23 | Phase 3 |
-| UI-24 | Phase 3 |
-| UI-25 | Phase 3 |
-| UI-26 | Phase 3 |
-| UI-27 | Phase 3 |
-| UI-28 | Phase 3 |
-| UI-29 | Phase 3 |
-| UI-30 | Phase 3 |
-| UI-31 | Phase 3 |
-| UI-32 | Phase 3 |
-| UI-33 | Phase 3 |
-| UI-34 | Phase 3 |
-| UI-35 | Phase 4 |
-| UI-36 | Phase 4 |
-| UI-37 | Phase 4 |
-| UI-38 | Phase 4 |
+| INF-01 | Phase 1 |
+| INF-02 | Phase 1 |
+| INF-03 | Phase 1 |
+| INF-04 | Phase 1 |
+| TRN-01 | Phase 1 |
+| WLC-01 | Phase 2 |
+| WLC-02 | Phase 2 |
+| WLC-03 | Phase 2 |
+| WLC-04 | Phase 2 |
+| UER-01 | Phase 2 |
+| UER-02 | Phase 2 |
+| UER-03 | Phase 2 |
+| UER-04 | Phase 2 |
+| UER-05 | Phase 2 |
+| WEX-01 | Phase 3 |
+| WEX-02 | Phase 3 |
+| WEX-03 | Phase 3 |
+| TRN-02 | Phase 3 |
+| WLC-05 | Phase 4 |
+| TRN-03 | Phase 4 |
 
-**Total: 38/38 requirements mapped. No orphans.**
+**Total: 20/20 requirements mapped. No orphans.**
 
 ---
-*Roadmap created: 2026-03-11*
-*Last updated: 2026-03-11*
+*Roadmap created: 2026-03-12*
+*Last updated: 2026-03-12*
