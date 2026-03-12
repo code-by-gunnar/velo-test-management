@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: milestone
-status: completed
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-12T13:16:25.432Z"
-last_activity: 2026-03-12 -- Completed 04-03 integration tests and CI verification
+milestone: v1.2
+milestone_name: Social Auth
+status: defining_requirements
+stopped_at: null
+last_updated: "2026-03-12T18:00:00.000Z"
+last_activity: 2026-03-12 -- Milestone v1.2 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,6 +24,9 @@ progress:
 ### UI Redesign -- "Clean Elevation" (38 requirements, 4 phases)
 **Status:** COMPLETE (38/38 satisfied, merged to master 2026-03-11)
 
+### v1.1 -- GDPR & Data Lifecycle (20 requirements, 4 phases)
+**Status:** COMPLETE (20/20 satisfied, completed 2026-03-12)
+
 ### Post-Milestone Additions (on master, after merge)
 - CSV import with suite auto-creation from area column
 - Suite management: right-click context menu (rename/delete), bulk delete with select mode
@@ -33,54 +36,34 @@ progress:
 - Calm gray confirmation pattern (no red/blue destructive styling)
 - User profile management: name edit, OTP-verified email change, R2 avatar upload
 - Sidebar popover menu (profile + sign out)
+- Landing page redesign (comparison table, feature cards, how-it-works)
+- WCAG accessibility pass (prefers-reduced-motion, focus-visible rings)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Ship a focused, keyboard-first test management tool that startups actually want to use
-**Current focus:** v1.1 GDPR & Data Lifecycle -- Phase 4 (Notifications & Verification)
+**Current focus:** v1.2 Social Auth -- Defining requirements
 
 ## Current Position
 
-Phase: 4 of 4 (Notifications & Verification)
-Plan: 3 of 3 in current phase
-Status: Completed
-Last activity: 2026-03-12 -- Completed 04-03 integration tests and CI verification
-
-Progress: [██████████] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 2
-- Average duration: 4m
-- Total execution time: 0.13 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 04 | 3 | 10m | 3m |
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 -- Milestone v1.2 started
 
 ## Accumulated Context
-| Phase 03 P03 | 4m | 1 tasks | 1 files |
-| Phase 04 P01 | 3m | 4 tasks | 4 files |
-| Phase 04 P02 | 5m | 4 tasks | 4 files |
-| Phase 04 P03 | 2m | 3 tasks | 2 files |
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Hard delete workspace data (not anonymize) -- clean slate after 30 days
-- Anonymize individual user PII within workspace (don't delete their test history)
-- 30-day workspace / 7-day user grace periods
-- BullMQ lifecycle queue separate from email queue
-- No cookie banner -- session cookie is strictly necessary (exempt)
-- [Phase 03]: Calm two-step erasure confirmation, no alarming styling
-- [Phase 04]: Removed unused originalEmail param from userErasureCompletedEmail (lint compliance)
+- Auto-link accounts on email match (most SaaS standard)
+- Skip OTP for OAuth users (provider already verified)
+- Google + GitHub only (most common for dev-tool SaaS)
+- Auth.js v5 built-in providers (no custom OAuth)
 
 ### Pending Todos
 
@@ -92,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T13:16:25.428Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-03-12T18:00:00.000Z
+Stopped at: null
 Resume file: None
