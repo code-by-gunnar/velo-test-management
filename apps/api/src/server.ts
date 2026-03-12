@@ -25,6 +25,8 @@ import linearWebhookRoutes from "./routes/linear-webhook.js"
 import webhookRoutes from "./routes/webhooks.js"
 import v1Routes from "./routes/v1.js"
 import profileRoutes from "./routes/profile.js"
+import lifecycleRoutes from "./routes/lifecycle.js"
+import erasureRoutes from "./routes/erasure.js"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
@@ -183,6 +185,8 @@ await fastify.register(linearRoutes)
 await fastify.register(webhookRoutes)
 await fastify.register(v1Routes)
 await fastify.register(profileRoutes)
+await fastify.register(lifecycleRoutes)
+await fastify.register(erasureRoutes)
 
 fastify.get("/robots.txt", async (_request, reply) => {
   return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")
