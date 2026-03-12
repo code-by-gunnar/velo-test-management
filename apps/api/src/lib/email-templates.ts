@@ -115,3 +115,80 @@ export function workspaceInviteEmail(
     muted("This invitation expires in 7 days.")
   )
 }
+
+// ── Lifecycle: Workspace Deletion ────────────────────────────────────────────
+
+export function workspaceDeletionRequestedEmail(
+  workspaceName: string,
+  scheduledDate: string,
+  exportUrl: string
+): string {
+  return layout(
+    heading("Workspace scheduled for deletion") +
+    paragraph(`The workspace <strong style="color:${TEXT_PRIMARY};">${workspaceName}</strong> has been scheduled for deletion on <strong style="color:${TEXT_PRIMARY};">${scheduledDate}</strong>.`) +
+    paragraph("If you have data you'd like to keep, please export it before the deletion date.") +
+    button("Export Workspace Data", exportUrl) +
+    muted("If this wasn't expected, contact your workspace admin to cancel the deletion.")
+  )
+}
+
+export function workspaceDeletionWarningEmail(
+  workspaceName: string,
+  scheduledDate: string,
+  timeRemaining: string,
+  cancelUrl: string
+): string {
+  return layout(
+    heading("Deletion reminder") +
+    paragraph(`The workspace <strong style="color:${TEXT_PRIMARY};">${workspaceName}</strong> will be permanently deleted in <strong style="color:${TEXT_PRIMARY};">${timeRemaining}</strong> (${scheduledDate}).`) +
+    paragraph("All test cases, runs, and workspace data will be removed. This cannot be undone.") +
+    button("View Workspace Settings", cancelUrl) +
+    muted("Workspace admins can cancel the deletion from workspace settings.")
+  )
+}
+
+export function workspaceDeletionCompletedEmail(
+  workspaceName: string
+): string {
+  return layout(
+    heading("Workspace deleted") +
+    paragraph(`The workspace <strong style="color:${TEXT_PRIMARY};">${workspaceName}</strong> and all associated data have been permanently deleted.`) +
+    muted("This action cannot be reversed. If you need to start fresh, you can create a new workspace.")
+  )
+}
+
+// ── Lifecycle: User Erasure ──────────────────────────────────────────────────
+
+export function userErasureRequestedEmail(
+  scheduledDate: string,
+  cancelUrl: string
+): string {
+  return layout(
+    heading("Account erasure scheduled") +
+    paragraph(`Your personal data is scheduled for erasure on <strong style="color:${TEXT_PRIMARY};">${scheduledDate}</strong>. Your sessions have been invalidated and you will not be able to log in.`) +
+    paragraph("If you change your mind, you can cancel the erasure before the scheduled date by logging in and visiting your profile settings.") +
+    button("View Profile Settings", cancelUrl) +
+    muted("After the scheduled date, your name and email will be anonymized and cannot be recovered.")
+  )
+}
+
+export function userErasureWarningEmail(
+  scheduledDate: string,
+  timeRemaining: string
+): string {
+  return layout(
+    heading("Erasure reminder") +
+    paragraph(`Your personal data will be permanently erased in <strong style="color:${TEXT_PRIMARY};">${timeRemaining}</strong> (${scheduledDate}).`) +
+    paragraph("After this date, your name and email will be replaced with anonymous placeholders. This cannot be undone.") +
+    muted("To cancel, log in and visit your profile settings before the scheduled date.")
+  )
+}
+
+export function userErasureCompletedEmail(): string {
+  return layout(
+    heading("Account data erased") +
+    paragraph("Your personal data has been permanently erased from Velo. Your name and email have been anonymized across all workspaces.") +
+    paragraph("You may register a new account at any time using the same email address.") +
+    muted("This email was sent to confirm completion of your GDPR erasure request.")
+  )
+}
