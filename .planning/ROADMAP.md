@@ -13,7 +13,7 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 - [x] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
 - [x] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
 - [x] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
-- [ ] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
+- [x] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
 
 ## Phase Details
 
@@ -77,9 +77,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Lifecycle email templates, extended queue types, worker handlers, and batch-send helper
-- [ ] 04-02-PLAN.md -- Wire notifications into lifecycle routes + erasure routes + lifecycle worker (3 touchpoints per event)
-- [ ] 04-03-PLAN.md -- Integration tests for lifecycle and erasure routes + full CI verification
+- [x] 04-01-PLAN.md -- Lifecycle email templates, extended queue types, worker handlers, and batch-send helper
+- [x] 04-02-PLAN.md -- Wire notifications into lifecycle routes + erasure routes + lifecycle worker (3 touchpoints per event)
+- [x] 04-03-PLAN.md -- Integration tests for lifecycle and erasure routes + full CI verification
 
 ## Progress
 
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Schema & Foundation | 3/3 | Complete | 2026-03-12 |
 | 2. Lifecycle Workers & API | 3/3 | Complete | 2026-03-12 |
 | 3. Export & Frontend | 3/3 | Complete | 2026-03-12 |
-| 4. Notifications & Verification | 0/3 | Planned | - |
+| 4. Notifications & Verification | 3/3 | Complete | 2026-03-12 |
 
 ## Coverage Map
 
