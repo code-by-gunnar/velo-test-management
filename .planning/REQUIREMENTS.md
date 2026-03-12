@@ -115,4 +115,31 @@ Repeatable job at 3 AM daily. Catches expired grace periods where the delayed jo
 
 ---
 
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INF-01 | Phase 1 | Pending |
+| INF-02 | Phase 1 | Pending |
+| INF-03 | Phase 1 | Pending |
+| INF-04 | Phase 1 | Pending |
+| TRN-01 | Phase 1 | Pending |
+| WLC-01 | Phase 2 | Pending |
+| WLC-02 | Phase 2 | Pending |
+| WLC-03 | Phase 2 | Pending |
+| WLC-04 | Phase 2 | Pending |
+| UER-01 | Phase 2 | Pending |
+| UER-02 | Phase 2 | Pending |
+| UER-03 | Phase 2 | Pending |
+| UER-04 | Phase 2 | Pending |
+| UER-05 | Phase 2 | Pending |
+| WEX-01 | Phase 3 | Pending |
+| WEX-02 | Phase 3 | Pending |
+| WEX-03 | Phase 3 | Pending |
+| TRN-02 | Phase 3 | Pending |
+| WLC-05 | Phase 4 | Pending |
+| TRN-03 | Phase 4 | Pending |
+
+---
+
 *Sources: ARCHITECTURE.md, FEATURES.md, PITFALLS.md, SUMMARY.md*
