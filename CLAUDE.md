@@ -105,13 +105,19 @@ velo-test-management/
 
 ## Design System
 
-- **Aesthetic**: "Industrial Notebook" — warm, precise, human. Not the Notion/Craft cool-white default.
+- **Aesthetic**: "Clean Elevation" — cool, precise, elevated. Light surfaces with controlled depth. Inspired by modern SaaS tools (Notion, Linear) but warmer typography and muted status colors keep it from feeling sterile. NOT dark mode — clean light is the differentiator.
 - **Fonts**: DM Sans (headings/display via `font-display`) + IBM Plex Sans (body via `font-body`) + JetBrains Mono (code via `font-mono`). NOT Inter.
-- **Colors**: Warm stone gray scale (overrides Tailwind default gray). Cobalt `#1A56DB` primary. Gold accent `#E8C547` for sidebar active states.
+- **Primary**: `#2D7FF9` (bright blue). Hover `#1A6BE8`. Selected bg `#EBF3FF`. Use `primary`, `primary-hover`, `primary-selected` tokens — never hardcode hex.
+- **Grays**: Cool Tailwind gray scale (`gray-50` through `gray-950`). No warm/stone overrides. See `tailwind.config.ts` for exact values.
 - **Status tokens**: Pass `#3D9970` (muted forest), Fail `#C0392B` (brick red), Blocked `#D4820C` (burnt amber), Skipped `#8B8680` (warm gray). Never use raw Tailwind green/red/amber — always use `pass-*`, `fail-*`, `blocked-*`, `skipped-*` tokens.
-- **Backgrounds**: Page bg `#F5F3EF` (warm paper), cards `#FAFAF8` (warm white). Never pure `#FFFFFF` for page backgrounds.
-- **Sidebar**: Dark warm (`gray-800` / `#2D2926`) with light text and gold active indicator.
+- **Backgrounds**: Page bg `#E8EDF2` (`bg-mist`). Cards/surfaces `#FFFFFF` (`bg-white`). Raised surfaces `#F9FAFB` (`bg-gray-50`). Table headers `bg-gray-50`.
+- **Sidebar**: White (`bg-white`) with `border-r border-gray-200`. Active items use `bg-primary-selected text-primary`. Icons `text-gray-500`, active `text-primary`.
+- **Shadows**: `shadow-card` (subtle lift), `shadow-dropdown` (elevated menus), `shadow-toast` (notifications). Defined in tailwind.config.ts.
+- **Borders**: `border-gray-200` default, `border-gray-300` for strong emphasis. All cards use `border border-gray-200`.
+- **Border radius**: `rounded-sm` (6px) inputs, `rounded-md` (8px) cards/buttons, `rounded-lg` (12px) large containers, `rounded-full` badges.
 - **Icons**: Lucide React (`lucide-react`). No inline SVGs — import named icons from the package.
+- **Component library**: `components/ui/` — Button (cva variants), Card, Input, FormField, StatusBadge, PriorityBadge, Toast. Always use these; never bypass with raw HTML for standard controls.
+- **Button default**: Size `sm` (compact, in-app). Use `md` or `lg` only on standalone pages (login, onboarding, landing).
 
 ## Stack
 

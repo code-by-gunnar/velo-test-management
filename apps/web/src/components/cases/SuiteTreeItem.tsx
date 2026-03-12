@@ -76,7 +76,7 @@ function SuiteContextMenu({ x, y, onRename, onDelete, onClose }: ContextMenuProp
       <button
         type="button"
         onClick={() => { onRename(); onClose() }}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:bg-gray-100 transition-colors"
       >
         <Pencil size={14} className="text-gray-400" />
         Rename
@@ -84,7 +84,7 @@ function SuiteContextMenu({ x, y, onRename, onDelete, onClose }: ContextMenuProp
       <button
         type="button"
         onClick={() => { onDelete(); onClose() }}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:bg-gray-100 transition-colors"
       >
         <Trash2 size={14} className="text-gray-400" />
         Delete
@@ -260,7 +260,7 @@ export function SuiteTreeItem({
               e.stopPropagation()
               setExpanded((v) => !v)
             }}
-            className={clsx("mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center hover:text-gray-600", isSelected ? "text-primary" : "text-gray-400")}
+            className={clsx("mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors", isSelected ? "text-primary" : "text-gray-400")}
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             {expanded ? "▼" : "▶"}
@@ -280,7 +280,7 @@ export function SuiteTreeItem({
               if (e.key === "Escape") setIsRenaming(false)
             }}
             onBlur={() => { void confirmRename() }}
-            className="min-w-0 flex-1 rounded border border-primary bg-white px-1 py-0 text-sm focus:outline-none"
+            className="min-w-0 flex-1 rounded border border-primary bg-white px-1 py-0 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : (
           <button

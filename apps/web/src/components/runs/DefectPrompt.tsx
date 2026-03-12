@@ -52,7 +52,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
         <button
           type="button"
           onClick={onSkip}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-xs text-gray-400 hover:text-gray-600 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
         >
           Skip (Esc)
         </button>
@@ -85,7 +85,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
           </Button>
           <button
             type="button"
-            className="text-xs text-gray-500 hover:text-gray-700 underline"
+            className="text-xs text-gray-500 hover:text-gray-700 underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
             onClick={onSkip}
           >
             Skip

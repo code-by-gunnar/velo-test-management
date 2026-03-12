@@ -116,7 +116,7 @@ export function BulkActionBar({
         <button
           type="button"
           onClick={onClearSelection}
-          className="ml-auto text-sm text-gray-500 hover:text-gray-700"
+          className="ml-auto text-sm text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors"
         >
           Clear
         </button>

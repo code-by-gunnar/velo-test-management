@@ -227,7 +227,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleInvite()
                 }}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div>
@@ -238,7 +238,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
                 id="invite-role"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "admin" | "editor" | "viewer")}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -249,9 +249,9 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
             </div>
             <Button
               variant="primary"
-              size="sm"
               onClick={() => void handleInvite()}
               disabled={inviting}
+              className="h-9 px-4"
             >
               {inviting ? "Sending..." : "Send Invite"}
             </Button>
