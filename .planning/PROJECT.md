@@ -1,73 +1,95 @@
-# Velo UI Redesign — "Clean Elevation"
+# Velo Test Management
 
 ## What This Is
 
-A full visual redesign of the Velo test management platform, moving from the current "Industrial Notebook" dark-sidebar aesthetic to a clean, elevated, light look. Every page gets restyled — new design tokens, typography (DM Sans + IBM Plex Sans), white sidebar, floating card layout on a cool blue-gray surface, and a brighter blue primary. No functional changes — same components, same interactions, same data flows.
+A lean QA test management platform for startups (20-200 employees). Solo founder, active QA/SDET. Built with Next.js 16 Pages Router + Fastify 5 + PostgreSQL 16. Hosted on Vercel (web) + Railway (api).
 
 ## Core Value
 
-The app must look polished, intentional, and distinctly NOT like another dark-mode SaaS clone — while preserving every existing interaction and keyboard shortcut without regression.
+Ship a focused, keyboard-first test management tool that startups actually want to use — no Jira complexity, no enterprise bloat.
+
+## Milestones
+
+### v1.0 — Core Platform (COMPLETE)
+48 requirements across 6 phases: auth, test cases, test runs, CI ingestion, integrations, RBAC.
+
+### UI Redesign — "Clean Elevation" (COMPLETE)
+38 requirements across 4 phases: design tokens, typography, layout, component reskin.
+
+### Post-Milestone Additions (on master)
+- CSV import with suite auto-creation
+- Suite management: context menu, bulk delete, select mode
+- requireAdmin middleware + admin-only delete runs
+- Deleted test case handling in execution screen
+- Auto-resize step textareas, whitespace-pre-wrap in view mode
+- Calm gray confirmation pattern (Clean Elevation design)
+- User profile management: name edit, OTP-verified email change, R2 avatar upload
+- Sidebar popover menu (profile + sign out)
+
+## Current Milestone: v1.1 GDPR & Data Lifecycle
+
+**Goal:** Prepare the platform for UK/EU compliance by implementing GDPR data rights and workspace lifecycle management — getting ahead of launch, not reacting to it.
+
+**Target features:**
+- Self-serve workspace deletion with 30-day grace period (admin-only)
+- Individual user right to erasure with 7-day grace period (anonymize references, don't cascade-delete their work)
+- Data export (lightweight — name, email, avatar; small JSON download)
+- Privacy policy page (/privacy)
+- Hard delete of all workspace data after grace period (users, cases, runs, suites, everything)
+- Anonymize deleted users in workspace (replace PII with "Deleted User" in created_by, comments, etc.)
+- Scheduled cleanup job for expired grace periods
+
+**Design decisions:**
+- Hard delete workspace data (not anonymize) — clean slate after 30 days
+- Anonymize individual user PII within workspace (don't delete their test history)
+- 30-day grace period for workspace deletion, 7-day for individual user erasure
+- Privacy policy page only (no cookie banner — app doesn't use tracking cookies)
+- No DPA or ToS in this milestone — defer to legal review later
 
 ## Requirements
 
 ### Validated
 
-- All v1 functionality (48 requirements across 6 phases) — existing, must not regress
+- All v1 functionality (48 requirements across 6 phases)
+- UI Redesign (38 requirements, Clean Elevation)
+- Profile management (name, email OTP, avatar upload)
 
 ### Active
 
-- [ ] Design token overhaul (colors, typography, spacing, shadows, radii)
-- [ ] Typography swap: DM Sans (headings) + IBM Plex Sans (body) replacing Inter
-- [ ] White sidebar with collapsible icon rail (192px / 48px)
-- [ ] Floating card layout on blue-gray (#E8EDF2) background for all pages
-- [ ] 3-panel layout on cases page (sidebar | suites panel | content)
-- [ ] Component reskin (buttons, badges, cards, inputs, status badges, table rows)
-- [ ] All existing pages restyled to match new design language
-- [ ] Status colors preserved (pass/fail/blocked/skipped muted tones kept)
+- [ ] Self-serve workspace deletion (30-day grace, admin-only)
+- [ ] Individual user right to erasure (7-day grace, anonymize references)
+- [ ] Data export (personal data JSON download)
+- [ ] Privacy policy page
+- [ ] Scheduled hard-delete job for expired workspace deletions
+- [ ] Scheduled anonymization job for expired user erasure requests
+- [ ] Workspace deletion cancellation during grace period
 
 ### Out of Scope
 
-- Functional changes — no new features, no interaction redesigns, no new API endpoints
-- Dark mode — light is the identity, dark mode is v2
-- Mobile-responsive redesign — current responsive behavior stays, just restyled
-- New component creation — restyle existing components only
-- The floating action buttons and right-side icons from the mockup — these are mockup artifacts, not production features
-
-## Context
-
-**Current state:** Velo v1 is complete (48/48 requirements, all 6 phases shipped). The app works end-to-end: auth, test cases, runs, execution, CI ingestion, Linear integration, RBAC. The visual layer is functional but uses an "Industrial Notebook" warm palette that feels dated compared to the founder's vision.
-
-**Design reference:** `docs/Clean Elevation.png` (mockup) and `docs/desgin-language-redesign.md` (pixel-level spec). The spec references "Inter/SF Pro" in the typography table — this is overridden by the founder's decision to use DM Sans + IBM Plex Sans.
-
-**Tech stack (frontend):** Next.js 16 Pages Router, Tailwind CSS with custom design tokens in `globals.css`, CVA for component variants, Lucide React icons. All current design tokens are CSS custom properties.
-
-**Key files:**
-- `apps/web/src/styles/globals.css` — CSS custom properties (colors, spacing, shadows, typography vars)
-- `apps/web/src/pages/_app.tsx` — font loading via `next/font/google`
-- `apps/web/src/components/ui/` — Button, Card, Input, StatusBadge (CVA variants)
-- `apps/web/src/components/layout/sidebar.tsx` — collapsible sidebar (dark warm)
-- `apps/web/src/components/layout/app-layout.tsx` — app shell layout
-- `tailwind.config.ts` — Tailwind theme extension
+- Cookie consent banner — no tracking cookies in use
+- Data Processing Agreement (DPA) — deferred to legal review
+- Terms of Service page — deferred
+- Dark mode — deferred to future milestone
+- GDPR audit logging (Article 30 records of processing) — overkill pre-launch
 
 ## Constraints
 
-- **No regressions**: Every keyboard shortcut, every page flow, every API call must work identically after the redesign
-- **CSS-first**: Changes should be primarily in tokens, Tailwind config, and component class names — not restructuring React component trees
-- **Font licensing**: DM Sans and IBM Plex Sans are both Google Fonts (open source, free) — no licensing issues
-- **Existing status tokens**: pass/fail/blocked/skipped colors stay as muted tones (forest green, brick red, burnt amber, warm gray) — they work well and don't need to match the cool palette
+- UK GDPR (post-Brexit equivalent of EU GDPR) — same principles, UK ICO enforces
+- "Without undue delay" for erasure = 30 days max response time per ICO guidance
+- Must not break existing workspace isolation (RLS, workspace_id enforcement)
+- Deletion jobs must be idempotent (safe to retry on failure)
+- No new external services — use existing BullMQ + Valkey for job scheduling
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| DM Sans + IBM Plex Sans over Inter | Inter is overused in SaaS; DM Sans has more character for headings, IBM Plex Sans is highly legible for body | — Pending |
-| White sidebar over dark | Lighter, more open feel; matches the "Clean Elevation" aesthetic | — Pending |
-| Cool blue-gray background (#E8EDF2) | Distinguishes from the Notion/Craft cool-white default while staying light | — Pending |
-| Brighter blue primary (#2D7FF9) | More vibrant than the current cobalt (#1A56DB); better contrast on white | — Pending |
-| Floating card layout | Every page rendered as a white card on the blue-gray surface — consistent, clean, elevated | — Pending |
-| 3-panel cases page | Sidebar \| Suites panel (144px) \| Content — clearer hierarchy for test case management | — Pending |
-| Visual reskin only | No functional changes reduces risk, scope, and testing surface | — Pending |
-| Keep muted status colors | Forest green/brick red/amber/gray work well; forcing them into the cool palette would reduce readability | — Pending |
+| Hard delete workspace (not anonymize) | Clean slate simplifies compliance; no residual data risk | Decided |
+| Anonymize user PII (not cascade delete) | Deleting their work breaks other users' test history | Decided |
+| 30-day workspace / 7-day user grace | Workspace is major action; user erasure should be faster per GDPR | Decided |
+| No cookie banner | App uses no tracking cookies; session cookie is strictly necessary (exempt) | Decided |
+| BullMQ scheduled jobs | Already in stack (Valkey + BullMQ); no new infra needed | Decided |
+| Privacy page only (no ToS/DPA) | Getting ahead pre-launch; full legal docs need lawyer review | Decided |
 
 ---
-*Last updated: 2026-03-11 after initialization (UI redesign milestone)*
+*Last updated: 2026-03-12 after milestone v1.1 initialization*
