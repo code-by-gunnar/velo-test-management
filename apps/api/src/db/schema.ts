@@ -55,7 +55,7 @@ export const runStatusEnum = pgEnum("run_status", [
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  password_hash: text("password_hash").notNull(),
+  password_hash: text("password_hash"),
   name: varchar("name", { length: 255 }),
   email_verified: boolean("email_verified").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -82,6 +82,21 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   used_at: timestamp("used_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const oauthAccounts = pgTable(
+  "user_oauth_accounts",
+  {
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+    user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 20 }).notNull(),
+    provider_account_id: varchar("provider_account_id", { length: 255 }).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("user_oauth_accounts_provider_unique").on(t.provider, t.provider_account_id),
+    unique("user_oauth_accounts_user_provider_unique").on(t.user_id, t.provider),
+  ]
+)
 
 // ─── Workspace + membership (tenant root) ─────────────────────────────────────
 
