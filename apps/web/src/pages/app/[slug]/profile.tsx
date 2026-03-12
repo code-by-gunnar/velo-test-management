@@ -45,6 +45,16 @@ export default function ProfilePage({ slug }: ProfileProps) {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Erasure section state
+  const [erasureStatus, setErasureStatus] = useState<{
+    has_pending_erasure: boolean
+    status?: string
+    scheduled_at?: string
+  } | null>(null)
+  const [erasureLoading, setErasureLoading] = useState(false)
+  const [erasureError, setErasureError] = useState<string | null>(null)
+  const [confirmingErasure, setConfirmingErasure] = useState(false)
+
   // Sync from session when it loads
   const initializedRef = useRef(false)
   useEffect(() => {
@@ -74,6 +84,15 @@ export default function ProfilePage({ slug }: ProfileProps) {
         if (avatarRes.ok) {
           const data = (await avatarRes.json()) as { url: string | null }
           setAvatarUrl(data.url)
+        }
+        const erasureRes = await fetch("/api/backend/me/erasure-status")
+        if (erasureRes.ok) {
+          const erasureData = (await erasureRes.json()) as {
+            has_pending_erasure: boolean
+            status?: string
+            scheduled_at?: string
+          }
+          setErasureStatus(erasureData)
         }
       } catch {
         setFetchError("Could not reach the API")
@@ -193,6 +212,40 @@ export default function ProfilePage({ slug }: ProfileProps) {
       }
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function handleRequestErasure() {
+    setErasureLoading(true)
+    setErasureError(null)
+    try {
+      const res = await fetch("/api/backend/me/request-erasure", { method: "POST" })
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string }
+        setErasureError(err.error ?? "Failed to request erasure")
+        return
+      }
+      const data = (await res.json()) as { scheduled_at: string }
+      setErasureStatus({ has_pending_erasure: true, status: "pending", scheduled_at: data.scheduled_at })
+      setConfirmingErasure(false)
+    } finally {
+      setErasureLoading(false)
+    }
+  }
+
+  async function handleCancelErasure() {
+    setErasureLoading(true)
+    setErasureError(null)
+    try {
+      const res = await fetch("/api/backend/me/cancel-erasure", { method: "POST" })
+      if (!res.ok) {
+        const err = (await res.json()) as { error?: string }
+        setErasureError(err.error ?? "Failed to cancel")
+        return
+      }
+      setErasureStatus({ has_pending_erasure: false })
+    } finally {
+      setErasureLoading(false)
     }
   }
 
@@ -399,6 +452,79 @@ export default function ProfilePage({ slug }: ProfileProps) {
                       Cancel
                     </Button>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Data Erasure */}
+            <div className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900">Delete my data</h3>
+
+              {erasureStatus?.has_pending_erasure ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Your data is scheduled for deletion on{" "}
+                    <span className="font-medium text-gray-900">
+                      {new Date(erasureStatus.scheduled_at!).toLocaleDateString("en-GB", {
+                        day: "numeric", month: "long", year: "numeric"
+                      })}
+                    </span>
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {(() => {
+                      const days = Math.ceil((new Date(erasureStatus.scheduled_at!).getTime() - Date.now()) / 86400000)
+                      return days > 0 ? `${days} day${days !== 1 ? "s" : ""} remaining` : "Processing..."
+                    })()}
+                  </p>
+                  {erasureError && <p className="text-xs text-fail-text">{erasureError}</p>}
+                  <Button
+                    variant="secondary"
+                    onClick={handleCancelErasure}
+                    disabled={erasureLoading}
+                  >
+                    {erasureLoading ? "Cancelling..." : "Cancel erasure request"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Request deletion of your personal data. Your account will be anonymized after a 7-day grace period.
+                    You will be signed out immediately.
+                  </p>
+
+                  {!confirmingErasure ? (
+                    <Button
+                      variant="destructive"
+                      onClick={() => setConfirmingErasure(true)}
+                    >
+                      Request data erasure
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure? You will be signed out immediately and your data will be permanently deleted in 7 days.
+                      </p>
+                      {erasureError && <p className="text-xs text-fail-text">{erasureError}</p>}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="destructive"
+                          onClick={handleRequestErasure}
+                          disabled={erasureLoading}
+                        >
+                          {erasureLoading ? "Requesting..." : "Confirm erasure"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setConfirmingErasure(false)
+                            setErasureError(null)
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
