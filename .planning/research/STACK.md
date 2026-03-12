@@ -1,330 +1,279 @@
 # Technology Stack
 
 **Project:** Velo — QA Test Management Platform
-**Researched:** 2026-03-08
-**Scope:** Gaps only — already-decided components excluded from analysis
+**Researched:** 2026-03-12
+**Scope (v1.1 update):** GDPR & Data Lifecycle additions only. All prior stack decisions remain valid.
 
 ---
 
 ## Already Decided (Reference Only)
 
-| Layer | Decision |
-|-------|----------|
-| Frontend | Next.js 16 Pages Router + TypeScript + Tailwind CSS |
-| Backend | Node.js 22 LTS + Fastify 5 |
-| Database | PostgreSQL 16 |
-| Cache / Pub-Sub | Valkey (Redis fork — SSPL avoidance) |
-| Auth | Auth.js v5 (PKCE enforced) |
-| Storage | Cloudflare R2 |
-| Hosting | Railway |
-| CI/CD | GitHub Actions |
-| Observability | Sentry + Better Stack |
-| AI (Phase 3+) | Anthropic Claude API (claude-sonnet-4-6 / claude-haiku-4-5) |
+| Layer | Decision | Version in package.json |
+|-------|----------|--------------------------|
+| Frontend | Next.js 16 Pages Router + TypeScript + Tailwind CSS | 16.1.6 |
+| Backend | Node.js 22 LTS + Fastify 5 | ^5.0.0 |
+| Database | PostgreSQL 16 + postgres.js + drizzle-kit | postgres ^3.4.8, drizzle-kit ^0.31.9 |
+| ORM | Drizzle ORM (schema + migrations only; raw SQL for queries) | ^0.45.1 |
+| Cache / Pub-Sub / Job Queue | Valkey via iovalkey + BullMQ | iovalkey ^0.3.3, bullmq ^5.70.4 |
+| Auth | Auth.js v5 / next-auth beta.30 | 5.0.0-beta.30 |
+| Storage | Cloudflare R2 via @aws-sdk/client-s3 | ^3.1005.0 |
+| Email | Resend SDK | ^6.9.3 |
+| Validation | Zod | ^4.3.6 |
+| Testing | Vitest 2.x + @testing-library/react 16.x | ^2.0.0 |
 
 ---
 
-## Gap Analysis: What Needs Decisions
+## GDPR Milestone: Gap Analysis
 
-The decided stack leaves seven open areas:
+The v1.1 milestone introduces the following capabilities that need stack evaluation:
 
-1. ORM / query layer
-2. Schema migrations
-3. Real-time transport (WebSocket)
-4. Background job processing
-5. Email delivery
-6. Testing frameworks (unit + integration + e2e)
-7. Form validation / schema validation library
-
----
-
-## Recommended Stack: Gap Fills
-
-### 1. ORM / Query Layer
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Drizzle ORM** | 0.36.x | Primary ORM for PostgreSQL | SQL-first, TypeScript-native, generates typed queries without reflection. Zero runtime overhead vs Prisma's query engine binary. Supports raw SQL escape hatches cleanly. Fastify-compatible (no decorator magic). `drizzle-kit` ships schema diffing and migration generation. |
-
-**Why not Prisma:** Prisma 5+ still ships a separate query engine binary (~40MB), adds cold-start penalty relevant on Railway's free-tier containers, and generates SQL in a proprietary intermediate language. The "Prisma accelerate" offering creates a paid dependency path. For a solo greenfield project, Drizzle's SQL-first model is easier to debug and gives exact control over queries needed for run execution performance targets (<300ms).
-
-**Why not TypeORM:** TypeORM is actively maintained but relies heavily on decorators and `reflect-metadata`, which conflicts with Fastify's ethos and adds build complexity. The codebase has a history of subtle bugs with nullable columns and junction tables — exactly the patterns Velo needs (RunItem relationships).
-
-**Confidence:** MEDIUM — Drizzle 0.36.x was stable and production-used as of August 2025. Verify current patch version at `npmjs.com/package/drizzle-orm` before pinning in `package.json`.
+1. **Grace period scheduling** — enqueue a hard-delete job 30 days (workspace) or 7 days (user) in the future, with ability to cancel before it fires
+2. **Idempotent hard delete** — DELETE all workspace rows in correct FK order
+3. **PII anonymization** — overwrite users.name, users.email, users.avatar_url in-place while preserving user.id for foreign key integrity
+4. **Personal data export** — collect and JSON-serialize a user's personal data for download
+5. **Schema additions** — workspace deletion state, user erasure request state
+6. **Privacy policy page** — static content, no library needed
 
 ---
 
-### 2. Schema Migrations
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **drizzle-kit** | 0.27.x | Migration generation + apply | Ships with Drizzle ORM — same mental model, no second tool. `drizzle-kit generate` diffs schema against current DB state; `drizzle-kit migrate` applies. Works well in Railway's build pipeline via `npm run db:migrate` pre-start hook. |
-
-**Why not Flyway / Liquibase:** JVM dependency, heavy for a Node.js mono-service. Overkill until multi-team scale.
-
-**Why not node-postgres-migrate:** Low adoption, no TypeScript-aware schema diff.
-
-**Confidence:** HIGH — drizzle-kit is the canonical companion to Drizzle ORM, not an independent ecosystem choice.
-
----
-
-### 3. Real-Time Transport (WebSocket)
-
-This is the highest-stakes gap. The "live run dashboard with real-time updates — no page refresh required" (DA-01) is a core differentiator.
-
-#### Server Side (Fastify)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **@fastify/websocket** | 8.x | WebSocket plugin for Fastify 5 | Official Fastify ecosystem plugin. Wraps `ws` (the dominant Node.js WebSocket library). Fastify 5-compatible. Supports per-route WebSocket handlers, which maps cleanly to `/ws/runs/:runId`. |
-
-**Architecture decision:** Use Valkey pub/sub as the broadcast backbone. When a RunItem status changes (API call from test runner or UI), the handler publishes to a Valkey channel `run:{runId}:updates`. A single WebSocket server process subscribes and fans out to connected clients per runId. This avoids sticky sessions and works with Railway's single-instance MVP deployment.
-
-**Why not Socket.IO:** Socket.IO adds ~70KB client bundle, long-polling fallback complexity, and a proprietary protocol layer. For 2025, browsers universally support native WebSocket. The added abstraction is net-negative for a lean product. Socket.IO makes sense only when IE11 or corporate proxies that block WebSocket are in scope — neither applies here.
-
-**Why not SSE (Server-Sent Events):** SSE is unidirectional (server-to-client only). Velo's run execution interface requires bidirectional signalling (client submits P/F/B/S status, server broadcasts to all viewers). WebSocket is the correct primitive.
-
-**Why not Ably / Pusher / PartyKit:** Managed real-time services add a paid external dependency and data egress. For MVP with Railway + Valkey already in the stack, self-hosted WebSocket is simpler and free.
-
-#### Client Side (Next.js Pages Router)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Native WebSocket API** | — | Browser WebSocket client | No library needed. Wrap in a custom React hook (`useRunUpdates(runId)`) with reconnect logic using exponential backoff. Pages Router makes this straightforward — no RSC/streaming conflicts. |
-
-**Reconnect pattern:** Implement `useWebSocket` hook with: exponential backoff (1s, 2s, 4s, max 30s), visibility change listener to reconnect on tab focus, and a message queue to buffer updates during reconnect window. This is ~80 lines of code and avoids adding `reconnecting-websocket` or similar micro-libraries.
-
-**Confidence:** HIGH — `@fastify/websocket` 8.x + Valkey pub/sub is a well-understood pattern. The architecture is straightforward for single-instance Railway deployment.
-
----
-
-### 4. Background Job Processing
-
-Velo needs async jobs for: JUnit XML / Allure JSON ingestion (IN-01), Jira two-way sync (INT-01), and later webhook fanout.
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **BullMQ** | 5.x | Job queue backed by Valkey | BullMQ is the dominant Redis-compatible job queue in the Node.js ecosystem. It explicitly supports Valkey via `ioredis` 5.x (Valkey speaks the Redis protocol — full compatibility). Rate limiting, retries, dead-letter queues, and job progress events are all built-in. The BullMQ license is MIT for core; the paid "BullMQ Pro" features are not needed at MVP scale. |
-
-**Why not `pg-boss`:** pg-boss uses PostgreSQL as the queue backend. This is architecturally appealing (fewer services) but adds table-locking patterns and polling overhead to the primary DB. For Velo's <300ms performance target, keeping job queue traffic off the primary Postgres is cleaner.
-
-**Why not Inngest / Trigger.dev:** Both are managed platforms. Inngest requires an external service; Trigger.dev's self-hosted path adds operational overhead. For MVP on Railway, BullMQ with Valkey is simpler and already in the infrastructure footprint.
-
-**Worker process:** Run BullMQ workers in the same Node.js process (using Fastify's onReady hook) for MVP. If Railway's free tier CPU becomes a constraint, split into a separate Railway service later — BullMQ's architecture supports this transparently since workers only need the Valkey connection.
-
-**Confidence:** MEDIUM — BullMQ 5.x Valkey compatibility relies on protocol compatibility. Verify Valkey 8.x remains fully Redis-protocol compatible at integration time. As of August 2025, Valkey 8.x maintained this compatibility.
-
----
-
-### 5. Email Delivery
-
-Velo needs transactional email for: auth (magic links, password reset), team invitations, and run completion notifications (Phase 3+).
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Resend** | 4.x SDK | Email delivery service | Resend is the dominant developer-focused transactional email provider as of 2025. It has a clean REST API, official Node.js SDK, generous free tier (3,000 emails/month), and React Email for template authoring. Critically: it delivers without DKIM/SPF complexity for MVP — Resend manages domain reputation on your behalf. |
-| **React Email** | 3.x | Email template system | Works with Resend directly. Templates are React components — same mental model as the Next.js frontend. Type-safe. |
-
-**Why not SendGrid / Mailgun:** Both have more complex pricing and historically worse developer experience. Resend was built specifically to fix the "email is painful" problem and has overtaken them in the startup ecosystem.
-
-**Why not Nodemailer + SMTP:** Requires managing an SMTP server or third-party relay. More operational surface area with no advantage over Resend's SDK.
-
-**Confidence:** MEDIUM — Resend SDK 4.x was current as of August 2025. Verify current version.
-
----
-
-### 6. Testing Frameworks
-
-#### Backend (Fastify API)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Vitest** | 2.x | Unit + integration tests | Vitest is the modern replacement for Jest in the Node.js/TypeScript ecosystem. ~5x faster than Jest on cold runs due to native ESM support and Vite's transform pipeline. Compatible with Jest's API (`describe`, `it`, `expect`) — zero relearning. First-class TypeScript support without Babel or ts-jest gymnastics. |
-| **@fastify/inject** | built-in | Route integration tests | Fastify's built-in `inject()` method allows full HTTP simulation without a network socket. Use with Vitest for fast, isolated route tests (no `supertest` needed). |
-| **testcontainers** | 10.x | PostgreSQL test isolation | Spins a real PostgreSQL container per test suite. Eliminates "works in CI, breaks locally" class of bugs that come from mocking the DB layer. Works with GitHub Actions via Docker. |
-
-**Why not Jest:** Jest's CommonJS-first design requires explicit ESM configuration that conflicts with Fastify 5's ESM-first packaging. Multiple `transform` config hacks required. Vitest's ESM-native approach eliminates this entirely.
-
-**Why not Mocha:** Lower adoption in the TypeScript ecosystem; less tooling integration.
-
-#### Frontend (Next.js Pages Router)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Vitest** | 2.x | Component unit tests | Same test runner as backend — one config, one runner, one CI step. |
-| **@testing-library/react** | 16.x | Component testing | Industry standard for testing React components from the user's perspective. Works cleanly with Vitest via `@vitejs/plugin-react`. |
-| **jsdom** | 25.x | DOM environment for Vitest | Required for React component tests in Vitest. Use `environment: 'jsdom'` in vitest config. |
-
-#### End-to-End
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Playwright** | 1.48.x | E2E browser tests | Playwright is the dominant E2E testing tool for 2025, overtaking Cypress in ecosystem momentum. Key advantages: multi-browser (Chromium, Firefox, WebKit) in one runner, built-in network interception for WebSocket testing (critical for DA-01 validation), auto-wait reducing flakiness, and first-class GitHub Actions support. |
-
-**Why not Cypress:** Cypress still lacks native multi-tab support and has historically struggled with WebSocket testing — both blockers for Velo's real-time run dashboard. Playwright's WebSocket interceptors (`page.on('websocket')`) are production-grade.
-
-**Why not Selenium:** 2015-era tooling. No reason to choose it in 2025 unless browser matrix is exotic.
-
-**Confidence for Vitest:** HIGH — mature, stable, widely adopted.
-**Confidence for Playwright:** HIGH — industry-standard as of 2025.
-**Confidence for testcontainers:** MEDIUM — verify Node.js 22 LTS compatibility at integration time.
-
----
-
-### 7. Schema / Runtime Validation
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Zod** | 3.x | Schema validation + type inference | Zod is the de facto standard for TypeScript-first runtime validation. Used for: API request body validation in Fastify route schemas, environment variable validation at startup, and form validation on the frontend. Fastify's `@fastify/type-provider-zod` plugin bridges Zod schemas to Fastify's JSON Schema validation pipeline cleanly. Single library for both backend and frontend eliminates duplication of validation logic. |
-
-**Why not Yup:** Yup predates TypeScript-first design and requires separate type declarations. Slower in benchmarks.
-
-**Why not Valibot:** Valibot is newer (smaller bundle) and worth watching, but Zod has larger ecosystem support (tRPC, Drizzle integrations, Auth.js) making it the lower-risk choice for a solo project.
-
-**Why not `fastify-plugin` + JSON Schema only:** Fastify supports JSON Schema natively, but raw JSON Schema lacks TypeScript type inference, requiring manual type declarations that drift. Zod generates the types.
-
-**Confidence:** HIGH — Zod 3.x is stable and universally used.
-
----
-
-### 8. API Type Safety (Optional but Recommended)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **tRPC** | — | NOT recommended | tRPC requires a dedicated client-server architecture where the client imports server types directly. This conflicts with Velo's design goal of a REST API with full UI parity (API-01) that external consumers (CI/CD integrations, JUnit ingestion) can use. A tRPC-only API would be difficult for non-Next.js consumers. |
-| **Zod + Fastify type provider** | — | Type-safe REST API | Use `@fastify/type-provider-zod` to get full TypeScript types for route inputs and outputs. This gives compile-time safety without sacrificing the REST contract. |
-
-**Decision:** No tRPC. REST with Zod schemas is the correct choice given the external API requirement.
-
-**Confidence:** HIGH — this is a direct architectural constraint from the project requirements.
-
----
-
-### 9. Drag-and-Drop (Suite / Folder Structure)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **@dnd-kit/core** | 6.x | Drag-and-drop for suite tree | dnd-kit is the modern, accessibility-first DnD library for React. It replaced `react-beautiful-dnd` (deprecated in 2023 by Atlassian). Works with Next.js Pages Router. Supports tree-like structures via `@dnd-kit/sortable`. No dependency on a specific rendering strategy — important since Velo uses Pages Router. |
-
-**Why not react-beautiful-dnd:** Officially deprecated by Atlassian (2023). Active bugs unfixed.
-
-**Why not react-dnd:** Lower ergonomics, heavier API surface, less active maintenance relative to dnd-kit.
-
-**Confidence:** HIGH — dnd-kit is the clear successor as of 2025.
-
----
-
-### 10. HTTP Client (Server-Side — Jira Integration)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **undici** | 6.x | Jira API calls from backend | `undici` is Node.js 22's built-in HTTP client (it powers `fetch` in Node.js). Using it directly (or via the native `fetch` API in Node.js 22) avoids adding `axios` or `got` as a dependency. Node.js 22 LTS ships `fetch` as stable — no polyfill needed. |
-
-**Why not axios:** axios is excellent but unnecessary when Node.js 22's native `fetch` covers the use case. Reduces dependency surface.
-
-**Why not got:** Same reasoning — native fetch is sufficient for Jira REST API calls which are straightforward request/response patterns.
-
-**Confidence:** HIGH — Node.js 22 LTS ships stable `fetch`.
-
----
-
-## Full Stack Reference Table
-
-| Layer | Library | Version | Confidence |
-|-------|---------|---------|------------|
-| ORM | Drizzle ORM | 0.36.x | MEDIUM |
-| Migrations | drizzle-kit | 0.27.x | HIGH |
-| WebSocket (server) | @fastify/websocket | 8.x | HIGH |
-| WebSocket (client) | Native browser API | — | HIGH |
-| Job queue | BullMQ | 5.x | MEDIUM |
-| Email | Resend SDK | 4.x | MEDIUM |
-| Email templates | React Email | 3.x | MEDIUM |
-| Validation | Zod | 3.x | HIGH |
-| Fastify type bridge | @fastify/type-provider-zod | 2.x | HIGH |
-| Unit/integration tests | Vitest | 2.x | HIGH |
-| React component tests | @testing-library/react | 16.x | HIGH |
-| DB test isolation | testcontainers | 10.x | MEDIUM |
-| E2E tests | Playwright | 1.48.x | HIGH |
-| Drag-and-drop | @dnd-kit/core + @dnd-kit/sortable | 6.x | HIGH |
-| HTTP client (server) | Node.js native fetch / undici | built-in | HIGH |
-
----
-
-## Alternatives Considered and Rejected
-
-| Category | Recommended | Rejected | Reason |
-|----------|-------------|---------|--------|
-| ORM | Drizzle ORM | Prisma | Binary query engine, cold-start cost, paid acceleration path |
-| ORM | Drizzle ORM | TypeORM | Decorator-heavy, `reflect-metadata` complexity, junction table bugs |
-| WebSocket | @fastify/websocket + native WS | Socket.IO | 70KB bundle overhead, long-polling complexity, proprietary protocol |
-| WebSocket | @fastify/websocket + native WS | SSE | Unidirectional — cannot handle client status submissions |
-| WebSocket | @fastify/websocket + native WS | Managed (Ably/Pusher) | Paid external dependency, unnecessary for single-instance MVP |
-| Job queue | BullMQ | pg-boss | Adds polling load to primary DB, worsens <300ms targets |
-| Job queue | BullMQ | Inngest / Trigger.dev | Managed external service, adds operational dependency |
-| Email | Resend | SendGrid / Mailgun | Worse DX, more complex pricing |
-| Email | Resend | Nodemailer + SMTP | Manual SMTP relay management |
-| Testing | Vitest | Jest | ESM conflicts with Fastify 5, slower, transform config complexity |
-| E2E | Playwright | Cypress | Multi-tab gaps, WebSocket testing limitations |
-| Validation | Zod | Yup | Not TypeScript-first, separate type declarations drift |
-| Validation | Zod | Valibot | Smaller ecosystem, less integration support |
-| API type safety | REST + Zod | tRPC | Incompatible with external REST API requirement (IN-01, API-01) |
-| Drag-and-drop | dnd-kit | react-beautiful-dnd | Deprecated by Atlassian 2023 |
-
----
-
-## Installation Reference
-
-```bash
-# ORM + Migrations
-pnpm add drizzle-orm postgres
-pnpm add -D drizzle-kit
-
-# Fastify plugins
-pnpm add @fastify/websocket @fastify/type-provider-zod
-
-# Validation
-pnpm add zod
-
-# Job queue
-pnpm add bullmq
-
-# Email
-pnpm add resend @react-email/components
-
-# Testing
-pnpm add -D vitest @vitest/ui
-pnpm add -D @testing-library/react @testing-library/user-event jsdom
-pnpm add -D testcontainers
-pnpm add -D @playwright/test
-
-# Frontend DnD
-pnpm add @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+## GDPR Stack Decisions
+
+### 1. Grace Period Scheduling — BullMQ Delayed Jobs (No New Library)
+
+**Decision:** Use BullMQ's built-in `delay` option on `queue.add()`. No new library.
+
+BullMQ already in the stack (`bullmq ^5.70.4`). Delayed jobs are a core BullMQ primitive: a job added with `{ delay: ms }` sits in Valkey's sorted set until the delay elapses, then becomes eligible for a worker. For the 30-day workspace deletion:
+
+```typescript
+await deletionQueue.add(
+  'workspace-hard-delete',
+  { workspaceId },
+  {
+    delay: 30 * 24 * 60 * 60 * 1000,  // 2_592_000_000 ms
+    jobId: `workspace-delete:${workspaceId}`,  // deterministic ID for cancellation
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: { count: 200 },
+    removeOnFail: { count: 500 },
+  }
+)
 ```
 
+**Cancellation (grace period undo):** A deterministic `jobId` makes cancellation trivial. Retrieve the job by ID and call `job.remove()`:
+
+```typescript
+const job = await deletionQueue.getJob(`workspace-delete:${workspaceId}`)
+if (job) await job.remove()
+```
+
+This is the correct mechanism for "cancel workspace deletion during grace period." No deduplication plugin, no separate scheduler table — Valkey holds the pending job and the jobId is the handle to cancel it.
+
+**Idempotency:** If the worker crashes mid-delete, BullMQ retries it (attempts: 3). The delete worker must be written idempotently (DELETE WHERE ... is naturally idempotent; each retry succeeds or is a no-op).
+
+**Why not a cron job polling a DB flag:** Polling a `deletion_scheduled_at` column every hour is a simpler pattern but has a ±1 hour precision window and requires the worker to scan all workspaces on every tick. Delayed jobs are more precise and require no polling. The already-running BullMQ worker process handles them automatically.
+
+**Why not `pg-boss` or a scheduled job service:** The existing Valkey + BullMQ infrastructure already handles this. Adding a second scheduler (node-cron, pg-boss, etc.) would duplicate infrastructure for no benefit.
+
+**Confidence:** HIGH — BullMQ delayed jobs with deterministic jobIds is a documented, standard pattern. Verified against BullMQ docs (docs.bullmq.io/guide/jobs/delayed, docs.bullmq.io/guide/jobs/job-ids).
+
 ---
 
-## Version Verification Required Before Integration
+### 2. New BullMQ Queue: `lifecycle` (No New Library)
 
-These versions were current as of August 2025 (research knowledge cutoff). Verify before pinning in `package.json`:
+**Decision:** Add a new `lifecycle` queue alongside the existing `email` and `webhook` queues. No new library.
 
-| Package | Check At |
-|---------|---------|
-| drizzle-orm | npmjs.com/package/drizzle-orm |
-| drizzle-kit | npmjs.com/package/drizzle-kit |
-| bullmq | npmjs.com/package/bullmq — also verify Valkey 8.x protocol compatibility in release notes |
-| resend | npmjs.com/package/resend |
-| @playwright/test | playwright.dev/docs/release-notes |
-| testcontainers | npmjs.com/package/testcontainers — verify Node.js 22 compatibility |
+The lifecycle queue handles:
+- `workspace-hard-delete` — fires after 30-day grace period
+- `user-erasure` — fires after 7-day grace period
+
+Keep this separate from the `email` queue to isolate failure domains: a transient Resend outage should not block hard deletes from processing.
+
+**File structure to add:**
+
+```
+apps/api/src/queues/
+  lifecycle.queue.ts     — Queue instance + job type definitions
+  lifecycle.worker.ts    — Worker: hard delete workspace, anonymize user PII
+```
+
+**Confidence:** HIGH — mirrors the existing email.queue.ts / email.worker.ts pattern already in the codebase.
+
+---
+
+### 3. PII Anonymization — Raw SQL UPDATE (No New Library)
+
+**Decision:** Write a plain SQL UPDATE in the lifecycle worker. No PostgreSQL Anonymizer extension, no external tool.
+
+PostgreSQL Anonymizer extension (postgresql_anonymizer) is a PostreSQL C extension requiring server-side installation. Railway does not support custom PostgreSQL extensions beyond the pg_catalog defaults. It is the wrong tool for this use case: Velo needs to anonymize a single user record on-demand, not mask an entire dump.
+
+The correct approach is a targeted UPDATE in the lifecycle worker:
+
+```sql
+UPDATE users
+SET
+  name = 'Deleted User',
+  email = 'deleted-' || id::text || '@deleted.invalid',
+  avatar_url = NULL,
+  password_hash = 'REDACTED',
+  email_verified = false
+WHERE id = $1
+```
+
+The email replacement uses the user's UUID to guarantee uniqueness (the `email` column has a `UNIQUE` constraint). Using `@deleted.invalid` domain (RFC 2606 reserved) ensures the address is non-deliverable and unambiguously synthetic.
+
+**Why not NULL for name/email:** The `users` table has `users.name` as nullable but `users.email` as NOT NULL UNIQUE. Setting email to NULL would violate the constraint. The `deleted-{uuid}@deleted.invalid` pattern satisfies the constraint while being clearly non-PII.
+
+**Why not pg-anonymizer CLI tool:** `rap2hpoutre/pg-anonymizer` is a dump tool for test data generation, not for production on-demand erasure. Wrong use case.
+
+**EDPB anonymization note:** The EDPB's 2025 enforcement report flagged weak anonymization as a compliance risk. The replacement values used here (non-reversible constant + UUID-derived synthetic email) meet the irreversibility standard because: (a) the original values are overwritten with no backup reference, (b) the UUID-derived email cannot be reversed to the original email, (c) Railway's 7-day backup retention window means the original data is fully purged within the GDPR "without undue delay" window.
+
+**Confidence:** HIGH — this is a direct SQL operation using existing postgres.js; no library choice involved.
+
+---
+
+### 4. Personal Data Export — Native JSON Assembly (No New Library)
+
+**Decision:** Assemble the export in the route handler using raw SQL, serialize with `JSON.stringify`, send as a file download. No library needed.
+
+The scope is deliberately narrow (PROJECT.md: "name, email, avatar; small JSON download"). The handler:
+
+1. Queries `users` for name, email, avatar_url, created_at
+2. Serializes to `{ exportedAt, userData: { name, email, avatarUrl, createdAt } }`
+3. Sets `Content-Disposition: attachment; filename="personal-data.json"` and `Content-Type: application/json`
+4. Sends via `reply.send()`
+
+No streaming, no zip file, no archiver library needed for this scope.
+
+**Why not a zip/archiver library (e.g., `archiver`, `jszip`):** The export scope is a single small JSON object. Adding a zip library would be premature — revisit if/when attachments or run history export is added in a future milestone.
+
+**Confidence:** HIGH — this is a first-principles API handler pattern.
+
+---
+
+### 5. Schema Additions — Drizzle ORM (No New Library)
+
+**Decision:** Add new columns and one new table to the existing Drizzle schema. Run via the existing drizzle-kit migration pipeline.
+
+#### New columns on `workspaces` table
+
+```typescript
+deletion_requested_at: timestamp("deletion_requested_at", { withTimezone: true }),
+deletion_scheduled_for: timestamp("deletion_scheduled_for", { withTimezone: true }),
+deletion_requested_by: uuid("deletion_requested_by").references(() => users.id, { onDelete: "set null" }),
+```
+
+These three columns are sufficient to drive UI state (show cancellation banner if `deletion_requested_at IS NOT NULL`), the lifecycle worker check (compare `deletion_scheduled_for` against now as a double-check), and audit log display.
+
+**Why not a separate `workspace_deletion_requests` table:** For a single active deletion per workspace at any time, three nullable columns on the workspace row is simpler than a join. A separate table would be warranted if multiple pending requests needed to be tracked, which is not the case here.
+
+#### New table: `user_erasure_requests`
+
+```typescript
+export const userErasureRequests = pgTable("user_erasure_requests", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  scheduled_for: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+  completed_at: timestamp("completed_at", { withTimezone: true }),
+  // status: 'pending' before grace expires, 'completed' after anonymization runs
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+})
+```
+
+A separate table here (vs. columns on `workspace_members`) is correct because:
+- A user can request erasure in multiple workspaces independently
+- The request persists after anonymization completes (audit record)
+- `ON DELETE CASCADE` from both `users` and `workspaces` ensures cleanup
+
+**Confidence:** HIGH — direct Drizzle schema pattern matching existing codebase conventions.
+
+---
+
+### 6. Privacy Policy Page — Next.js Static Page (No New Library)
+
+**Decision:** Create `/pages/privacy.tsx` as a static Next.js page. No CMS, no markdown renderer, no legal document library.
+
+The privacy policy is plain HTML content rendered inline. It does not need to be CMS-editable pre-launch. A static page in the Pages Router is the correct scope.
+
+**Why not a markdown renderer (remark, next-mdx-remote):** A single static page does not justify a markdown pipeline. The policy text is written once, stored in the file, updated via code commit when needed pre-launch.
+
+**Confidence:** HIGH — this is a straightforward Next.js page.
+
+---
+
+## What NOT to Add
+
+| Considered | Decision | Rationale |
+|------------|----------|-----------|
+| `postgresql_anonymizer` extension | Do not add | Requires server-side C extension; Railway does not support custom extensions. Wrong tool for on-demand single-row erasure. |
+| `gdpr.js` or similar Node.js GDPR libraries | Do not add | These libraries are thin wrappers with minimal active maintenance. The required operations (SQL UPDATE, BullMQ delayed job, JSON export) are simpler to implement directly. |
+| `archiver` / `jszip` | Do not add | Export scope is one small JSON object. Zip library is premature. |
+| `node-cron` | Do not add | BullMQ delayed jobs replace the need for a cron-based poller. Adding node-cron would create a second scheduler competing with BullMQ. |
+| Separate "erasure_log" audit table | Defer | GDPR Article 30 Records of Processing Activity explicitly out of scope for this milestone (PROJECT.md). |
+| Cookie consent banner library (`react-cookie-consent`, `cookiebot`) | Do not add | App uses no tracking cookies. Session cookie is strictly necessary and exempt under PECR/UK GDPR. |
+| DPA template library | Do not add | Deferred to legal review (PROJECT.md). |
+
+---
+
+## Integration Points with Existing Stack
+
+| New Capability | Integrates With | How |
+|----------------|-----------------|-----|
+| Lifecycle queue (deletion/erasure jobs) | BullMQ + iovalkey | New Queue/Worker pair; same connection options as `email.queue.ts` |
+| Hard delete worker | postgres.js `sql` | Direct SQL; NOT through `withWorkspace` (the workspace no longer exists at job time — run outside RLS context with explicit WHERE workspace_id = $1) |
+| Anonymization worker | postgres.js `sql` | Direct UPDATE on `users` table; global connection, no tenant context needed |
+| Grace period cancellation endpoint | BullMQ `queue.getJob(jobId).remove()` | Route handler in `workspaces.ts` |
+| Data export endpoint | postgres.js `sql` + Fastify `reply.send()` | New route in `profile.ts` or new `privacy.ts` route file |
+| Schema additions | drizzle-kit migration | `pnpm db:generate && pnpm db:migrate` |
+| Deletion state UI | Next.js frontend | New banner component + API calls to `/api/workspaces/:id/deletion` |
+
+---
+
+## No New Dependencies Required
+
+The v1.1 GDPR milestone requires zero new npm packages. All capabilities are satisfied by the existing stack:
+
+| Capability | Existing Mechanism |
+|------------|-------------------|
+| Delayed grace period jobs | BullMQ `delay` option (already installed) |
+| Job cancellation | BullMQ `queue.getJob(id).remove()` (built-in) |
+| PII anonymization | postgres.js raw SQL UPDATE (already used) |
+| Data export | postgres.js query + Fastify reply (already used) |
+| Schema changes | drizzle-kit generate + migrate (already used) |
+| Privacy page | Next.js static page (Pages Router) |
+| Erasure confirmation email | Resend via existing email queue + worker |
+
+---
+
+## Version Verification
+
+Current installed versions (from package.json as of 2026-03-12):
+
+| Package | Installed | Status |
+|---------|-----------|--------|
+| bullmq | ^5.70.4 | Current — delayed jobs and deterministic jobIds confirmed supported |
+| iovalkey | ^0.3.3 | Current — Valkey Redis-protocol compatibility confirmed |
+| postgres | ^3.4.8 | Current — no changes needed |
+| drizzle-orm | ^0.45.1 | Current — no changes needed |
+| drizzle-kit | ^0.31.9 | Current — no changes needed |
+| resend | ^6.9.3 | Current — use existing email queue for erasure confirmation emails |
+
+No version bumps required for this milestone.
 
 ---
 
 ## Sources
 
-- Knowledge base (August 2025 cutoff) — covers all listed library versions
-- Project constraints: `D:/git_repo/personal/velo-test-management/.planning/PROJECT.md`
-- WebSearch and WebFetch unavailable in this research session — version numbers flagged MEDIUM where recency matters most
-- Fastify 5 official docs: fastify.dev
-- Playwright official: playwright.dev
-- Drizzle ORM: orm.drizzle.team
-- BullMQ: docs.bullmq.io
-- Resend: resend.com/docs
-- dnd-kit: dndkit.com
+- BullMQ Delayed Jobs documentation: https://docs.bullmq.io/guide/jobs/delayed
+- BullMQ Job IDs documentation: https://docs.bullmq.io/guide/jobs/job-ids
+- BullMQ Deduplication documentation: https://docs.bullmq.io/guide/jobs/deduplication
+- BullMQ Remove Jobs documentation: https://docs.bullmq.io/guide/jobs/removing-job
+- EDPB 2025 Right to Erasure Enforcement Report (via ReedSmith): https://www.reedsmith.com/our-insights/blogs/viewpoints/102mm9l/edpb-report-on-the-right-to-erasure-key-takeaways-from-the-2025-coordinated-enfo/
+- GDPR Article 17 Right to Erasure: https://secureprivacy.ai/blog/how-to-respond-to-gdpr-right-to-erasure-request
+- SPW Circular — Anonymization vs Erasure: https://spwcircular.com/blog/is-the-anonymization-of-personal-data-the-same-as-data-erasure/
+- Iron Mountain — Anonymization as Erasure Equivalence: https://www.ironmountain.com/resources/blogs-and-articles/i/is-the-anonymization-of-personal-data-the-same-as-data-erasure
+- PostgreSQL Anonymizer extension (evaluated and rejected): https://postgresql-anonymizer.readthedocs.io/
+- GDPR for SaaS — Deleting personal data: https://gdpr4saas.eu/deleting-personal-data
+- Railway PostgreSQL documentation (custom extension limitations): verified against project constraints
+- Existing codebase: D:/git_repo/personal/velo-test-management/apps/api/src/
