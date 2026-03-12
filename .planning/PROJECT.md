@@ -16,6 +16,9 @@ Ship a focused, keyboard-first test management tool that startups actually want 
 ### UI Redesign — "Clean Elevation" (COMPLETE)
 38 requirements across 4 phases: design tokens, typography, layout, component reskin.
 
+### v1.1 — GDPR & Data Lifecycle (COMPLETE)
+20 requirements across 4 phases: schema/foundation, lifecycle workers, export/frontend, notifications.
+
 ### Post-Milestone Additions (on master)
 - CSV import with suite auto-creation
 - Suite management: context menu, bulk delete, select mode
@@ -25,26 +28,26 @@ Ship a focused, keyboard-first test management tool that startups actually want 
 - Calm gray confirmation pattern (Clean Elevation design)
 - User profile management: name edit, OTP-verified email change, R2 avatar upload
 - Sidebar popover menu (profile + sign out)
+- Landing page redesign (comparison table, feature cards, how-it-works)
+- WCAG accessibility pass (prefers-reduced-motion, focus-visible rings)
 
-## Current Milestone: v1.1 GDPR & Data Lifecycle
+## Current Milestone: v1.2 Social Auth
 
-**Goal:** Prepare the platform for UK/EU compliance by implementing GDPR data rights and workspace lifecycle management — getting ahead of launch, not reacting to it.
+**Goal:** Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/password — standard SaaS expectation that reduces friction for new users.
 
 **Target features:**
-- Self-serve workspace deletion with 30-day grace period (admin-only)
-- Individual user right to erasure with 7-day grace period (anonymize references, don't cascade-delete their work)
-- Data export (lightweight — name, email, avatar; small JSON download)
-- Privacy policy page (/privacy)
-- Hard delete of all workspace data after grace period (users, cases, runs, suites, everything)
-- Anonymize deleted users in workspace (replace PII with "Deleted User" in created_by, comments, etc.)
-- Scheduled cleanup job for expired grace periods
+- Google OAuth sign-in/sign-up
+- GitHub OAuth sign-in/sign-up
+- Auto-link accounts when OAuth email matches existing email/password account
+- OAuth users skip email OTP verification (pre-verified by provider)
+- Login page updated with social auth buttons
+- Existing session/JWT pipeline works seamlessly with OAuth users
 
 **Design decisions:**
-- Hard delete workspace data (not anonymize) — clean slate after 30 days
-- Anonymize individual user PII within workspace (don't delete their test history)
-- 30-day grace period for workspace deletion, 7-day for individual user erasure
-- Privacy policy page only (no cookie banner — app doesn't use tracking cookies)
-- No DPA or ToS in this milestone — defer to legal review later
+- Auto-link on email match (not separate accounts, not block + prompt)
+- OAuth users skip OTP entirely — provider has already verified the email
+- No new auth providers beyond Google + GitHub for this milestone
+- Auth.js v5 built-in OAuth provider support (no custom OAuth implementation)
 
 ## Requirements
 
@@ -53,43 +56,41 @@ Ship a focused, keyboard-first test management tool that startups actually want 
 - All v1 functionality (48 requirements across 6 phases)
 - UI Redesign (38 requirements, Clean Elevation)
 - Profile management (name, email OTP, avatar upload)
+- GDPR & Data Lifecycle (20 requirements, v1.1)
 
 ### Active
 
-- [ ] Self-serve workspace deletion (30-day grace, admin-only)
-- [ ] Individual user right to erasure (7-day grace, anonymize references)
-- [ ] Data export (personal data JSON download)
-- [ ] Privacy policy page
-- [ ] Scheduled hard-delete job for expired workspace deletions
-- [ ] Scheduled anonymization job for expired user erasure requests
-- [ ] Workspace deletion cancellation during grace period
+- [ ] Google OAuth sign-in/sign-up
+- [ ] GitHub OAuth sign-in/sign-up
+- [ ] Account auto-linking on matching email
+- [ ] OAuth users bypass email verification
+- [ ] Social auth buttons on login/signup pages
 
 ### Out of Scope
 
-- Cookie consent banner — no tracking cookies in use
-- Data Processing Agreement (DPA) — deferred to legal review
-- Terms of Service page — deferred
+- Apple Sign-In — deferred to future milestone
+- Microsoft/Azure AD — enterprise SSO, deferred
+- SAML/SSO — enterprise feature, deferred
 - Dark mode — deferred to future milestone
-- GDPR audit logging (Article 30 records of processing) — overkill pre-launch
+- Account unlinking (remove linked provider) — defer unless trivial
 
 ## Constraints
 
-- UK GDPR (post-Brexit equivalent of EU GDPR) — same principles, UK ICO enforces
-- "Without undue delay" for erasure = 30 days max response time per ICO guidance
-- Must not break existing workspace isolation (RLS, workspace_id enforcement)
-- Deletion jobs must be idempotent (safe to retry on failure)
-- No new external services — use existing BullMQ + Valkey for job scheduling
+- Must use Auth.js v5 built-in OAuth providers (Google, GitHub)
+- Must preserve existing JWT/session pipeline (workspace_id, role, custom fields)
+- Must not break existing email/password flow
+- OAuth users need the same workspace onboarding flow as email users
+- Google OAuth requires Google Cloud Console project + credentials
+- GitHub OAuth requires GitHub OAuth App registration
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Hard delete workspace (not anonymize) | Clean slate simplifies compliance; no residual data risk | Decided |
-| Anonymize user PII (not cascade delete) | Deleting their work breaks other users' test history | Decided |
-| 30-day workspace / 7-day user grace | Workspace is major action; user erasure should be faster per GDPR | Decided |
-| No cookie banner | App uses no tracking cookies; session cookie is strictly necessary (exempt) | Decided |
-| BullMQ scheduled jobs | Already in stack (Valkey + BullMQ); no new infra needed | Decided |
-| Privacy page only (no ToS/DPA) | Getting ahead pre-launch; full legal docs need lawyer review | Decided |
+| Auto-link on email match | Most SaaS apps do this; prevents duplicate accounts | Decided |
+| Skip OTP for OAuth | Provider already verified email; extra OTP adds friction | Decided |
+| Google + GitHub only | Most common for dev-tool SaaS; covers majority of users | Decided |
+| Auth.js v5 providers | Already using Auth.js; built-in support avoids custom OAuth | Decided |
 
 ---
-*Last updated: 2026-03-12 after milestone v1.1 initialization*
+*Last updated: 2026-03-12 after milestone v1.2 initialization*
