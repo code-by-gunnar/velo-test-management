@@ -65,27 +65,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OAP-01 | Pending | Pending |
-| OAP-02 | Pending | Pending |
-| OAP-03 | Pending | Pending |
-| OAP-04 | Pending | Pending |
-| ALK-01 | Pending | Pending |
-| ALK-02 | Pending | Pending |
-| ALK-03 | Pending | Pending |
-| UI-01 | Pending | Pending |
-| UI-02 | Pending | Pending |
-| UI-03 | Pending | Pending |
-| UI-04 | Pending | Pending |
-| INF-05 | Pending | Pending |
-| INF-06 | Pending | Pending |
-| INF-07 | Pending | Pending |
-| INF-08 | Pending | Pending |
+| INF-05 | Phase 1 | Pending |
+| INF-08 | Phase 1 | Pending |
+| INF-06 | Phase 2 | Pending |
+| OAP-01 | Phase 2 | Pending |
+| OAP-02 | Phase 2 | Pending |
+| OAP-03 | Phase 2 | Pending |
+| OAP-04 | Phase 2 | Pending |
+| ALK-01 | Phase 2 | Pending |
+| ALK-02 | Phase 2 | Pending |
+| ALK-03 | Phase 2 | Pending |
+| UI-01 | Phase 3 | Pending |
+| UI-02 | Phase 3 | Pending |
+| UI-03 | Phase 3 | Pending |
+| UI-04 | Phase 3 | Pending |
+| INF-07 | Phase 4 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after initial definition*
+*Last updated: 2026-03-12 after roadmap creation*

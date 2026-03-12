@@ -1,8 +1,8 @@
-# Roadmap: v1.1 GDPR & Data Lifecycle
+# Roadmap: v1.2 Social Auth
 
 ## Overview
 
-Add GDPR data rights and workspace lifecycle management to Velo before launch. Four phases: lay the schema and infrastructure foundation (queue, audit log, privacy page), build the core lifecycle workers and API routes (workspace deletion + user erasure), add workspace export and the frontend UI for all lifecycle features, then wire up email notifications and run integration tests. Zero new npm packages -- everything builds on existing BullMQ, postgres.js, Resend, and R2 primitives.
+Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/password auth. Four phases: lay the database schema and Fastify endpoint foundation (everything else depends on this), wire the full OAuth chain by fixing the Pages Router cookie bug and configuring Auth.js, add the login/signup UI and error handling, then update the GDPR erasure worker and run integration tests. Zero new npm packages -- all provider logic ships inside the already-installed `next-auth`.
 
 ## Phases
 
@@ -10,76 +10,54 @@ Add GDPR data rights and workspace lifecycle management to Velo before launch. F
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
-- [x] **Phase 1: Schema & Foundation** - Migrations, lifecycle queue, daily sweep, audit log table, and privacy policy page
-- [x] **Phase 2: Lifecycle Workers & API** - Workspace deletion, user erasure, R2 cleanup, session invalidation, and request/cancel API routes
-- [x] **Phase 3: Export & Frontend** - Workspace data export (JSON/CSV), deletion/erasure UI in settings and profile, status banners
-- [x] **Phase 4: Notifications & Verification** - Lifecycle email notifications, member deletion alerts, and integration tests
+- [ ] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths
+- [ ] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers
+- [ ] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture
+- [ ] **Phase 4: GDPR Erasure Update & Verification** - Erasure worker deletes OAuth account rows during anonymization, integration tests verify all three user-resolution paths and erasure correctness
 
 ## Phase Details
 
-### Phase 1: Schema & Foundation
-**Goal**: All database tables, columns, queue infrastructure, and the privacy policy page exist -- ready for workers and API routes to build on top
+### Phase 1: Schema & Fastify Route
+**Goal**: The database schema supports OAuth users and the Fastify endpoint can resolve any OAuth sign-in (new user, returning user, auto-link) before Auth.js is wired
 **Depends on**: Nothing (first phase)
-**Requirements**: INF-01, INF-02, INF-03, INF-04, TRN-01
+**Requirements**: INF-05, INF-08
 **Success Criteria** (what must be TRUE):
-  1. Migration adds deletion columns to `workspaces` table and creates `user_erasure_requests` and `erasure_audit_log` tables -- verified by running the migration and inspecting the schema
-  2. BullMQ `lifecycle` queue exists (separate from `email` queue) and accepts delayed jobs with deterministic `jobId` for cancellation
-  3. Daily sweep repeatable job is registered at 3 AM and queries for expired grace periods in both `workspaces` and `user_erasure_requests`
-  4. `/privacy` page renders without authentication and contains data controller identity, processing purposes, legal basis, retention periods, and user rights
-**Plans:** 3 plans
+  1. Migration 0009 runs cleanly -- `user_oauth_accounts` table exists with `UNIQUE(provider, provider_account_id)` and `ON DELETE CASCADE`, and `users.password_hash` accepts NULL
+  2. `POST /api/auth/oauth-signin` returns a user object with `{ id, email, name, workspace_id, workspace_slug, role }` for all three paths: new user (JIT provisioned), returning user (looked up by oauth account row), and auto-link (email-match with existing credentials user)
+  3. Integration tests confirm the endpoint is idempotent -- calling it twice for the same `(provider, provider_account_id)` does not create duplicate rows
+**Plans**: TBD
 
-Plans:
-- [x] 01-01-PLAN.md -- GDPR lifecycle database migration (workspace deletion columns, erasure requests table, audit log table)
-- [x] 01-02-PLAN.md -- BullMQ lifecycle queue, worker skeleton with daily sweep, audit log helper
-- [x] 01-03-PLAN.md -- Public privacy policy page (/privacy)
-
-### Phase 2: Lifecycle Workers & API
-**Goal**: Admins can request and cancel workspace deletion, users can request and cancel personal erasure, and expired grace periods execute the correct cleanup (hard-delete workspace data, anonymize user PII, purge R2 objects)
+### Phase 2: Auth.js Config & OAuth Chain
+**Goal**: Users can complete an OAuth sign-in flow end-to-end in development -- the full chain from clicking "Continue with Google/GitHub" through callback to landing in the app with a valid JWT carrying workspace_id and role
 **Depends on**: Phase 1
-**Requirements**: WLC-01, WLC-02, WLC-03, WLC-04, UER-01, UER-02, UER-03, UER-04, UER-05
+**Requirements**: INF-06, OAP-01, OAP-02, OAP-03, OAP-04, ALK-01, ALK-02, ALK-03
 **Success Criteria** (what must be TRUE):
-  1. Admin can request workspace deletion -- system records `deletion_requested_at`, `deletion_scheduled_at` (now + 30 days), enqueues a BullMQ delayed job with `jobId: ws-delete:{workspaceId}`
-  2. Admin can cancel workspace deletion during the 30-day grace period -- BullMQ job is removed, all `deletion_*` columns are cleared
-  3. When workspace grace period expires, worker collects R2 keys BEFORE cascade, batch-deletes R2 objects, then hard-deletes the workspace row (CASCADE handles child tables), with atomic status claim preventing concurrent execution
-  4. User can request erasure -- system creates `user_erasure_requests` row, enqueues delayed job, and immediately writes `deactivated:{workspaceId}:{userId}` to Valkey blocklist (existing session plugin returns 401)
-  5. When user erasure grace period expires, worker anonymizes all PII fields (name, email via `deleted-{uuid}@deleted.invalid`, password_hash, avatar_url after R2 delete, pending_email) and the user row is preserved so `created_by` references resolve to "Deleted User"
-**Plans:** 3 plans
+  1. The Pages Router `[...nextauth].ts` bridge correctly forwards multiple `Set-Cookie` headers -- OAuth state and nonce cookies are not silently dropped
+  2. User can complete a Google OAuth sign-in from the login page and land in the app with `session.user.workspace_id` populated (non-null after workspace onboarding)
+  3. User can complete a GitHub OAuth sign-in including accounts with private email settings (GitHub `user:email` scope is requested and the email is resolved)
+  4. An existing email/password user who signs in via OAuth with the same email address is auto-linked -- no duplicate account is created, the existing workspace context is returned
+  5. OAuth session JWT carries identical fields to a Credentials session (`workspace_id`, `role`, `id`) -- verified by inspecting the session after page refresh
+**Plans**: TBD
 
-Plans:
-- [x] 02-01-PLAN.md -- Workspace deletion API routes (request + cancel + status)
-- [x] 02-02-PLAN.md -- User erasure API routes (request + cancel + status + session invalidation)
-- [x] 02-03-PLAN.md -- Lifecycle workers: workspace hard-delete with R2 cleanup + user PII anonymization
-
-### Phase 3: Export & Frontend
-**Goal**: Admins can export all workspace data, and all lifecycle status (pending deletion, pending erasure, scheduled dates, cancel buttons) is visible in the appropriate settings pages
+### Phase 3: Login/Signup UI & Error Handling
+**Goal**: The login and signup pages surface Google and GitHub as first-class sign-in options, auth failures show actionable messages rather than generic errors, and new OAuth users get their profile picture seeded automatically
 **Depends on**: Phase 2
-**Requirements**: WEX-01, WEX-02, WEX-03, TRN-02
+**Requirements**: UI-01, UI-02, UI-03, UI-04
 **Success Criteria** (what must be TRUE):
-  1. Workspace admin can trigger a full export from settings and download a ZIP containing test cases with steps, suites (hierarchy preserved), test runs with results, and workspace settings -- each entity type as a separate file
-  2. Export format choice (JSON or CSV) works correctly -- JSON preserves nested structure, CSV flattens for spreadsheet compatibility
-  3. Pending workspace deletion status is visible in workspace settings showing scheduled date, time remaining, and a cancel button
-  4. Pending user erasure status is visible in profile settings showing scheduled date, time remaining, and a cancel button
-**Plans:** 3 plans
+  1. Login page shows "Continue with Google" and "Continue with GitHub" buttons above the email/password form with a visual separator -- both buttons trigger the correct provider flow
+  2. Signup page shows the same two social auth buttons with the same visual treatment
+  3. Navigating to `/auth/error` (or being redirected there by an auth failure) shows a page with an actionable error message specific to the failure type -- not the generic Auth.js error screen
+  4. A new user who signs in via OAuth for the first time has their profile picture populated from the provider's profile image -- visible in the sidebar avatar
+**Plans**: TBD
 
-Plans:
-- [x] 03-01-PLAN.md -- Workspace data export API (ZIP with JSON/CSV)
-- [x] 03-02-PLAN.md -- Workspace deletion status panel in settings (Danger Zone tab)
-- [x] 03-03-PLAN.md -- User erasure status and request UI in profile page
-
-### Phase 4: Notifications & Verification
-**Goal**: All lifecycle events trigger the correct email notifications, and integration tests verify idempotent deletion, cancellation, sweep recovery, and the full request-to-completion lifecycle
+### Phase 4: GDPR Erasure Update & Verification
+**Goal**: OAuth account records are cleaned up during user anonymization (the schema CASCADE alone does not cover this path), and CI passes with integration tests covering all new behavior
 **Depends on**: Phase 3
-**Requirements**: WLC-05, TRN-03
+**Requirements**: INF-07
 **Success Criteria** (what must be TRUE):
-  1. All active workspace members receive an email when an admin requests workspace deletion, including the scheduled deletion date and advice to export data
-  2. Three email touchpoints fire per lifecycle event: request acknowledged (with scheduled date), warning before grace period expires, and completion confirmation
-  3. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors, including new integration tests for lifecycle workers
-**Plans:** 3 plans
-
-Plans:
-- [x] 04-01-PLAN.md -- Lifecycle email templates, extended queue types, worker handlers, and batch-send helper
-- [x] 04-02-PLAN.md -- Wire notifications into lifecycle routes + erasure routes + lifecycle worker (3 touchpoints per event)
-- [x] 04-03-PLAN.md -- Integration tests for lifecycle and erasure routes + full CI verification
+  1. The GDPR erasure worker explicitly deletes `user_oauth_accounts` rows for the target user before anonymizing the `users` row -- confirmed by test that the rows are gone after erasure runs
+  2. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors, including integration tests for the three `oauth-signin` resolution paths and the erasure worker OAuth cleanup
+**Plans**: TBD
 
 ## Progress
 
@@ -88,37 +66,32 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Foundation | 3/3 | Complete | 2026-03-12 |
-| 2. Lifecycle Workers & API | 3/3 | Complete | 2026-03-12 |
-| 3. Export & Frontend | 3/3 | Complete | 2026-03-12 |
-| 4. Notifications & Verification | 3/3 | Complete | 2026-03-12 |
+| 1. Schema & Fastify Route | 0/? | Not started | - |
+| 2. Auth.js Config & OAuth Chain | 0/? | Not started | - |
+| 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
+| 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
 
 ## Coverage Map
 
 | Requirement | Phase |
 |-------------|-------|
-| INF-01 | Phase 1 |
-| INF-02 | Phase 1 |
-| INF-03 | Phase 1 |
-| INF-04 | Phase 1 |
-| TRN-01 | Phase 1 |
-| WLC-01 | Phase 2 |
-| WLC-02 | Phase 2 |
-| WLC-03 | Phase 2 |
-| WLC-04 | Phase 2 |
-| UER-01 | Phase 2 |
-| UER-02 | Phase 2 |
-| UER-03 | Phase 2 |
-| UER-04 | Phase 2 |
-| UER-05 | Phase 2 |
-| WEX-01 | Phase 3 |
-| WEX-02 | Phase 3 |
-| WEX-03 | Phase 3 |
-| TRN-02 | Phase 3 |
-| WLC-05 | Phase 4 |
-| TRN-03 | Phase 4 |
+| INF-05 | Phase 1 |
+| INF-08 | Phase 1 |
+| INF-06 | Phase 2 |
+| OAP-01 | Phase 2 |
+| OAP-02 | Phase 2 |
+| OAP-03 | Phase 2 |
+| OAP-04 | Phase 2 |
+| ALK-01 | Phase 2 |
+| ALK-02 | Phase 2 |
+| ALK-03 | Phase 2 |
+| UI-01 | Phase 3 |
+| UI-02 | Phase 3 |
+| UI-03 | Phase 3 |
+| UI-04 | Phase 3 |
+| INF-07 | Phase 4 |
 
-**Total: 20/20 requirements mapped. No orphans.**
+**Total: 15/15 requirements mapped. No orphans.**
 
 ---
 *Roadmap created: 2026-03-12*
