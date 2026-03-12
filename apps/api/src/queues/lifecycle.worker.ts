@@ -4,6 +4,7 @@ import { valkey } from "../lib/valkey.js"
 import { sql } from "../db/client.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { r2Enabled, listR2Objects, deleteR2Objects } from "../lib/r2.js"
+import { sendLifecycleEmails } from "../lib/email.js"
 import type { LifecycleJobData } from "./lifecycle.queue.js"
 import { lifecycleQueue } from "./lifecycle.queue.js"
 
@@ -63,6 +64,32 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           await valkey.del(...allValkeyKeys)
         }
 
+        // ── TRN-03: Send completion emails BEFORE CASCADE ───────────────────
+        // Must collect member emails and workspace name while data still exists
+        try {
+          const memberRows = await sql<{ email: string }[]>`
+            SELECT u.email FROM users u
+            INNER JOIN workspace_members wm ON wm.user_id = u.id
+            WHERE wm.workspace_id = ${workspaceId}::uuid AND wm.is_active = true
+          `
+          const [wsRow] = await sql<{ name: string }[]>`
+            SELECT name FROM workspaces WHERE id = ${workspaceId}::uuid
+          `
+          const wsName = wsRow?.name ?? "your workspace"
+          const memberEmails = memberRows.map((m) => m.email)
+
+          if (memberEmails.length > 0) {
+            await sendLifecycleEmails(
+              memberEmails,
+              `${wsName} has been deleted`,
+              "workspace-deletion-completed",
+              { workspaceName: wsName }
+            )
+          }
+        } catch (err) {
+          console.error("[lifecycle-worker] Failed to send workspace deletion completion emails:", err)
+        }
+
         // Hard-delete workspace (cascades to members, test data, etc.)
         await sql`DELETE FROM workspaces WHERE id = ${workspaceId}::uuid`
 
@@ -102,6 +129,23 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           if (avatar) {
             await deleteR2Objects([avatar])
           }
+        }
+
+        // ── TRN-03: Send completion email BEFORE PII anonymization ──────────
+        try {
+          const [userRow] = await sql<{ email: string }[]>`
+            SELECT email FROM users WHERE id = ${userId}::uuid
+          `
+          if (userRow?.email) {
+            await sendLifecycleEmails(
+              [userRow.email],
+              "Your data has been erased",
+              "user-erasure-completed",
+              {}
+            )
+          }
+        } catch (err) {
+          console.error("[lifecycle-worker] Failed to send user erasure completion email:", err)
         }
 
         // PII anonymization
@@ -174,6 +218,70 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         console.log(
           `[lifecycle-worker] sweep complete: ${expiredWorkspaces.length} workspaces, ${expiredErasures.length} erasures enqueued`
         )
+        break
+      }
+      case "lifecycle-warning": {
+        const { warningType, entityId } = job.data
+        const WEB_URL_WARN = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+
+        if (warningType === "workspace-deletion") {
+          const [ws] = await sql<{ name: string; deletion_scheduled_at: string; deletion_status: string | null }[]>`
+            SELECT name, deletion_scheduled_at, deletion_status FROM workspaces WHERE id = ${entityId}::uuid
+          `
+          // Only send if still pending — may have been cancelled
+          if (!ws || ws.deletion_status !== "pending_deletion") break
+
+          const memberRows = await sql<{ email: string }[]>`
+            SELECT u.email FROM users u
+            INNER JOIN workspace_members wm ON wm.user_id = u.id
+            WHERE wm.workspace_id = ${entityId}::uuid AND wm.is_active = true
+          `
+          const emails = memberRows.map((m) => m.email)
+          if (emails.length === 0) break
+
+          const scheduledDate = new Date(ws.deletion_scheduled_at).toLocaleDateString("en-GB", {
+            day: "numeric", month: "long", year: "numeric",
+          })
+
+          await sendLifecycleEmails(
+            emails,
+            `${ws.name} will be deleted in 3 days`,
+            "workspace-deletion-warning",
+            {
+              workspaceName: ws.name,
+              scheduledDate,
+              timeRemaining: "3 days",
+              cancelUrl: `${WEB_URL_WARN}/workspace/settings`,
+            }
+          )
+
+          console.log(`[lifecycle-worker] Sent workspace deletion warning for ${entityId}`)
+        } else if (warningType === "user-erasure") {
+          const [req] = await sql<{ user_id: string; scheduled_at: string; status: string }[]>`
+            SELECT user_id, scheduled_at, status FROM user_erasure_requests
+            WHERE user_id = ${entityId}::uuid AND status = 'pending'
+            ORDER BY requested_at DESC LIMIT 1
+          `
+          if (!req) break
+
+          const [user] = await sql<{ email: string }[]>`
+            SELECT email FROM users WHERE id = ${entityId}::uuid
+          `
+          if (!user?.email) break
+
+          const scheduledDate = new Date(req.scheduled_at).toLocaleDateString("en-GB", {
+            day: "numeric", month: "long", year: "numeric",
+          })
+
+          await sendLifecycleEmails(
+            [user.email],
+            "Your data will be erased in 3 days",
+            "user-erasure-warning",
+            { scheduledDate, timeRemaining: "3 days" }
+          )
+
+          console.log(`[lifecycle-worker] Sent user erasure warning for ${entityId}`)
+        }
         break
       }
       default: {
