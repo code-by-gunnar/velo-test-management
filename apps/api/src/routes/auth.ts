@@ -174,6 +174,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!user) return reply.status(401).send({ error: "Invalid credentials" })
 
+    if (!user.password_hash) {
+      return reply.status(401).send({ error: "Invalid credentials" })
+    }
+
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) return reply.status(401).send({ error: "Invalid credentials" })
 
