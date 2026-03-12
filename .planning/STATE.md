@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Social Auth
 status: in_progress
-stopped_at: "Completed 01-01-PLAN.md"
-last_updated: "2026-03-12T23:22:00Z"
-last_activity: 2026-03-12 -- Executed 01-01: migration 0009 + null password guard
+stopped_at: "Completed 01-02-PLAN.md"
+last_updated: "2026-03-12T23:29:00Z"
+last_activity: 2026-03-12 -- Executed 01-02: oauth-signin Fastify endpoint + TDD integration tests
 progress:
   total_phases: 4
   completed_phases: 0
@@ -49,13 +49,13 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: Phase 1 -- Schema & Fastify Route
-Plan: 1 of 2 complete (01-01 done)
-Status: In progress
+Plan: 2 of 2 complete (01-01 done, 01-02 done)
+Status: Phase 1 COMPLETE
 
 ```
-Progress: [ ] Phase 1  [ ] Phase 2  [ ] Phase 3  [ ] Phase 4
+Progress: [x] Phase 1  [ ] Phase 2  [ ] Phase 3  [ ] Phase 4
           |___________|___________|___________|___________|
-          0%                                             100%
+          25%                                             100%
 ```
 
 ## Accumulated Context
@@ -71,6 +71,7 @@ Recent decisions affecting current work:
 - Auth.js v5 built-in providers (no custom OAuth)
 - Zero new npm packages -- all provider logic in existing next-auth
 - [Phase 01-foundation]: Null password_hash guard returns identical 401 error message as wrong password to prevent OAuth-account enumeration
+- [Phase 01-foundation]: Error codes captured as local variables inside transaction, reply.send() called after sql.begin() block (CLAUDE.md rule)
 
 ### Critical Implementation Notes
 
@@ -106,7 +107,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:22:00.471Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-12T23:29:24.946Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
-Next action: `/gsd:execute-phase 1 plan 2` (01-02: Fastify OAuth route)
+Next action: Phase 1 complete -- ready to proceed to Phase 2 (Auth.js signIn callback wiring)

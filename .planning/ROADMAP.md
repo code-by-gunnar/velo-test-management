@@ -11,7 +11,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 - Phase directories use global numbering (07-social-auth, etc.) to avoid collision with prior milestones
 
-- [ ] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths
+- [x] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths (completed 2026-03-12)
 - [ ] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers
 - [ ] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture
 - [ ] **Phase 4: GDPR Erasure Update & Verification** - Erasure worker deletes OAuth account rows during anonymization, integration tests verify all three user-resolution paths and erasure correctness
@@ -26,7 +26,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
   1. Migration 0009 runs cleanly -- `user_oauth_accounts` table exists with `UNIQUE(provider, provider_account_id)` and `ON DELETE CASCADE`, and `users.password_hash` accepts NULL
   2. `POST /api/auth/oauth-signin` returns a user object with `{ id, email, name, workspace_id, workspace_slug, role }` for all three paths: new user (JIT provisioned), returning user (looked up by oauth account row), and auto-link (email-match with existing credentials user)
   3. Integration tests confirm the endpoint is idempotent -- calling it twice for the same `(provider, provider_account_id)` does not create duplicate rows
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 07-01-PLAN.md -- Migration 0009 + Drizzle schema + null password_hash guard
 - [ ] 07-02-PLAN.md -- POST /api/auth/oauth-signin endpoint + integration tests
@@ -70,7 +70,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Fastify Route | 1/2 | In Progress|  |
+| 1. Schema & Fastify Route | 2/2 | Complete   | 2026-03-12 |
 | 2. Auth.js Config & OAuth Chain | 0/? | Not started | - |
 | 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
