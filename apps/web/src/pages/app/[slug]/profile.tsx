@@ -342,6 +342,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
 
               <div className="flex items-center gap-3 pt-1">
                 <Button
+                  size="sm"
                   onClick={handleSaveName}
                   disabled={saving || !nameChanged}
                 >
@@ -400,6 +401,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                   )}
                   <div className="flex items-center gap-2">
                     <Button
+                      size="sm"
                       onClick={handleSendEmailCode}
                       disabled={emailSending || !newEmail.trim()}
                     >
@@ -407,6 +409,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                     </Button>
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setEmailStep("idle")
                         setEmailError(null)
@@ -437,6 +440,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                   )}
                   <div className="flex items-center gap-2">
                     <Button
+                      size="sm"
                       onClick={handleVerifyEmailCode}
                       disabled={emailSending || otpCode.length !== 6}
                     >
@@ -444,6 +448,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                     </Button>
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setEmailStep("idle")
                         setEmailError(null)
@@ -479,6 +484,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                   {erasureError && <p className="text-xs text-fail-text">{erasureError}</p>}
                   <Button
                     variant="secondary"
+                    size="sm"
                     onClick={handleCancelErasure}
                     disabled={erasureLoading}
                   >
@@ -495,6 +501,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                   {!confirmingErasure ? (
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={() => setConfirmingErasure(true)}
                     >
                       Request data erasure
@@ -508,6 +515,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                       <div className="flex gap-2">
                         <Button
                           variant="destructive"
+                          size="sm"
                           onClick={handleRequestErasure}
                           disabled={erasureLoading}
                         >
@@ -515,6 +523,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
                         </Button>
                         <Button
                           variant="ghost"
+                          size="sm"
                           onClick={() => {
                             setConfirmingErasure(false)
                             setErasureError(null)
