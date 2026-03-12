@@ -5,6 +5,7 @@ export type LifecycleJobData =
   | { type: "workspace-delete"; workspaceId: string; requestedBy: string }
   | { type: "user-erasure"; userId: string; workspaceId: string }
   | { type: "sweep-expired" }
+  | { type: "lifecycle-warning"; warningType: "workspace-deletion" | "user-erasure"; entityId: string }
 
 /**
  * Lifecycle queue — handles workspace deletion, user erasure, and daily sweep
