@@ -147,13 +147,13 @@ describe("Lifecycle routes (WLC-01, WLC-02, WLC-05)", () => {
       SELECT deletion_status, deletion_job_id FROM workspaces WHERE id = ${workspaceId}::uuid
     `
     expect((ws as { deletion_status: string }).deletion_status).toBe("pending_deletion")
-    expect((ws as { deletion_job_id: string }).deletion_job_id).toBe(`ws-delete:${workspaceId}`)
+    expect((ws as { deletion_job_id: string }).deletion_job_id).toBe(`ws-delete-${workspaceId}`)
 
     // Verify lifecycle queue was called
     expect(mockLifecycleAdd).toHaveBeenCalledWith(
       "workspace-delete",
       expect.objectContaining({ type: "workspace-delete", workspaceId }),
-      expect.objectContaining({ jobId: `ws-delete:${workspaceId}` })
+      expect.objectContaining({ jobId: `ws-delete-${workspaceId}` })
     )
   })
 

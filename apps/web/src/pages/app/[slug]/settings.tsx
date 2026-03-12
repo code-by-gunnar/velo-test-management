@@ -7,6 +7,7 @@ import { ApiReference } from "@/components/settings/ApiReference"
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel"
 import { DeletionPanel } from "@/components/settings/DeletionPanel"
 import { TeamPanel } from "@/components/settings/TeamPanel"
+import { ExportPanel } from "@/components/settings/ExportPanel"
 import { clsx } from "clsx"
 
 interface SettingsProps {
@@ -66,19 +67,25 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mx-auto max-w-3xl">
             {activeTab === "general" && (
-              <div className="rounded-lg border border-gray-200 bg-white p-5">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Workspace</h3>
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-gray-500">Slug</dt>
-                  <dd className="font-mono text-gray-900">{slug}</dd>
-                  <dt className="text-gray-500">Workspace ID</dt>
-                  <dd>
-                    <code className="select-all rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700">{workspaceId}</code>
-                  </dd>
-                </dl>
-                <p className="mt-4 text-xs text-gray-400">
-                  Use the Workspace ID when calling the REST API.
-                </p>
+              <div className="flex flex-col gap-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-5">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Workspace</h3>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                    <dt className="text-gray-500">Slug</dt>
+                    <dd className="font-mono text-gray-900">{slug}</dd>
+                    <dt className="text-gray-500">Workspace ID</dt>
+                    <dd>
+                      <code className="select-all rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono text-gray-700">{workspaceId}</code>
+                    </dd>
+                  </dl>
+                  <p className="mt-4 text-xs text-gray-400">
+                    Use the Workspace ID when calling the REST API.
+                  </p>
+                </div>
+
+                {userRole === "admin" && (
+                  <ExportPanel workspaceId={workspaceId} />
+                )}
               </div>
             )}
 

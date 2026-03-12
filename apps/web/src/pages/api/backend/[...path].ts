@@ -65,6 +65,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!skip.has(key)) res.setHeader(key, value)
   })
 
-  const body = await fetchRes.text()
-  res.send(body)
+  // Use arrayBuffer for binary responses (ZIP, etc.), text for everything else
+  const contentType = fetchRes.headers.get("content-type") ?? ""
+  if (contentType.includes("application/zip") || contentType.includes("application/octet-stream")) {
+    const buf = Buffer.from(await fetchRes.arrayBuffer())
+    res.end(buf)
+  } else {
+    const body = await fetchRes.text()
+    res.send(body)
+  }
 }
