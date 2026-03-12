@@ -2,7 +2,7 @@
 
 **Project:** Velo — QA Test Management Platform
 **Researched:** 2026-03-12
-**Scope (v1.1 update):** GDPR & Data Lifecycle additions only. All prior stack decisions remain valid.
+**Scope (v1.2 update):** Social Auth (Google + GitHub OAuth) additions only. All prior stack decisions remain valid.
 
 ---
 
@@ -23,182 +23,248 @@
 
 ---
 
-## GDPR Milestone: Gap Analysis
+## v1.2 Social Auth Milestone: Gap Analysis
 
-The v1.1 milestone introduces the following capabilities that need stack evaluation:
+The v1.2 milestone adds Google and GitHub OAuth alongside the existing Credentials provider. The changes fall into four areas:
 
-1. **Grace period scheduling** — enqueue a hard-delete job 30 days (workspace) or 7 days (user) in the future, with ability to cancel before it fires
-2. **Idempotent hard delete** — DELETE all workspace rows in correct FK order
-3. **PII anonymization** — overwrite users.name, users.email, users.avatar_url in-place while preserving user.id for foreign key integrity
-4. **Personal data export** — collect and JSON-serialize a user's personal data for download
-5. **Schema additions** — workspace deletion state, user erasure request state
-6. **Privacy policy page** — static content, no library needed
+1. **Auth.js provider additions** — import `Google` and `GitHub` from `next-auth/providers/*` and add to the providers array
+2. **signIn callback** — intercept OAuth sign-ins to call the Fastify API, upsert the user, resolve workspace context, and handle auto-linking
+3. **jwt callback** — already handles custom fields; must handle the case where `user` arrives from OAuth (no `workspace_id` in the profile; must be populated from the API call result)
+4. **Database schema** — `users.password_hash` is currently `NOT NULL`; OAuth users have no password. A migration must make it nullable. A new `oauth_accounts` table is needed to track which providers are linked to each user (prevents `OAuthAccountNotLinked` errors on repeat sign-in and enables future account unlinking)
 
 ---
 
-## GDPR Stack Decisions
+## v1.2 Stack Decisions
 
-### 1. Grace Period Scheduling — BullMQ Delayed Jobs (No New Library)
+### 1. OAuth Providers — Built-in Auth.js v5 Providers (No New Packages)
 
-**Decision:** Use BullMQ's built-in `delay` option on `queue.add()`. No new library.
+**Decision:** Import `Google` and `GitHub` from `next-auth/providers/google` and `next-auth/providers/github`. Zero new npm packages.
 
-BullMQ already in the stack (`bullmq ^5.70.4`). Delayed jobs are a core BullMQ primitive: a job added with `{ delay: ms }` sits in Valkey's sorted set until the delay elapses, then becomes eligible for a worker. For the 30-day workspace deletion:
+Both providers ship inside `next-auth` (which is already installed at 5.0.0-beta.30). There is no separate package to install.
 
 ```typescript
-await deletionQueue.add(
-  'workspace-hard-delete',
-  { workspaceId },
-  {
-    delay: 30 * 24 * 60 * 60 * 1000,  // 2_592_000_000 ms
-    jobId: `workspace-delete:${workspaceId}`,  // deterministic ID for cancellation
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 5000 },
-    removeOnComplete: { count: 200 },
-    removeOnFail: { count: 500 },
-  }
-)
-```
+import Google from "next-auth/providers/google"
+import GitHub from "next-auth/providers/github"
 
-**Cancellation (grace period undo):** A deterministic `jobId` makes cancellation trivial. Retrieve the job by ID and call `job.remove()`:
-
-```typescript
-const job = await deletionQueue.getJob(`workspace-delete:${workspaceId}`)
-if (job) await job.remove()
-```
-
-This is the correct mechanism for "cancel workspace deletion during grace period." No deduplication plugin, no separate scheduler table — Valkey holds the pending job and the jobId is the handle to cancel it.
-
-**Idempotency:** If the worker crashes mid-delete, BullMQ retries it (attempts: 3). The delete worker must be written idempotently (DELETE WHERE ... is naturally idempotent; each retry succeeds or is a no-op).
-
-**Why not a cron job polling a DB flag:** Polling a `deletion_scheduled_at` column every hour is a simpler pattern but has a ±1 hour precision window and requires the worker to scan all workspaces on every tick. Delayed jobs are more precise and require no polling. The already-running BullMQ worker process handles them automatically.
-
-**Why not `pg-boss` or a scheduled job service:** The existing Valkey + BullMQ infrastructure already handles this. Adding a second scheduler (node-cron, pg-boss, etc.) would duplicate infrastructure for no benefit.
-
-**Confidence:** HIGH — BullMQ delayed jobs with deterministic jobIds is a documented, standard pattern. Verified against BullMQ docs (docs.bullmq.io/guide/jobs/delayed, docs.bullmq.io/guide/jobs/job-ids).
-
----
-
-### 2. New BullMQ Queue: `lifecycle` (No New Library)
-
-**Decision:** Add a new `lifecycle` queue alongside the existing `email` and `webhook` queues. No new library.
-
-The lifecycle queue handles:
-- `workspace-hard-delete` — fires after 30-day grace period
-- `user-erasure` — fires after 7-day grace period
-
-Keep this separate from the `email` queue to isolate failure domains: a transient Resend outage should not block hard deletes from processing.
-
-**File structure to add:**
-
-```
-apps/api/src/queues/
-  lifecycle.queue.ts     — Queue instance + job type definitions
-  lifecycle.worker.ts    — Worker: hard delete workspace, anonymize user PII
-```
-
-**Confidence:** HIGH — mirrors the existing email.queue.ts / email.worker.ts pattern already in the codebase.
-
----
-
-### 3. PII Anonymization — Raw SQL UPDATE (No New Library)
-
-**Decision:** Write a plain SQL UPDATE in the lifecycle worker. No PostgreSQL Anonymizer extension, no external tool.
-
-PostgreSQL Anonymizer extension (postgresql_anonymizer) is a PostreSQL C extension requiring server-side installation. Railway does not support custom PostgreSQL extensions beyond the pg_catalog defaults. It is the wrong tool for this use case: Velo needs to anonymize a single user record on-demand, not mask an entire dump.
-
-The correct approach is a targeted UPDATE in the lifecycle worker:
-
-```sql
-UPDATE users
-SET
-  name = 'Deleted User',
-  email = 'deleted-' || id::text || '@deleted.invalid',
-  avatar_url = NULL,
-  password_hash = 'REDACTED',
-  email_verified = false
-WHERE id = $1
-```
-
-The email replacement uses the user's UUID to guarantee uniqueness (the `email` column has a `UNIQUE` constraint). Using `@deleted.invalid` domain (RFC 2606 reserved) ensures the address is non-deliverable and unambiguously synthetic.
-
-**Why not NULL for name/email:** The `users` table has `users.name` as nullable but `users.email` as NOT NULL UNIQUE. Setting email to NULL would violate the constraint. The `deleted-{uuid}@deleted.invalid` pattern satisfies the constraint while being clearly non-PII.
-
-**Why not pg-anonymizer CLI tool:** `rap2hpoutre/pg-anonymizer` is a dump tool for test data generation, not for production on-demand erasure. Wrong use case.
-
-**EDPB anonymization note:** The EDPB's 2025 enforcement report flagged weak anonymization as a compliance risk. The replacement values used here (non-reversible constant + UUID-derived synthetic email) meet the irreversibility standard because: (a) the original values are overwritten with no backup reference, (b) the UUID-derived email cannot be reversed to the original email, (c) Railway's 7-day backup retention window means the original data is fully purged within the GDPR "without undue delay" window.
-
-**Confidence:** HIGH — this is a direct SQL operation using existing postgres.js; no library choice involved.
-
----
-
-### 4. Personal Data Export — Native JSON Assembly (No New Library)
-
-**Decision:** Assemble the export in the route handler using raw SQL, serialize with `JSON.stringify`, send as a file download. No library needed.
-
-The scope is deliberately narrow (PROJECT.md: "name, email, avatar; small JSON download"). The handler:
-
-1. Queries `users` for name, email, avatar_url, created_at
-2. Serializes to `{ exportedAt, userData: { name, email, avatarUrl, createdAt } }`
-3. Sets `Content-Disposition: attachment; filename="personal-data.json"` and `Content-Type: application/json`
-4. Sends via `reply.send()`
-
-No streaming, no zip file, no archiver library needed for this scope.
-
-**Why not a zip/archiver library (e.g., `archiver`, `jszip`):** The export scope is a single small JSON object. Adding a zip library would be premature — revisit if/when attachments or run history export is added in a future milestone.
-
-**Confidence:** HIGH — this is a first-principles API handler pattern.
-
----
-
-### 5. Schema Additions — Drizzle ORM (No New Library)
-
-**Decision:** Add new columns and one new table to the existing Drizzle schema. Run via the existing drizzle-kit migration pipeline.
-
-#### New columns on `workspaces` table
-
-```typescript
-deletion_requested_at: timestamp("deletion_requested_at", { withTimezone: true }),
-deletion_scheduled_for: timestamp("deletion_scheduled_for", { withTimezone: true }),
-deletion_requested_by: uuid("deletion_requested_by").references(() => users.id, { onDelete: "set null" }),
-```
-
-These three columns are sufficient to drive UI state (show cancellation banner if `deletion_requested_at IS NOT NULL`), the lifecycle worker check (compare `deletion_scheduled_for` against now as a double-check), and audit log display.
-
-**Why not a separate `workspace_deletion_requests` table:** For a single active deletion per workspace at any time, three nullable columns on the workspace row is simpler than a join. A separate table would be warranted if multiple pending requests needed to be tracked, which is not the case here.
-
-#### New table: `user_erasure_requests`
-
-```typescript
-export const userErasureRequests = pgTable("user_erasure_requests", {
-  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  requested_at: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-  scheduled_for: timestamp("scheduled_for", { withTimezone: true }).notNull(),
-  completed_at: timestamp("completed_at", { withTimezone: true }),
-  // status: 'pending' before grace expires, 'completed' after anonymization runs
-  status: varchar("status", { length: 20 }).notNull().default("pending"),
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    Credentials({ ... }),  // existing — unchanged
+    Google,
+    GitHub,
+  ],
+  ...
 })
 ```
 
-A separate table here (vs. columns on `workspace_members`) is correct because:
-- A user can request erasure in multiple workspaces independently
-- The request persists after anonymization completes (audit record)
-- `ON DELETE CASCADE` from both `users` and `workspaces` ensures cleanup
+**Environment variable auto-detection:** Auth.js v5 automatically reads `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` and `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` from the environment when the provider is imported without explicit `clientId`/`clientSecret` arguments. No change to provider initialization code is required if env vars follow this naming convention.
 
-**Confidence:** HIGH — direct Drizzle schema pattern matching existing codebase conventions.
+**Confidence:** HIGH — Auth.js v5 official documentation confirms provider imports from `next-auth/providers/*` and `AUTH_*` environment variable auto-detection.
 
 ---
 
-### 6. Privacy Policy Page — Next.js Static Page (No New Library)
+### 2. signIn Callback — API-Backed OAuth User Upsert
 
-**Decision:** Create `/pages/privacy.tsx` as a static Next.js page. No CMS, no markdown renderer, no legal document library.
+**Decision:** Add a `signIn` callback that intercepts OAuth sign-ins, calls a new Fastify endpoint (`POST /api/auth/oauth-signin`), and either returns `true` (allow) or `false` (block). The API endpoint handles user lookup-or-create and auto-linking on email match.
 
-The privacy policy is plain HTML content rendered inline. It does not need to be CMS-editable pre-launch. A static page in the Pages Router is the correct scope.
+The existing Credentials flow uses `authorize()` which calls `/api/auth/verify-credentials`. OAuth must follow the same pattern: Auth.js does the OAuth dance, then the `signIn` callback hands off to the API for user resolution.
 
-**Why not a markdown renderer (remark, next-mdx-remote):** A single static page does not justify a markdown pipeline. The policy text is written once, stored in the file, updated via code commit when needed pre-launch.
+```typescript
+callbacks: {
+  async signIn({ user, account, profile }) {
+    // Credentials provider: Auth.js calls authorize() itself — skip here
+    if (account?.type === "credentials") return true
 
-**Confidence:** HIGH — this is a straightforward Next.js page.
+    // OAuth providers: call API to upsert user and resolve workspace context
+    const res = await fetch(`${process.env.API_URL}/api/auth/oauth-signin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: account?.provider,        // "google" | "github"
+        providerAccountId: account?.providerAccountId,
+        email: profile?.email,
+        name: profile?.name ?? null,
+        image: profile?.image ?? null,
+      }),
+    })
+
+    if (!res.ok) return false
+
+    // Attach API response to user object so jwt callback can read it
+    const data = await res.json() as { id: string; workspace_id: string | null; workspace_slug: string | null; role: string | null }
+    user.id = data.id
+    // Attach custom fields — same shape as verify-credentials response
+    Object.assign(user, data)
+    return true
+  },
+
+  jwt({ token, user, trigger, session }) {
+    if (user) {
+      const u = user as { id?: string; workspace_id?: string | null; workspace_slug?: string | null; role?: string | null }
+      if (u.id !== undefined) token.id = u.id
+      token.workspace_id = u.workspace_id ?? null
+      token.workspace_slug = u.workspace_slug ?? null
+      token.role = u.role ?? null
+    }
+    // ... existing trigger === "update" handling unchanged
+    return token
+  },
+  // session callback unchanged
+}
+```
+
+**Why this pattern:** The existing `jwt` callback already reads from the `user` object passed on first sign-in. By populating `user` inside `signIn`, the same jwt callback code path works for both Credentials and OAuth users without branching logic. The API owns all user business logic; Auth.js is purely the OAuth transport layer.
+
+**Confidence:** HIGH — Auth.js v5 `signIn` callback receives `user`, `account`, and `profile` on OAuth flows. The `user` object is mutable within the callback. Confirmed by Auth.js v5 callback documentation.
+
+---
+
+### 3. New Fastify Endpoint: POST /api/auth/oauth-signin
+
+**Decision:** Add a new endpoint to `apps/api/src/routes/auth.ts` that handles OAuth user upsert and auto-linking. No new library.
+
+This endpoint is called server-to-server from the Auth.js `signIn` callback (same pattern as `verify-credentials`). It is not a public-facing endpoint.
+
+**Logic:**
+
+```
+1. Look up user by email (case-insensitive)
+2a. If user exists → verify or insert oauth_accounts row for this provider
+   → this is the "auto-link" path: same email = same account
+   → mark users.email_verified = true (provider already verified it)
+2b. If user does not exist → INSERT new user (password_hash = NULL, email_verified = true)
+   → INSERT into oauth_accounts
+3. Look up workspace membership (same JOIN as verify-credentials)
+4. Return { id, email, name, workspace_id, workspace_slug, role }
+```
+
+**Auto-linking rationale:** Google and GitHub both verify email ownership before issuing OAuth tokens. A user who signs in with `alice@gmail.com` via Google is the same identity as `alice@gmail.com` via email/password. Auto-linking on email match is the correct behavior for a dev-tool SaaS — forcing users to merge accounts manually is friction with no security benefit when both providers are trusted.
+
+**Idempotency:** The `oauth_accounts` INSERT uses `ON CONFLICT (provider, provider_account_id) DO NOTHING` so repeat sign-ins are a no-op.
+
+**Confidence:** HIGH — this is a straightforward Fastify route using existing postgres.js patterns.
+
+---
+
+### 4. allowDangerousEmailAccountLinking — NOT Used
+
+**Decision:** Do NOT set `allowDangerousEmailAccountLinking: true` on the providers. Handle linking manually in the `signIn` callback + API instead.
+
+The Auth.js `allowDangerousEmailAccountLinking` option exists for use with a database adapter. Without an adapter (this project uses JWT strategy, no adapter), the flag has no effect — Auth.js does not manage the `accounts` table itself. The account linking logic must be implemented in the `signIn` callback regardless.
+
+**Confidence:** MEDIUM — Auth.js v5 documentation states this option is for adapter-managed databases. Without an adapter, the option is a no-op in JWT mode. Community discussions confirm this interpretation.
+
+---
+
+### 5. Database Schema Changes — One Migration
+
+**Decision:** Add migration `0009_social_auth.sql` with two changes:
+
+#### 5a. Make `users.password_hash` nullable
+
+```sql
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+```
+
+OAuth users have no password. The existing `NOT NULL` constraint blocks inserting an OAuth-only user. Making it nullable is the correct approach — the application layer already controls which paths require a password (Credentials sign-in validates that `password_hash IS NOT NULL` before calling `bcrypt.compare`).
+
+The Drizzle schema change:
+
+```typescript
+export const users = pgTable("users", {
+  ...
+  password_hash: text("password_hash"),  // was: .notNull()
+  ...
+})
+```
+
+**Confidence:** HIGH — this is a straightforward ALTER COLUMN; the constraint exists only in the initial migration SQL, not enforced by any application logic beyond the bcrypt comparison gate.
+
+#### 5b. New `oauth_accounts` table
+
+```sql
+CREATE TABLE oauth_accounts (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL,           -- "google" | "github"
+  provider_account_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT oauth_accounts_provider_unique UNIQUE (provider, provider_account_id)
+);
+
+CREATE INDEX idx_oauth_accounts_user_id ON oauth_accounts (user_id);
+```
+
+The `UNIQUE (provider, provider_account_id)` constraint:
+- Prevents duplicate rows on repeat sign-in (INSERT ... ON CONFLICT DO NOTHING)
+- Enables future account unlinking by deleting a specific row
+- The provider_account_id is the stable external ID (Google sub, GitHub id) — not the email, which can change
+
+The Drizzle schema definition:
+
+```typescript
+export const oauthAccounts = pgTable(
+  "oauth_accounts",
+  {
+    id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+    user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 50 }).notNull(),
+    provider_account_id: varchar("provider_account_id", { length: 255 }).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("oauth_accounts_provider_unique").on(t.provider, t.provider_account_id),
+  ]
+)
+```
+
+**Why a separate table vs. columns on `users`:** A user can link multiple OAuth providers (Google AND GitHub). Columns on `users` would limit to one provider. A join table is the correct normal form and enables future unlinking UI without schema changes.
+
+**Why not use Auth.js's built-in `accounts` table shape:** The built-in shape requires an adapter. This project uses JWT strategy with no adapter. A custom minimal `oauth_accounts` table is simpler and doesn't pull in adapter overhead.
+
+**Confidence:** HIGH — standard join table pattern for OAuth account linking.
+
+---
+
+### 6. External App Registration Requirements
+
+#### Google OAuth
+
+**What to create:** Google Cloud Console project → "APIs & Services" → "Credentials" → "OAuth 2.0 Client ID" → "Web application"
+
+**Authorized redirect URIs to register:**
+- Development: `http://localhost:3000/api/auth/callback/google`
+- Production: `https://velo-test-management.vercel.app/api/auth/callback/google`
+
+**Note:** Google requires the "OAuth consent screen" to be configured first. For internal/testing use, "External" user type works; set to "Production" when ready to publish. The Google+ API does not need to be enabled — the built-in `userinfo` scope is sufficient.
+
+**Confidence:** HIGH — Google Cloud Console OAuth configuration is well-documented and stable.
+
+#### GitHub OAuth
+
+**What to create:** GitHub → Settings → Developer settings → OAuth Apps → "New OAuth App"
+
+**Authorization callback URL:** GitHub OAuth Apps accept only ONE callback URL per app. Register two separate apps:
+- Development app callback: `http://localhost:3000/api/auth/callback/github`
+- Production app callback: `https://velo-test-management.vercel.app/api/auth/callback/github`
+
+Each app has its own `CLIENT_ID` and `CLIENT_SECRET`. Use environment-specific env vars:
+- Local `.env.local`: `AUTH_GITHUB_ID=<dev-app-id>`, `AUTH_GITHUB_SECRET=<dev-app-secret>`
+- Vercel production env: `AUTH_GITHUB_ID=<prod-app-id>`, `AUTH_GITHUB_SECRET=<prod-app-secret>`
+
+**Confidence:** HIGH — GitHub OAuth Apps single-callback limitation is documented and a known constraint in the ecosystem.
+
+---
+
+## New Environment Variables Required
+
+| Variable | Where Set | Value Pattern |
+|----------|-----------|---------------|
+| `AUTH_GOOGLE_ID` | Vercel env + `.env.local` | Google Cloud Console OAuth 2.0 Client ID |
+| `AUTH_GOOGLE_SECRET` | Vercel env + `.env.local` | Google Cloud Console OAuth 2.0 Client Secret |
+| `AUTH_GITHUB_ID` | Vercel env + `.env.local` | GitHub OAuth App Client ID |
+| `AUTH_GITHUB_SECRET` | Vercel env + `.env.local` | GitHub OAuth App Client Secret |
+
+No new env vars needed on the Railway API side — the `oauth-signin` endpoint uses the same `sql` connection already configured.
 
 ---
 
@@ -206,13 +272,32 @@ The privacy policy is plain HTML content rendered inline. It does not need to be
 
 | Considered | Decision | Rationale |
 |------------|----------|-----------|
-| `postgresql_anonymizer` extension | Do not add | Requires server-side C extension; Railway does not support custom extensions. Wrong tool for on-demand single-row erasure. |
-| `gdpr.js` or similar Node.js GDPR libraries | Do not add | These libraries are thin wrappers with minimal active maintenance. The required operations (SQL UPDATE, BullMQ delayed job, JSON export) are simpler to implement directly. |
-| `archiver` / `jszip` | Do not add | Export scope is one small JSON object. Zip library is premature. |
-| `node-cron` | Do not add | BullMQ delayed jobs replace the need for a cron-based poller. Adding node-cron would create a second scheduler competing with BullMQ. |
-| Separate "erasure_log" audit table | Defer | GDPR Article 30 Records of Processing Activity explicitly out of scope for this milestone (PROJECT.md). |
-| Cookie consent banner library (`react-cookie-consent`, `cookiebot`) | Do not add | App uses no tracking cookies. Session cookie is strictly necessary and exempt under PECR/UK GDPR. |
-| DPA template library | Do not add | Deferred to legal review (PROJECT.md). |
+| `@auth/drizzle-adapter` or any Auth.js adapter | Do not add | Adapters change the session strategy default to "database" and require the full Auth.js accounts/sessions/verificationTokens schema. The project uses JWT strategy intentionally (no server-side session storage). Adding an adapter would require migrating all existing sessions and adding 3+ new tables. The manual signIn callback approach achieves the same result with zero added complexity. |
+| `passport.js` + `passport-google-oauth20` / `passport-github2` | Do not add | The project is already on Auth.js v5. Adding Passport would duplicate the auth layer. Auth.js built-in providers are the correct choice. |
+| `openid-client` directly | Do not add | Auth.js v5 uses openid-client internally. Exposing it directly would bypass CSRF, state, and PKCE handling that Auth.js provides. |
+| `allowDangerousEmailAccountLinking: true` | Do not use | No-op without a database adapter (JWT strategy). Linking is handled by the signIn callback + API instead. |
+| Storing Google/GitHub access tokens in the JWT | Do not do | The project has no use case for calling Google or GitHub APIs on behalf of the user. Storing OAuth tokens in the JWT inflates cookie size unnecessarily. |
+| Apple Sign-In | Deferred | Requires Apple Developer Program membership + extra OIDC complexity (name only sent on first sign-in). Not in scope for v1.2. |
+| PKCE enforcement for OAuth | Not needed | PKCE is for the Credentials provider (public clients). Google and GitHub OAuth use server-side confidential clients — PKCE is handled by Auth.js internally and not configurable at the provider level in v5. |
+
+---
+
+## Summary: What Changes in v1.2
+
+| Area | Change |
+|------|--------|
+| `apps/web/package.json` | No new packages |
+| `apps/api/package.json` | No new packages |
+| `apps/web/src/auth.ts` | Add Google + GitHub providers; add `signIn` callback for OAuth user resolution |
+| `apps/api/src/routes/auth.ts` | Add `POST /api/auth/oauth-signin` endpoint |
+| `apps/api/src/db/schema.ts` | `users.password_hash` → nullable; add `oauthAccounts` table |
+| `apps/api/drizzle/0009_social_auth.sql` | ALTER COLUMN + CREATE TABLE migration |
+| Google Cloud Console | Register OAuth 2.0 Client ID (dev + prod redirect URIs) |
+| GitHub Developer Settings | Register two OAuth Apps (one dev, one prod) |
+| Vercel environment variables | Add `AUTH_GOOGLE_ID/SECRET`, `AUTH_GITHUB_ID/SECRET` |
+| Local `.env.local` | Add same four variables (dev app credentials) |
+
+**No new npm packages required for either `apps/web` or `apps/api`.**
 
 ---
 
@@ -220,60 +305,35 @@ The privacy policy is plain HTML content rendered inline. It does not need to be
 
 | New Capability | Integrates With | How |
 |----------------|-----------------|-----|
-| Lifecycle queue (deletion/erasure jobs) | BullMQ + iovalkey | New Queue/Worker pair; same connection options as `email.queue.ts` |
-| Hard delete worker | postgres.js `sql` | Direct SQL; NOT through `withWorkspace` (the workspace no longer exists at job time — run outside RLS context with explicit WHERE workspace_id = $1) |
-| Anonymization worker | postgres.js `sql` | Direct UPDATE on `users` table; global connection, no tenant context needed |
-| Grace period cancellation endpoint | BullMQ `queue.getJob(jobId).remove()` | Route handler in `workspaces.ts` |
-| Data export endpoint | postgres.js `sql` + Fastify `reply.send()` | New route in `profile.ts` or new `privacy.ts` route file |
-| Schema additions | drizzle-kit migration | `pnpm db:generate && pnpm db:migrate` |
-| Deletion state UI | Next.js frontend | New banner component + API calls to `/api/workspaces/:id/deletion` |
-
----
-
-## No New Dependencies Required
-
-The v1.1 GDPR milestone requires zero new npm packages. All capabilities are satisfied by the existing stack:
-
-| Capability | Existing Mechanism |
-|------------|-------------------|
-| Delayed grace period jobs | BullMQ `delay` option (already installed) |
-| Job cancellation | BullMQ `queue.getJob(id).remove()` (built-in) |
-| PII anonymization | postgres.js raw SQL UPDATE (already used) |
-| Data export | postgres.js query + Fastify reply (already used) |
-| Schema changes | drizzle-kit generate + migrate (already used) |
-| Privacy page | Next.js static page (Pages Router) |
-| Erasure confirmation email | Resend via existing email queue + worker |
+| Google + GitHub OAuth | Auth.js v5 built-in providers | Import from `next-auth/providers/*`, add to `providers[]` array |
+| OAuth user resolution | Fastify auth.ts route | New server-to-server endpoint called from `signIn` callback |
+| Custom JWT fields for OAuth users | Existing `jwt` callback | `signIn` callback mutates `user` object; `jwt` callback reads it identically to Credentials flow |
+| `oauth_accounts` table | postgres.js raw SQL | INSERT ON CONFLICT DO NOTHING in new API endpoint |
+| `password_hash` nullable | Existing signup/signin logic | Credentials verify-credentials already gates on bcrypt — null hash means `bcrypt.compare` is never reached |
 
 ---
 
 ## Version Verification
 
-Current installed versions (from package.json as of 2026-03-12):
+| Package | Installed | OAuth Provider Support |
+|---------|-----------|------------------------|
+| next-auth | 5.0.0-beta.30 | Google + GitHub providers included; confirmed in `next-auth/providers/*` |
+| @auth/core | ^0.41.0 | Ships with next-auth 5 beta.30; no separate install needed |
 
-| Package | Installed | Status |
-|---------|-----------|--------|
-| bullmq | ^5.70.4 | Current — delayed jobs and deterministic jobIds confirmed supported |
-| iovalkey | ^0.3.3 | Current — Valkey Redis-protocol compatibility confirmed |
-| postgres | ^3.4.8 | Current — no changes needed |
-| drizzle-orm | ^0.45.1 | Current — no changes needed |
-| drizzle-kit | ^0.31.9 | Current — no changes needed |
-| resend | ^6.9.3 | Current — use existing email queue for erasure confirmation emails |
-
-No version bumps required for this milestone.
+Both packages are already installed. Zero version bumps required.
 
 ---
 
 ## Sources
 
-- BullMQ Delayed Jobs documentation: https://docs.bullmq.io/guide/jobs/delayed
-- BullMQ Job IDs documentation: https://docs.bullmq.io/guide/jobs/job-ids
-- BullMQ Deduplication documentation: https://docs.bullmq.io/guide/jobs/deduplication
-- BullMQ Remove Jobs documentation: https://docs.bullmq.io/guide/jobs/removing-job
-- EDPB 2025 Right to Erasure Enforcement Report (via ReedSmith): https://www.reedsmith.com/our-insights/blogs/viewpoints/102mm9l/edpb-report-on-the-right-to-erasure-key-takeaways-from-the-2025-coordinated-enfo/
-- GDPR Article 17 Right to Erasure: https://secureprivacy.ai/blog/how-to-respond-to-gdpr-right-to-erasure-request
-- SPW Circular — Anonymization vs Erasure: https://spwcircular.com/blog/is-the-anonymization-of-personal-data-the-same-as-data-erasure/
-- Iron Mountain — Anonymization as Erasure Equivalence: https://www.ironmountain.com/resources/blogs-and-articles/i/is-the-anonymization-of-personal-data-the-same-as-data-erasure
-- PostgreSQL Anonymizer extension (evaluated and rejected): https://postgresql-anonymizer.readthedocs.io/
-- GDPR for SaaS — Deleting personal data: https://gdpr4saas.eu/deleting-personal-data
-- Railway PostgreSQL documentation (custom extension limitations): verified against project constraints
-- Existing codebase: D:/git_repo/personal/velo-test-management/apps/api/src/
+- Auth.js v5 built-in Google provider source: https://github.com/nextauthjs/next-auth/blob/main/packages/core/src/providers/google.ts
+- Auth.js environment variables guide: https://authjs.dev/guides/environment-variables
+- Auth.js migration to v5: https://authjs.dev/getting-started/migrating-to-v5
+- Auth.js GitHub provider guide: https://authjs.dev/guides/configuring-github
+- Auth.js callbacks reference: https://next-auth.js.org/configuration/callbacks
+- GitHub OAuth single callback URL limitation: https://github.com/nextauthjs/next-auth/issues/7581
+- OAuthAccountNotLinked error and allowDangerousEmailAccountLinking: https://authjs.dev/reference/core/errors
+- Auth.js social logins guide (v5): https://blog.greenroots.info/nextjs-and-next-auth-v5-guide-to-social-logins
+- Existing codebase: D:/git_repo/personal/velo-test-management/apps/web/src/auth.ts
+- Existing codebase: D:/git_repo/personal/velo-test-management/apps/api/src/routes/auth.ts
+- Existing codebase: D:/git_repo/personal/velo-test-management/apps/api/src/db/schema.ts
