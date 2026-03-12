@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { sql } from "../db/client.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { logAuditEvent } from "../lib/audit-log.js"
+import { sendLifecycleEmails } from "../lib/email.js"
 
 const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -67,10 +68,53 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
       scheduled_at: scheduledAt.toISOString(),
     })
 
-    return reply.send({
+    void reply.send({
       deletion_status: "pending_deletion",
       deletion_requested_at: new Date().toISOString(),
       deletion_scheduled_at: scheduledAt.toISOString(),
+    })
+
+    // ── WLC-05: Notify all active workspace members ────────────────────────
+    const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+    const exportUrl = `${WEB_URL}/workspace/settings`
+
+    // Query member emails (fire-and-forget — don't block the response)
+    void (async () => {
+      try {
+        const members = await sql<{ email: string }[]>`
+          SELECT u.email FROM users u
+          INNER JOIN workspace_members wm ON wm.user_id = u.id
+          WHERE wm.workspace_id = ${workspaceId}::uuid AND wm.is_active = true
+        `
+        const emails = members.map((m) => m.email)
+        if (emails.length === 0) return
+
+        // Fetch workspace name for email content
+        const [ws] = await sql<{ name: string }[]>`SELECT name FROM workspaces WHERE id = ${workspaceId}::uuid`
+        const workspaceName = ws?.name ?? "your workspace"
+        const formattedDate = scheduledAt.toLocaleDateString("en-GB", {
+          day: "numeric", month: "long", year: "numeric",
+        })
+
+        await sendLifecycleEmails(
+          emails,
+          `${workspaceName} scheduled for deletion`,
+          "workspace-deletion-requested",
+          { workspaceName, scheduledDate: formattedDate, exportUrl }
+        )
+      } catch (err) {
+        console.error("[lifecycle] Failed to send deletion notification emails:", err)
+      }
+    })()
+
+    // ── TRN-03: Enqueue warning email 3 days before expiry ──────────────
+    const warningDelay = (30 - 3) * 24 * 60 * 60 * 1000 // 27 days
+    void lifecycleQueue.add(
+      "lifecycle-warning",
+      { type: "lifecycle-warning", warningType: "workspace-deletion", entityId: workspaceId },
+      { delay: warningDelay, jobId: `ws-delete:${workspaceId}:warning` }
+    ).catch((err: unknown) => {
+      console.error("[lifecycle] Failed to enqueue deletion warning job:", err)
     })
   })
 
@@ -111,6 +155,14 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
       if (job) {
         await job.remove()
       }
+    }
+
+    // Also remove the warning job
+    try {
+      const warningJob = await lifecycleQueue.getJob(`ws-delete:${workspaceId}:warning`)
+      if (warningJob) await warningJob.remove()
+    } catch {
+      // Warning job may not exist or already processed — not critical
     }
 
     // Clear all deletion columns
