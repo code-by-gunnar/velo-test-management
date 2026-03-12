@@ -64,6 +64,13 @@
       "when": 1741795200000,
       "tag": "0008_gdpr_lifecycle_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773357530000,
+      "tag": "0009_social_auth",
+      "breakpoints": true
     }
   ]
 }
