@@ -9,6 +9,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
 **Phase Numbering:**
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
+- Phase directories use global numbering (07-social-auth, etc.) to avoid collision with prior milestones
 
 - [ ] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths
 - [ ] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers
@@ -25,7 +26,10 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
   1. Migration 0009 runs cleanly -- `user_oauth_accounts` table exists with `UNIQUE(provider, provider_account_id)` and `ON DELETE CASCADE`, and `users.password_hash` accepts NULL
   2. `POST /api/auth/oauth-signin` returns a user object with `{ id, email, name, workspace_id, workspace_slug, role }` for all three paths: new user (JIT provisioned), returning user (looked up by oauth account row), and auto-link (email-match with existing credentials user)
   3. Integration tests confirm the endpoint is idempotent -- calling it twice for the same `(provider, provider_account_id)` does not create duplicate rows
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 07-01-PLAN.md -- Migration 0009 + Drizzle schema + null password_hash guard
+- [ ] 07-02-PLAN.md -- POST /api/auth/oauth-signin endpoint + integration tests
 
 ### Phase 2: Auth.js Config & OAuth Chain
 **Goal**: Users can complete an OAuth sign-in flow end-to-end in development -- the full chain from clicking "Continue with Google/GitHub" through callback to landing in the app with a valid JWT carrying workspace_id and role
@@ -66,7 +70,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Fastify Route | 0/? | Not started | - |
+| 1. Schema & Fastify Route | 0/2 | Planning complete | - |
 | 2. Auth.js Config & OAuth Chain | 0/? | Not started | - |
 | 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
