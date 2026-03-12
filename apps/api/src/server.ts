@@ -25,6 +25,7 @@ import linearWebhookRoutes from "./routes/linear-webhook.js"
 import webhookRoutes from "./routes/webhooks.js"
 import v1Routes from "./routes/v1.js"
 import profileRoutes from "./routes/profile.js"
+import { registerSweepJob } from "./queues/lifecycle.queue.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -198,6 +199,13 @@ fastify.get("/health", async () => {
     },
   }
 })
+
+try {
+  await registerSweepJob()
+  console.log("[lifecycle] sweep job registered (daily 3 AM)")
+} catch (err) {
+  console.error("[lifecycle] failed to register sweep job:", (err as Error).message)
+}
 
 const port = parseInt(process.env.PORT ?? "3001")
 
