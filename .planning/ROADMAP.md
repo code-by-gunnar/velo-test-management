@@ -41,7 +41,7 @@ Add native Given-When-Then test case format as a project-level setting. Projects
   2. Selected format is sent as `test_format` in the project creation API call
   3. Create Project modal includes the same format picker below the name/key fields
   4. Project settings General tab displays the chosen format as a read-only badge (e.g., "Traditional Steps" or "Given-When-Then") — not editable
-**Plans:** TBD
+**Plans:** 12-01 (Format Selection UI)
 
 ### Phase 3: GWT Step Editor
 **Goal**: GWT projects get a dedicated step editor that feels native and keyboard-first
@@ -87,7 +87,7 @@ Phases execute in order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Schema & API | 1/1 | Planned | - |
-| 2. Format Selection | 0/? | Planned | - |
+| 2. Format Selection | 1/1 | Planned | - |
 | 3. GWT Step Editor | 0/? | Planned | - |
 | 4. Execution | 0/? | Planned | - |
 | 5. CSV Import | 0/? | Planned | - |
