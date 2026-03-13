@@ -192,7 +192,6 @@ export default function RunsDashboard({
           onCreated={handleRunCreated}
           workspaceId={workspaceId}
           projectId={projectId}
-          assignees={[]}
         />
       )}
     </AppLayout>

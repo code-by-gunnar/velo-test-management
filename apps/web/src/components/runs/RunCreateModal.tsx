@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { clsx } from "clsx"
 import { Button } from "@/components/ui"
 import { Input, Label, FormField } from "@/components/ui"
 import { useSuiteTree } from "@/hooks/useSuiteTree"
+import { Layers, ListFilter, Search } from "lucide-react"
 import type { RunListItem } from "./RunCard"
+
+type ScopeMode = "all" | "suites"
 
 interface RunCreateModalProps {
   isOpen: boolean
@@ -10,7 +14,6 @@ interface RunCreateModalProps {
   onCreated: (run: RunListItem) => void
   workspaceId: string
   projectId: string
-  assignees: Array<{ id: string; name: string }>
 }
 
 export function RunCreateModal({
@@ -19,12 +22,11 @@ export function RunCreateModal({
   onCreated,
   workspaceId,
   projectId,
-  assignees,
 }: RunCreateModalProps) {
   const [name, setName] = useState("")
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("all")
   const [selectedSuiteIds, setSelectedSuiteIds] = useState<Set<string>>(new Set())
-  const [allCases, setAllCases] = useState(true)
-  const [assignedTo, setAssignedTo] = useState("")
+  const [suiteFilter, setSuiteFilter] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,13 +35,19 @@ export function RunCreateModal({
     isOpen ? projectId : ""
   )
 
+  const filteredSuites = useMemo(() => {
+    if (!suiteFilter.trim()) return suites
+    const q = suiteFilter.toLowerCase()
+    return suites.filter((s) => s.name.toLowerCase().includes(q))
+  }, [suites, suiteFilter])
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setName("")
+      setScopeMode("all")
       setSelectedSuiteIds(new Set())
-      setAllCases(true)
-      setAssignedTo("")
+      setSuiteFilter("")
       setError(null)
       setIsSubmitting(false)
     }
@@ -83,12 +91,8 @@ export function RunCreateModal({
         project_id: projectId,
       }
 
-      if (!allCases && selectedSuiteIds.size > 0) {
+      if (scopeMode === "suites" && selectedSuiteIds.size > 0) {
         body.suite_ids = [...selectedSuiteIds]
-      }
-
-      if (assignedTo) {
-        body.assigned_to = assignedTo
       }
 
       const res = await fetch(
@@ -138,6 +142,12 @@ export function RunCreateModal({
     }
   }
 
+  const buttonLabel = isSubmitting
+    ? "Creating…"
+    : scopeMode === "suites" && selectedSuiteIds.size > 0
+      ? `Create Run · ${selectedSuiteIds.size} suite${selectedSuiteIds.size === 1 ? "" : "s"}`
+      : "Create Run"
+
   if (!isOpen) return null
 
   return (
@@ -155,7 +165,7 @@ export function RunCreateModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 id="run-modal-title" className="text-base font-semibold text-gray-900">
+          <h2 id="run-modal-title" className="text-base font-semibold text-gray-900 font-display">
             New Test Run
           </h2>
           <button
@@ -171,12 +181,12 @@ export function RunCreateModal({
         {/* Body */}
         <div className="flex flex-col gap-5 px-6 py-5">
           {/* Run name */}
-          <FormField label="Run Name" htmlFor="run-name" error={error ?? undefined}>
+          <FormField label="Run name" htmlFor="run-name" error={error ?? undefined}>
             <Input
               id="run-name"
               placeholder="e.g. Sprint 12 regression"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setError(null) }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !isSubmitting) {
                   void handleSubmit()
@@ -187,89 +197,112 @@ export function RunCreateModal({
             />
           </FormField>
 
-          {/* Suite scope */}
+          {/* Scope selection */}
           <div className="flex flex-col gap-2">
-            <Label>Test Scope</Label>
-            <div className="rounded-lg border border-gray-200 p-3">
-              {/* All cases checkbox */}
-              <label className="flex cursor-pointer items-center gap-2 py-1 text-sm font-medium text-gray-900">
-                <input
-                  type="checkbox"
-                  checked={allCases}
-                  onChange={(e) => {
-                    setAllCases(e.target.checked)
-                    if (e.target.checked) {
-                      setSelectedSuiteIds(new Set())
-                    }
-                  }}
-                  className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
-                />
-                All Cases
-              </label>
-
-              {!allCases && (
-                <div className="mt-2 max-h-48 overflow-y-auto border-t border-gray-100 pt-2">
-                  {suitesLoading ? (
-                    <p className="py-2 text-xs text-gray-400">Loading suites…</p>
-                  ) : suites.length === 0 ? (
-                    <p className="py-2 text-xs text-gray-400">No suites found</p>
-                  ) : (
-                    suites.map((suite) => (
-                      <label
-                        key={suite.id}
-                        className="flex cursor-pointer items-center gap-2 py-1 text-sm text-gray-700 hover:text-gray-900"
-                        style={{ paddingLeft: `${(suite.depth + 1) * 12}px` }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedSuiteIds.has(suite.id)}
-                          onChange={() => toggleSuite(suite.id)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
-                        />
-                        {suite.name}
-                      </label>
-                    ))
-                  )}
+            <Label>Test scope</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { setScopeMode("all"); setSelectedSuiteIds(new Set()); setSuiteFilter("") }}
+                className={clsx(
+                  "flex items-center gap-2.5 rounded-md border p-3 text-left transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  scopeMode === "all"
+                    ? "border-primary bg-primary-selected"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                )}
+              >
+                <Layers size={16} className={scopeMode === "all" ? "text-primary" : "text-gray-400"} />
+                <div>
+                  <p className={clsx("text-sm font-medium", scopeMode === "all" ? "text-primary" : "text-gray-900")}>
+                    All cases
+                  </p>
+                  <p className="text-xs text-gray-500">Every case in the project</p>
                 </div>
-              )}
+              </button>
 
-              {!allCases && (
-                <button
-                  type="button"
-                  onClick={() => setAllCases(false)}
-                  className="mt-1 text-xs text-primary underline hover:no-underline"
-                >
-                  Select specific suites
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setScopeMode("suites")}
+                className={clsx(
+                  "flex items-center gap-2.5 rounded-md border p-3 text-left transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  scopeMode === "suites"
+                    ? "border-primary bg-primary-selected"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                )}
+              >
+                <ListFilter size={16} className={scopeMode === "suites" ? "text-primary" : "text-gray-400"} />
+                <div>
+                  <p className={clsx("text-sm font-medium", scopeMode === "suites" ? "text-primary" : "text-gray-900")}>
+                    Specific suites
+                  </p>
+                  <p className="text-xs text-gray-500">Pick which suites to include</p>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Assignee */}
-          {assignees.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="run-assignee">Assign to</Label>
-              <select
-                id="run-assignee"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">Unassigned</option>
-                {assignees.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+          {/* Suite picker (visible when "Specific suites" selected) */}
+          {scopeMode === "suites" && (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              {/* Search */}
+              <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+                <Search size={14} className="shrink-0 text-gray-400" />
+                <input
+                  type="text"
+                  value={suiteFilter}
+                  onChange={(e) => setSuiteFilter(e.target.value)}
+                  placeholder="Filter suites…"
+                  className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Suite list */}
+              <div className="max-h-56 overflow-y-auto px-1 py-1">
+                {suitesLoading ? (
+                  <p className="px-3 py-3 text-xs text-gray-400">Loading suites…</p>
+                ) : filteredSuites.length === 0 && suiteFilter ? (
+                  <p className="px-3 py-3 text-xs text-gray-400">
+                    No suites matching &ldquo;{suiteFilter}&rdquo;
+                  </p>
+                ) : filteredSuites.length === 0 ? (
+                  <p className="px-3 py-3 text-xs text-gray-400">
+                    No suites in this project. Create suites first.
+                  </p>
+                ) : (
+                  filteredSuites.map((suite) => (
+                    <label
+                      key={suite.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                      style={{ paddingLeft: `${suite.depth * 12 + 8}px` }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSuiteIds.has(suite.id)}
+                        onChange={() => toggleSuite(suite.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 accent-primary"
+                      />
+                      {suite.name}
+                    </label>
+                  ))
+                )}
+              </div>
+
+              {/* Selection summary */}
+              {selectedSuiteIds.size > 0 && (
+                <div className="border-t border-gray-100 px-3 py-2">
+                  <p className="text-xs text-gray-500">
+                    {selectedSuiteIds.size} suite{selectedSuiteIds.size === 1 ? "" : "s"} selected
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <p className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text">
-              {error}
-            </p>
+            <p className="text-sm text-fail">{error}</p>
           )}
         </div>
 
@@ -284,7 +317,7 @@ export function RunCreateModal({
             onClick={() => void handleSubmit()}
             disabled={isSubmitting || !name.trim()}
           >
-            {isSubmitting ? "Creating…" : "Create Run"}
+            {buttonLabel}
           </Button>
         </div>
       </div>
