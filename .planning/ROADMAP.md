@@ -13,7 +13,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
 
 - [x] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths (completed 2026-03-12)
 - [x] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers (completed 2026-03-13)
-- [ ] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture
+- [x] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture (completed 2026-03-13)
 - [ ] **Phase 4: GDPR Erasure Update & Verification** - Erasure worker deletes OAuth account rows during anonymization, integration tests verify all three user-resolution paths and erasure correctness
 
 ## Phase Details
@@ -55,7 +55,10 @@ Plans:
   2. Signup page shows the same two social auth buttons with the same visual treatment
   3. Navigating to `/auth/error` (or being redirected there by an auth failure) shows a page with an actionable error message specific to the failure type -- not the generic Auth.js error screen
   4. A new user who signs in via OAuth for the first time has their profile picture populated from the provider's profile image -- visible in the sidebar avatar
-**Plans**: TBD
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 07-05-PLAN.md -- Social auth buttons on login/signup + custom error page (UI-01, UI-02, UI-03) (completed 2026-03-13)
+- [x] 07-06-PLAN.md -- OAuth avatar seeding from provider profile picture (UI-04) (completed 2026-03-13)
 
 ### Phase 4: GDPR Erasure Update & Verification
 **Goal**: OAuth account records are cleaned up during user anonymization (the schema CASCADE alone does not cover this path), and CI passes with integration tests covering all new behavior
@@ -75,7 +78,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Schema & Fastify Route | 2/2 | Complete   | 2026-03-12 |
 | 2. Auth.js Config & OAuth Chain | 2/2 | Complete | 2026-03-13 |
-| 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
+| 3. Login/Signup UI & Error Handling | 2/2 | Complete | 2026-03-13 |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
 
 ## Coverage Map
