@@ -405,7 +405,14 @@ function ProjectSwitcher({
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [projects, setProjects] = useState<Array<{ id: string; name: string; project_key: string }>>([])
+  const cacheKey = `velo:projects:${workspaceId}`
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; project_key: string }>>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const cached = sessionStorage.getItem(cacheKey)
+      return cached ? JSON.parse(cached) as Array<{ id: string; name: string; project_key: string }> : []
+    } catch { return [] }
+  })
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Fetch projects on mount and when projects change
@@ -414,10 +421,13 @@ function ProjectSwitcher({
     fetch(`/api/backend/workspaces/${workspaceId}/projects`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data: Array<{ id: string; name: string; project_key: string }> | null) => {
-        if (data) setProjects(data)
+        if (data) {
+          setProjects(data)
+          try { sessionStorage.setItem(cacheKey, JSON.stringify(data)) } catch {}
+        }
       })
       .catch(() => {})
-  }, [workspaceId])
+  }, [workspaceId, cacheKey])
 
   useEffect(() => {
     fetchProjects()
