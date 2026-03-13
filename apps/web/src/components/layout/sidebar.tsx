@@ -463,6 +463,9 @@ function ProjectSwitcher({
 
   return (
     <div className="relative px-3 py-3" ref={menuRef}>
+      {!collapsed && (
+        <p className="mb-1.5 truncate px-1 text-xs font-medium text-gray-400">{slug}</p>
+      )}
       {open && (
         <div
           className={clsx(
