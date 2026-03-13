@@ -2,12 +2,15 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/router"
 import { Button } from "@/components/ui/button"
 import { Input, FormField } from "@/components/ui/input"
+import { FormatPicker } from "./FormatPicker"
+import type { TestFormat } from "./FormatPicker"
 
 interface CreateProjectModalProps {
   open: boolean
   onClose: () => void
   workspaceId: string
   slug: string
+  defaultFormat?: TestFormat
 }
 
 function slugify(name: string): string {
@@ -20,11 +23,12 @@ function slugify(name: string): string {
     .slice(0, 20)
 }
 
-export function CreateProjectModal({ open, onClose, workspaceId, slug }: CreateProjectModalProps) {
+export function CreateProjectModal({ open, onClose, workspaceId, slug, defaultFormat = "steps" }: CreateProjectModalProps) {
   const router = useRouter()
   const [name, setName] = useState("")
   const [projectKey, setProjectKey] = useState("")
   const [keyEdited, setKeyEdited] = useState(false)
+  const [testFormat, setTestFormat] = useState<TestFormat>(defaultFormat)
   const [error, setError] = useState("")
   const [fieldError, setFieldError] = useState<{ name?: string; project_key?: string }>({})
   const [loading, setLoading] = useState(false)
@@ -45,6 +49,7 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug }: CreateP
     setName("")
     setProjectKey("")
     setKeyEdited(false)
+    setTestFormat(defaultFormat)
     setError("")
     setFieldError({})
     setTierLimited(false)
@@ -91,7 +96,7 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug }: CreateP
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), project_key: projectKey }),
+        body: JSON.stringify({ name: name.trim(), project_key: projectKey, test_format: testFormat }),
       })
 
       if (res.status === 201) {
@@ -185,6 +190,15 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug }: CreateP
                   Used in URLs and integrations. Lowercase letters, numbers, and hyphens only.
                 </p>
               </FormField>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Test case format
+                </label>
+                <FormatPicker value={testFormat} onChange={setTestFormat} />
+                <p className="mt-1.5 text-xs text-gray-400">
+                  Cannot be changed after creation.
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
