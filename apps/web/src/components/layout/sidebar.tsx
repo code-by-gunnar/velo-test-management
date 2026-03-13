@@ -58,7 +58,6 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const { canEdit, isAdmin } = useUserRole()
-  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   const subscribeStorage = useCallback((cb: () => void) => {
     window.addEventListener("storage", cb)
@@ -131,7 +130,6 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         effectiveProjectKey={effectiveProjectKey}
         canEdit={canEdit}
         workspaceId={session?.user?.workspace_id ?? ""}
-        onNewProjectClick={() => setCreateModalOpen(true)}
       />
 
       {/* Nav items */}
@@ -280,12 +278,6 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         displayName={displayName}
       />
     </aside>
-    <CreateProjectModal
-      open={createModalOpen}
-      onClose={() => setCreateModalOpen(false)}
-      workspaceId={session?.user?.workspace_id ?? ""}
-      slug={slug}
-    />
     </>
   )
 }
@@ -394,23 +386,22 @@ function ProjectSwitcher({
   effectiveProjectKey,
   canEdit,
   workspaceId,
-  onNewProjectClick,
 }: {
   slug: string
   collapsed: boolean
   effectiveProjectKey: string | undefined
   canEdit: boolean
   workspaceId: string
-  onNewProjectClick?: () => void
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
   const cacheKey = `velo:projects:${workspaceId}`
-  const [projects, setProjects] = useState<Array<{ id: string; name: string; project_key: string }>>(() => {
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; project_key: string; test_format?: string }>>(() => {
     if (typeof window === "undefined") return []
     try {
       const cached = sessionStorage.getItem(cacheKey)
-      return cached ? JSON.parse(cached) as Array<{ id: string; name: string; project_key: string }> : []
+      return cached ? JSON.parse(cached) as Array<{ id: string; name: string; project_key: string; test_format?: string }> : []
     } catch { return [] }
   })
   const menuRef = useRef<HTMLDivElement>(null)
@@ -420,7 +411,7 @@ function ProjectSwitcher({
     if (!workspaceId) return
     fetch(`/api/backend/workspaces/${workspaceId}/projects`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: Array<{ id: string; name: string; project_key: string }> | null) => {
+      .then((data: Array<{ id: string; name: string; project_key: string; test_format?: string }> | null) => {
         if (data) {
           setProjects(data)
           try { sessionStorage.setItem(cacheKey, JSON.stringify(data)) } catch {}
@@ -464,6 +455,12 @@ function ProjectSwitcher({
 
   const currentProject = projects.find((p) => p.project_key === effectiveProjectKey)
 
+  // GWT-08: default to most recently created project's format
+  const lastProject = projects.length > 0 ? projects[projects.length - 1] : undefined
+  const mostRecentFormat: "steps" | "gwt" = lastProject
+    ? (lastProject.test_format === "gwt" ? "gwt" : "steps")
+    : "steps"
+
   function handleProjectClick(projectKey: string) {
     localStorage.setItem(PROJECT_KEY_STORAGE, projectKey)
     window.dispatchEvent(new StorageEvent("storage", { key: PROJECT_KEY_STORAGE }))
@@ -472,6 +469,7 @@ function ProjectSwitcher({
   }
 
   return (
+    <>
     <div className="relative px-3 py-3" ref={menuRef}>
       {!collapsed && (
         <p className="mb-1.5 truncate px-1 text-xs font-medium text-gray-400">{slug}</p>
@@ -514,7 +512,7 @@ function ProjectSwitcher({
                 type="button"
                 onClick={() => {
                   setOpen(false)
-                  onNewProjectClick?.()
+                  setCreateModalOpen(true)
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
               >
@@ -554,5 +552,13 @@ function ProjectSwitcher({
         )}
       </button>
     </div>
+    <CreateProjectModal
+      open={createModalOpen}
+      onClose={() => setCreateModalOpen(false)}
+      workspaceId={workspaceId}
+      slug={slug}
+      defaultFormat={mostRecentFormat}
+    />
+    </>
   )
 }
