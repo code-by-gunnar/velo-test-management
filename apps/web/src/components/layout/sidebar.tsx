@@ -531,7 +531,7 @@ function ProjectSwitcher({
         {!collapsed && (
           <>
             <span className="flex-1 truncate text-left text-sm font-semibold text-gray-800">
-              {currentProject?.name || slug}
+              {currentProject?.name ?? "\u00A0"}
             </span>
             <ChevronDown
               size={14}
