@@ -54,7 +54,7 @@ Add native Given-When-Then test case format as a project-level setting. Projects
   4. User can override the keyword by clicking the pill and selecting from the dropdown
   5. Preconditions textarea remains above the step editor
   6. Keyboard: Tab moves pill→text, Enter/Tab at text end adds new step, Backspace on empty deletes, same flow as traditional editor
-**Plans:** TBD
+**Plans:** 13-01 (GWT Step Editor)
 
 ### Phase 4: Execution
 **Goal**: GWT cases execute as whole scenarios with a single pass/fail, not per-step
@@ -88,7 +88,7 @@ Phases execute in order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Schema & API | 1/1 | Planned | - |
 | 2. Format Selection | 1/1 | Planned | - |
-| 3. GWT Step Editor | 0/? | Planned | - |
+| 3. GWT Step Editor | 1/1 | Planned | - |
 | 4. Execution | 0/? | Planned | - |
 | 5. CSV Import | 0/? | Planned | - |
 
