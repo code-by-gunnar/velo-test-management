@@ -71,6 +71,13 @@
       "when": 1773357530000,
       "tag": "0009_social_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1741900800000,
+      "tag": "0010_gwt_support",
+      "breakpoints": true
     }
   ]
 }
