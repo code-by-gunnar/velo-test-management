@@ -58,18 +58,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Ship a focused, keyboard-first test management tool that startups actually want to use
-**Current focus:** v1.2 Social Auth -- Phase 1: Schema & Fastify Route
+**Current focus:** v1.2 Social Auth -- Phase 2: Auth.js Config & OAuth Chain
 
 ## Current Position
 
-Phase: Phase 1 -- Schema & Fastify Route
-Plan: 2 of 2 complete (01-01 done, 01-02 done)
-Status: Phase 1 COMPLETE
+Phase: Phase 2 -- Auth.js Config & OAuth Chain
+Plan: 1 of 2 complete (07-03 done, 07-04 pending)
+Status: In progress
 
 ```
-Progress: [x] Phase 1  [ ] Phase 2  [ ] Phase 3  [ ] Phase 4
+Progress: [x] Phase 1  [~] Phase 2  [ ] Phase 3  [ ] Phase 4
           |___________|___________|___________|___________|
-          25%                                             100%
+          25%          37.5%                               100%
 ```
 
 ## Accumulated Context
@@ -89,7 +89,7 @@ Recent decisions affecting current work:
 
 ### Critical Implementation Notes
 
-- **OC3 blocker (Phase 2):** The existing `[...nextauth].ts` bridge uses `res.setHeader(key, value)` in a loop -- this overwrites earlier Set-Cookie values, silently dropping OAuth state/nonce cookies. Must fix BEFORE any OAuth testing or every test produces a false negative.
+- **OC3 RESOLVED (Plan 07-03):** The `[...nextauth].ts` bridge now uses `getSetCookie()` to forward Set-Cookie headers individually -- OAuth state/nonce/PKCE cookies are no longer corrupted.
 - **OC2 (Phase 2):** `workspace_id` MUST be injected into the `user` object inside the `signIn` callback. If not, OAuth users get null workspace permanently with no recovery path.
 - **OC4 (Phase 2):** GitHub requires explicit `user:email` scope. Handle null email case by redirecting to custom error page (not returning `false`).
 - **OC6 (Phase 4):** Schema `ON DELETE CASCADE` covers hard-delete path. Erasure worker needs explicit `DELETE FROM user_oauth_accounts WHERE user_id = $userId` for the anonymization path (which updates, not deletes, the user row).
@@ -103,7 +103,7 @@ Recent decisions affecting current work:
 
 ### Pitfalls Checklist (from research/PITFALLS.md)
 
-- [ ] Set-Cookie multi-value fix in `[...nextauth].ts` bridge
+- [x] Set-Cookie multi-value fix in `[...nextauth].ts` bridge (07-03, ccfb8da)
 - [ ] `workspace_id` injection in `signIn` callback (verify with page refresh)
 - [ ] GitHub `user:email` scope + null email fallback via `/user/emails` API
 - [ ] `allowDangerousEmailAccountLinking: true` on both providers
@@ -121,7 +121,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:29:24.946Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-03-13T00:12:13Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
-Next action: Phase 1 complete -- ready to proceed to Phase 2 (Auth.js signIn callback wiring)
+Next action: Execute 07-04-PLAN.md (Google/GitHub providers + signIn callback)

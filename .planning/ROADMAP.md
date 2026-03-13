@@ -41,7 +41,10 @@ Plans:
   3. User can complete a GitHub OAuth sign-in including accounts with private email settings (GitHub `user:email` scope is requested and the email is resolved)
   4. An existing email/password user who signs in via OAuth with the same email address is auto-linked -- no duplicate account is created, the existing workspace context is returned
   5. OAuth session JWT carries identical fields to a Credentials session (`workspace_id`, `role`, `id`) -- verified by inspecting the session after page refresh
-**Plans**: TBD
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 07-03-PLAN.md -- Set-Cookie bridge fix + unit test (INF-06) (completed 2026-03-13)
+- [ ] 07-04-PLAN.md -- Google/GitHub providers + signIn callback + OAuth callback tests (OAP-01–04, ALK-01–03)
 
 ### Phase 3: Login/Signup UI & Error Handling
 **Goal**: The login and signup pages surface Google and GitHub as first-class sign-in options, auth failures show actionable messages rather than generic errors, and new OAuth users get their profile picture seeded automatically
@@ -71,7 +74,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Schema & Fastify Route | 2/2 | Complete   | 2026-03-12 |
-| 2. Auth.js Config & OAuth Chain | 0/? | Not started | - |
+| 2. Auth.js Config & OAuth Chain | 1/2 | In progress | - |
 | 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
 
