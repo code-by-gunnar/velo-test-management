@@ -19,7 +19,7 @@ milestone_name: Social Auth
 status: in_progress
 stopped_at: "Completed 01-02-PLAN.md"
 last_updated: "2026-03-12T23:29:00Z"
-last_activity: 2026-03-12 -- Executed 01-02: oauth-signin Fastify endpoint + TDD integration tests
+last_activity: 2026-03-13 -- Executed 07-04: Google/GitHub providers + signIn callback + OAuth tests
 progress:
   total_phases: 4
   completed_phases: 0
@@ -58,18 +58,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Ship a focused, keyboard-first test management tool that startups actually want to use
-**Current focus:** v1.2 Social Auth -- Phase 2: Auth.js Config & OAuth Chain
+**Current focus:** v1.2 Social Auth -- Phase 3: Login/Signup UI & Error Handling
 
 ## Current Position
 
-Phase: Phase 2 -- Auth.js Config & OAuth Chain
-Plan: 1 of 2 complete (07-03 done, 07-04 pending)
-Status: In progress
+Phase: Phase 3 -- Login/Signup UI & Error Handling
+Plan: 0 of ? complete
+Status: Not started
 
 ```
-Progress: [x] Phase 1  [~] Phase 2  [ ] Phase 3  [ ] Phase 4
+Progress: [x] Phase 1  [x] Phase 2  [ ] Phase 3  [ ] Phase 4
           |___________|___________|___________|___________|
-          25%          37.5%                               100%
+          25%          50%                                 100%
 ```
 
 ## Accumulated Context
@@ -104,9 +104,9 @@ Recent decisions affecting current work:
 ### Pitfalls Checklist (from research/PITFALLS.md)
 
 - [x] Set-Cookie multi-value fix in `[...nextauth].ts` bridge (07-03, ccfb8da)
-- [ ] `workspace_id` injection in `signIn` callback (verify with page refresh)
-- [ ] GitHub `user:email` scope + null email fallback via `/user/emails` API
-- [ ] `allowDangerousEmailAccountLinking: true` on both providers
+- [x] `workspace_id` injection in `signIn` callback (07-04, 5b908c2)
+- [x] GitHub `user:email` scope (built-in provider default, 07-04)
+- [ ] `allowDangerousEmailAccountLinking: true` on both providers (N/A -- no DB adapter, linking handled by backend)
 - [x] `verify-credentials` null `password_hash` safety confirmed before migration
 - [ ] Erasure worker explicit DELETE for anonymization path
 - [ ] Two GitHub OAuth Apps registered (dev + prod separate callback URLs)
@@ -121,7 +121,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:12:13Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-13T00:16:13Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
-Next action: Execute 07-04-PLAN.md (Google/GitHub providers + signIn callback)
+Next action: Plan Phase 3 (Login/Signup UI & Error Handling)
