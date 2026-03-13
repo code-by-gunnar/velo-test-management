@@ -5,6 +5,7 @@ import { StepRow } from "./StepRow"
 export interface Step {
   action: string
   expected_result: string
+  step_type?: "action" | "given" | "when" | "then" | "and" | "but"
 }
 
 interface StepEditorProps {
