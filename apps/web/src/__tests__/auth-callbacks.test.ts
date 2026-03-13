@@ -90,6 +90,93 @@ describe("Auth.js JWT callback chain (AUTH-05)", () => {
   })
 })
 
+describe("Auth.js signIn callback (OAuth chain)", () => {
+  it("returns true for credentials provider (no backend call)", async () => {
+    const result = await signInCallback({
+      user: { id: "user-123", email: "test@example.com" },
+      account: { type: "credentials", provider: "credentials", providerAccountId: "" },
+    })
+    expect(result).toBe(true)
+  })
+
+  it("returns true when null account (fallback)", async () => {
+    const result = await signInCallback({
+      user: { id: "user-123", email: "test@example.com" },
+      account: null,
+    })
+    expect(result).toBe(true)
+  })
+
+  it("calls oauth-signin endpoint for OAuth provider and populates user", async () => {
+    const backendResponse = {
+      id: "backend-uuid",
+      email: "oauth@example.com",
+      name: "OAuth User",
+      workspace_id: "ws-uuid",
+      workspace_slug: "acme",
+      role: "admin",
+    }
+
+    const user: Record<string, unknown> = { id: "provider-id", email: "oauth@example.com" }
+    const result = await signInCallback({
+      user,
+      account: { type: "oidc", provider: "google", providerAccountId: "google-sub-123" },
+      profile: { email: "oauth@example.com", name: "OAuth User" },
+      _mockFetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(backendResponse) }),
+    })
+
+    expect(result).toBe(true)
+    expect(user.id).toBe("backend-uuid")
+    expect(user.workspace_id).toBe("ws-uuid")
+    expect(user.workspace_slug).toBe("acme")
+    expect(user.role).toBe("admin")
+  })
+
+  it("returns error redirect when backend returns 409", async () => {
+    const result = await signInCallback({
+      user: { id: "provider-id", email: "conflict@example.com" },
+      account: { type: "oauth", provider: "github", providerAccountId: "gh-123" },
+      profile: { email: "conflict@example.com" },
+      _mockFetch: () => Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({ error: "provider_conflict" }),
+      }),
+    })
+
+    expect(result).toBe("/login?error=provider_conflict")
+  })
+
+  it("returns error redirect when no email available", async () => {
+    const result = await signInCallback({
+      user: { id: "provider-id", email: null },
+      account: { type: "oauth", provider: "github", providerAccountId: "gh-123" },
+      profile: {},
+    })
+
+    expect(result).toBe("/login?error=no_email")
+  })
+
+  it("jwt callback correctly reads OAuth user fields (ALK-03)", () => {
+    // Simulate an OAuth sign-in where signIn callback populated user fields
+    const token = { sub: "google-sub-123" }
+    const oauthUser = {
+      id: "backend-uuid",
+      email: "oauth@example.com",
+      name: "OAuth User",
+      workspace_id: "ws-uuid",
+      workspace_slug: "acme",
+      role: "editor",
+    }
+
+    const updatedToken = jwtCallback({ token, user: oauthUser })
+
+    expect(updatedToken.id).toBe("backend-uuid")
+    expect(updatedToken.workspace_id).toBe("ws-uuid")
+    expect(updatedToken.workspace_slug).toBe("acme")
+    expect(updatedToken.role).toBe("editor")
+  })
+})
+
 // ─── Extracted callback logic for testing ─────────────────────────────────────
 // In production these live in src/auth.ts. Extracted here to make them testable
 // without spinning up a Next.js server.
@@ -118,6 +205,48 @@ function jwtCallback({
     if (session["role"] !== undefined) token["role"] = session["role"]
   }
   return token
+}
+
+async function signInCallback({
+  user,
+  account,
+  profile,
+  _mockFetch,
+}: {
+  user: Record<string, unknown>
+  account?: { type: string; provider: string; providerAccountId: string } | null
+  profile?: Record<string, unknown>
+  _mockFetch?: (url: string, init: RequestInit) => Promise<{ ok: boolean; json: () => Promise<unknown> }>
+}): Promise<boolean | string> {
+  if (!account || account.type === 'credentials') return true
+
+  const email = (profile?.email ?? user.email) as string | null | undefined
+  if (!email) return '/login?error=no_email'
+
+  const doFetch = _mockFetch ?? (globalThis.fetch as typeof _mockFetch)
+  const res = await doFetch!(`http://localhost:3001/api/auth/oauth-signin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: account.provider,
+      providerAccountId: account.providerAccountId,
+      email,
+      name: (profile?.name ?? user.name ?? null) as string | null,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'oauth_error' })) as { error?: string }
+    return `/login?error=${err.error ?? 'oauth_error'}`
+  }
+
+  const backendUser = await res.json() as Record<string, unknown>
+  user.id = backendUser.id
+  user.workspace_id = backendUser.workspace_id
+  user.workspace_slug = backendUser.workspace_slug
+  user.role = backendUser.role
+
+  return true
 }
 
 function sessionCallback({
