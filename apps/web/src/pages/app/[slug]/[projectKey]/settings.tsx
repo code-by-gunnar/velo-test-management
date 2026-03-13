@@ -25,6 +25,7 @@ interface ProjectSettingsProps {
   projectId: string
   projectName: string
   projectCount: number
+  testFormat: string
 }
 
 const TABS = [
@@ -41,6 +42,7 @@ export default function ProjectSettingsPage({
   projectId,
   projectName,
   projectCount,
+  testFormat,
 }: ProjectSettingsProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>("general")
@@ -188,6 +190,23 @@ export default function ProjectSettingsPage({
                         Used in URLs and integrations. Lowercase letters, numbers, and hyphens only.
                       </p>
                     </FormField>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Test case format
+                      </label>
+                      <span className={clsx(
+                        "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium",
+                        testFormat === "gwt"
+                          ? "bg-primary-selected text-primary"
+                          : "bg-gray-100 text-gray-700"
+                      )}>
+                        {testFormat === "gwt" ? "Given-When-Then" : "Traditional Steps"}
+                      </span>
+                      <p className="mt-1.5 text-xs text-gray-400">
+                        Set at project creation and cannot be changed.
+                      </p>
+                    </div>
 
                     <div className="flex items-center gap-2">
                       <Button
@@ -356,6 +375,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   let projectId = ""
   let projectName = ""
+  let testFormat = "steps"
   let projectCount = 0
 
   if (workspaceId && token) {
@@ -365,9 +385,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         { headers: { authorization: `Bearer ${token}` } }
       )
       if (res.ok) {
-        const project = (await res.json()) as { id: string; name: string }
+        const project = (await res.json()) as { id: string; name: string; test_format?: string }
         projectId = project.id
         projectName = project.name
+        testFormat = project.test_format ?? "steps"
       }
 
       const listRes = await fetch(
@@ -391,6 +412,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       projectId,
       projectName,
       projectCount,
+      testFormat,
     },
   }
 }
