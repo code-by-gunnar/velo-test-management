@@ -221,6 +221,23 @@ function MappingStep({
               ))}
             </select>
           </div>
+
+          {/* Keyword (GWT) — optional */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Keyword (GWT)</label>
+            <select
+              value={columnMapping.keyword ?? ""}
+              onChange={updateField("keyword")}
+              className="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-800 focus:border-primary focus:outline-none"
+            >
+              <option value="">-- (none) --</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {!canImport && (

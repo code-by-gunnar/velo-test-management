@@ -11,6 +11,7 @@ export interface ColumnMapping {
   preconditions?: string
   priority?: string
   suite?: string
+  keyword?: string    // GWT keyword column (given/when/then/and/but)
 }
 
 type ImportStatus = "idle" | "file-selected" | "previewing" | "importing" | "done" | "error"
@@ -43,6 +44,7 @@ function detectColumnMapping(headers: string[]): ColumnMapping {
       mapping.preconditions = h
     if (["priority", "severity"].includes(lower)) mapping.priority = h
     if (["suite", "area", "module", "section", "folder", "group"].includes(lower)) mapping.suite = h
+    if (["keyword", "step type", "step_type", "gwt", "type"].includes(lower)) mapping.keyword = h
   }
   return mapping
 }
@@ -125,6 +127,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
     if (columnMapping.preconditions) params.set("colPreconditions", columnMapping.preconditions)
     if (columnMapping.priority) params.set("colPriority", columnMapping.priority)
     if (columnMapping.suite) params.set("colSuite", columnMapping.suite)
+    if (columnMapping.keyword) params.set("colKeyword", columnMapping.keyword)
 
     try {
       const res = await fetch(

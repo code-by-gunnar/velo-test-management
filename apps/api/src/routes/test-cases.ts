@@ -659,6 +659,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       colPreconditions?: string
       colPriority?: string
       colSuite?: string
+      colKeyword?: string
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases/import",
@@ -679,9 +680,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const buffer = await data.toBuffer()
 
-      const { colTitle, colAction, colExpected, colPreconditions, colPriority, colSuite } = request.query
+      const { colTitle, colAction, colExpected, colPreconditions, colPriority, colSuite, colKeyword } = request.query
       let explicit: ExplicitColumnMapping | undefined
-      if (colTitle ?? colAction ?? colSuite) {
+      if (colTitle ?? colAction ?? colSuite ?? colKeyword) {
         explicit = {}
         if (colTitle) explicit.title = colTitle
         if (colAction) explicit.action = colAction
@@ -689,6 +690,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         if (colPreconditions) explicit.preconditions = colPreconditions
         if (colPriority) explicit.priority = colPriority
         if (colSuite) explicit.suite = colSuite
+        if (colKeyword) explicit.keyword = colKeyword
       }
 
       let parsed: TestCaseImport[]
@@ -703,6 +705,13 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       let importedCount = 0
 
       await withWorkspace(workspaceId, async (tx) => {
+        // Determine default step_type based on project format (GWT-22)
+        const projectRows = await tx`
+          SELECT test_format FROM projects WHERE id = ${projectId}::uuid LIMIT 1
+        `
+        const projectFormat = (projectRows[0] as unknown as { test_format: string } | undefined)?.test_format ?? "steps"
+        const defaultStepType = projectFormat === "gwt" && !colKeyword ? "given" : "action"
+
         // Suite name → UUID cache (find-or-create during import)
         const suiteCache = new Map<string, string>()
 
@@ -799,13 +808,14 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             const stepOrder = (i + 1) * 1000
 
             await tx`
-              INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
+              INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
               VALUES (
                 ${stepId}::uuid,
                 ${newCaseId}::uuid,
                 ${stepOrder},
                 ${step.action},
-                ${step.expected_result ?? null}
+                ${step.expected_result ?? null},
+                ${step.step_type ?? defaultStepType}
               )
             `
           }
