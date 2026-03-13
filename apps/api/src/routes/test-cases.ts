@@ -83,7 +83,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       title: string
       preconditions?: string
       priority: string
-      steps: Array<{ action: string; expected_result?: string }>
+      steps: Array<{ action: string; expected_result?: string; step_type?: string }>
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases",
@@ -106,6 +106,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
                 properties: {
                   action: { type: "string" },
                   expected_result: { type: "string" },
+                  step_type: { type: "string", enum: ["action", "given", "when", "then", "and", "but"] },
                 },
               },
             },
@@ -175,13 +176,14 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           const stepOrder = (i + 1) * 1000
 
           await tx`
-            INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
+            INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
             VALUES (
               ${stepId}::uuid,
               ${caseId}::uuid,
               ${stepOrder},
               ${step.action},
-              ${step.expected_result ?? null}
+              ${step.expected_result ?? null},
+              ${step.step_type ?? 'action'}
             )
           `
         }
