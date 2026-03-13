@@ -10,6 +10,7 @@ interface ExecutePageProps {
   runName: string
   workspaceId: string
   projectId: string
+  testFormat: string
   items: RunItem[]
   startIndex: number | null
 }
@@ -21,6 +22,7 @@ export default function ExecutePage({
   runName,
   workspaceId,
   projectId,
+  testFormat,
   items,
   startIndex,
 }: ExecutePageProps) {
@@ -30,6 +32,7 @@ export default function ExecutePage({
       runName={runName}
       workspaceId={workspaceId}
       projectId={projectId}
+      testFormat={testFormat}
       items={items}
       slug={slug}
       projectKey={projectKey}
@@ -56,6 +59,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const headers = token ? { authorization: `Bearer ${token}` } : {}
 
   let projectId = ""
+  let testFormat = "steps"
   let runName = ""
   let items: RunItem[] = []
 
@@ -72,8 +76,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   ])
 
   if (projectRes?.ok) {
-    const project = await projectRes.json() as { id: string }
+    const project = await projectRes.json() as { id: string; test_format?: string }
     projectId = project.id
+    testFormat = project.test_format ?? "steps"
   }
 
   if (runRes?.ok) {
@@ -92,7 +97,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   return {
     props: JSON.parse(JSON.stringify({
-      slug, projectKey, runId, runName, workspaceId, projectId, items,
+      slug, projectKey, runId, runName, workspaceId, projectId, testFormat, items,
       startIndex: context.query.item ? parseInt(context.query.item as string, 10) : null,
     })),
   }

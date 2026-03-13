@@ -25,6 +25,7 @@ interface CaseStep {
   step_order: number
   action: string
   expected_result: string
+  step_type?: string
 }
 
 interface CaseDetail {
@@ -39,6 +40,7 @@ interface ExecutionScreenProps {
   runName: string
   workspaceId: string
   projectId: string
+  testFormat: string
   items: RunItem[]
   slug: string
   projectKey: string
@@ -76,6 +78,7 @@ export function ExecutionScreen({
   runName,
   workspaceId,
   projectId,
+  testFormat,
   items: initialItems,
   slug,
   projectKey,
@@ -472,7 +475,33 @@ export function ExecutionScreen({
               </div>
             )}
 
-            {!loadingCase && !isCaseDeleted && steps.length > 0 && (
+            {!loadingCase && !isCaseDeleted && steps.length > 0 && testFormat === "gwt" && (
+              <div className="rounded-lg border border-gray-200 bg-white mb-4 overflow-hidden divide-y divide-gray-50">
+                {steps.map((step) => (
+                  <div key={step.step_order} className="flex items-start gap-3 px-4 py-3">
+                    <span className="shrink-0 w-[60px] rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 text-center mt-0.5">
+                      {(step.step_type ?? "given").charAt(0).toUpperCase() + (step.step_type ?? "given").slice(1)}
+                    </span>
+                    <p className="flex-1 text-sm text-gray-800 whitespace-pre-wrap">
+                      {step.action}
+                    </p>
+                    <div className="shrink-0">
+                      {canEdit && (
+                        <StepCommentIcon
+                          runItemId={currentItem.id}
+                          stepOrder={step.step_order}
+                          workspaceId={workspaceId}
+                          existingComments={stepComments}
+                          onCommentAdded={(comment) => handleStepCommentAdded(comment, currentItem.id)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!loadingCase && !isCaseDeleted && steps.length > 0 && testFormat !== "gwt" && (
               <div className="rounded-lg border border-gray-200 bg-white mb-4 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
