@@ -3,6 +3,7 @@ import Papa from "papaparse"
 export interface ParsedStep {
   action: string
   expected_result: string
+  step_type?: string
 }
 
 export interface TestCaseImport {
@@ -21,6 +22,7 @@ function detectColumns(headers: string[]): {
   preconditions?: number
   priority?: number
   suite?: number
+  keyword?: number
 } {
   const mapping: {
     title?: number
@@ -29,6 +31,7 @@ function detectColumns(headers: string[]): {
     preconditions?: number
     priority?: number
     suite?: number
+    keyword?: number
   } = {}
   headers.forEach((h, i) => {
     const lower = h.toLowerCase().trim()
@@ -39,6 +42,7 @@ function detectColumns(headers: string[]): {
       mapping.preconditions = i
     if (["priority", "severity"].includes(lower)) mapping.priority = i
     if (["suite", "area", "module", "section", "folder", "group"].includes(lower)) mapping.suite = i
+    if (["keyword", "step type", "step_type", "gwt", "type"].includes(lower)) mapping.keyword = i
   })
   return mapping
 }
@@ -50,6 +54,8 @@ function normalizePriority(
   if (v === "critical" || v === "high" || v === "medium" || v === "low") return v
   return undefined
 }
+
+const VALID_KEYWORDS = new Set(["given", "when", "then", "and", "but"])
 
 // Group multi-row format (same title = same case, each row is a step)
 function groupMultiRow(
@@ -86,7 +92,14 @@ function groupMultiRow(
     const expected = cols.expected !== undefined ? row[cols.expected]?.trim() : ""
 
     if (action) {
-      cases.get(title)!.steps.push({ action, expected_result: expected || "" })
+      const step: ParsedStep = { action, expected_result: expected || "" }
+      if (cols.keyword !== undefined) {
+        const raw = (row[cols.keyword] ?? "").toString().trim().toLowerCase()
+        if (VALID_KEYWORDS.has(raw)) {
+          step.step_type = raw
+        }
+      }
+      cases.get(title)!.steps.push(step)
     }
   }
 
@@ -100,6 +113,7 @@ export interface ExplicitColumnMapping {
   preconditions?: string
   priority?: string
   suite?: string
+  keyword?: string
 }
 
 // Build column index map from an explicit user-supplied header → field mapping
@@ -115,6 +129,7 @@ function applyExplicitMapping(
     if (explicit.preconditions && h === explicit.preconditions) mapping.preconditions = i
     if (explicit.priority && h === explicit.priority) mapping.priority = i
     if (explicit.suite && h === explicit.suite) mapping.suite = i
+    if (explicit.keyword && h === explicit.keyword) mapping.keyword = i
   })
   // Fall back to auto-detection for any field not explicitly mapped.
   // Spread auto first, then overwrite only the fields that were explicitly resolved
@@ -127,6 +142,7 @@ function applyExplicitMapping(
   if (mapping.preconditions !== undefined) result.preconditions = mapping.preconditions
   if (mapping.priority !== undefined) result.priority = mapping.priority
   if (mapping.suite !== undefined) result.suite = mapping.suite
+  if (mapping.keyword !== undefined) result.keyword = mapping.keyword
   return result
 }
 
