@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useUserRole } from "@/hooks/useUserRole"
+import { CreateProjectModal } from "@/components/projects/CreateProjectModal"
 import {
   LayoutGrid,
   Play,
@@ -17,6 +18,8 @@ import {
   ChevronDown,
   LogOut,
   User,
+  Plus,
+  Check,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -55,6 +58,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const { canEdit, isAdmin } = useUserRole()
+  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   const subscribeStorage = useCallback((cb: () => void) => {
     window.addEventListener("storage", cb)
@@ -90,6 +94,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
     : "?"
 
   return (
+    <>
     <aside
       className={clsx(
         "flex h-screen shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-200",
@@ -119,20 +124,15 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         </button>
       </div>
 
-      {/* Workspace dropdown */}
-      {!collapsed && (
-        <div className="px-3 py-3">
-          <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
-              {slug.slice(0, 2).toUpperCase()}
-            </div>
-            <span className="flex-1 truncate text-sm font-semibold text-gray-800">
-              {slug}
-            </span>
-            <ChevronDown size={14} className="shrink-0 text-gray-500" />
-          </div>
-        </div>
-      )}
+      {/* Project switcher dropdown */}
+      <ProjectSwitcher
+        slug={slug}
+        collapsed={collapsed}
+        effectiveProjectKey={effectiveProjectKey}
+        canEdit={canEdit}
+        workspaceId={session?.user?.workspace_id ?? ""}
+        onNewProjectClick={() => setCreateModalOpen(true)}
+      />
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label="Project navigation">
@@ -280,6 +280,13 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         displayName={displayName}
       />
     </aside>
+    <CreateProjectModal
+      open={createModalOpen}
+      onClose={() => setCreateModalOpen(false)}
+      workspaceId={session?.user?.workspace_id ?? ""}
+      slug={slug}
+    />
+    </>
   )
 }
 
@@ -373,6 +380,164 @@ function UserMenu({
         {avatar}
         {!collapsed && (
           <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Menu"}</span>
+        )}
+      </button>
+    </div>
+  )
+}
+
+// ── Project switcher dropdown ─────────────────────────────────────────────────
+
+function ProjectSwitcher({
+  slug,
+  collapsed,
+  effectiveProjectKey,
+  canEdit,
+  workspaceId,
+  onNewProjectClick,
+}: {
+  slug: string
+  collapsed: boolean
+  effectiveProjectKey: string | undefined
+  canEdit: boolean
+  workspaceId: string
+  onNewProjectClick?: () => void
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; project_key: string }>>([])
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Fetch projects on mount and when projects change
+  const fetchProjects = useCallback(() => {
+    if (!workspaceId) return
+    fetch(`/api/backend/workspaces/${workspaceId}/projects`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: Array<{ id: string; name: string; project_key: string }> | null) => {
+        if (data) setProjects(data)
+      })
+      .catch(() => {})
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects])
+
+  // Re-fetch when a project is updated (settings page dispatches this)
+  useEffect(() => {
+    function handleProjectUpdate() { fetchProjects() }
+    window.addEventListener("velo:project-updated", handleProjectUpdate)
+    return () => window.removeEventListener("velo:project-updated", handleProjectUpdate)
+  }, [fetchProjects])
+
+  // Click-outside handler
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [open])
+
+  // Escape key handler
+  useEffect(() => {
+    if (!open) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [open])
+
+  const currentProject = projects.find((p) => p.project_key === effectiveProjectKey)
+
+  function handleProjectClick(projectKey: string) {
+    localStorage.setItem(PROJECT_KEY_STORAGE, projectKey)
+    window.dispatchEvent(new StorageEvent("storage", { key: PROJECT_KEY_STORAGE }))
+    setOpen(false)
+    void router.push(`/app/${slug}/${projectKey}/cases`)
+  }
+
+  return (
+    <div className="relative px-3 py-3" ref={menuRef}>
+      {open && (
+        <div
+          className={clsx(
+            "absolute z-50 rounded-lg border border-gray-200 bg-white py-1 shadow-dropdown",
+            collapsed
+              ? "left-full top-0 ml-2 w-56"
+              : "left-2 right-2 top-full mt-1"
+          )}
+        >
+          {projects.map((project) => (
+            <button
+              key={project.id}
+              type="button"
+              onClick={() => handleProjectClick(project.project_key)}
+              className={clsx(
+                "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors",
+                project.project_key === effectiveProjectKey
+                  ? "bg-primary-selected text-primary font-medium"
+                  : "text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-gray-200 text-[9px] font-semibold text-gray-600">
+                {project.name.slice(0, 2).toUpperCase()}
+              </div>
+              <span className="flex-1 truncate text-left">{project.name}</span>
+              {project.project_key === effectiveProjectKey && (
+                <Check size={14} className="shrink-0 text-primary" />
+              )}
+            </button>
+          ))}
+
+          {canEdit && (
+            <>
+              <div className="mx-2 my-1 border-t border-gray-100" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onNewProjectClick?.()
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Plus size={14} className="text-gray-400" />
+                New project
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={collapsed ? (currentProject?.name || slug) : undefined}
+        className={clsx(
+          "flex w-full items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 transition-colors hover:bg-gray-200",
+          collapsed && "justify-center"
+        )}
+      >
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
+          {slug.slice(0, 2).toUpperCase()}
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 truncate text-left text-sm font-semibold text-gray-800">
+              {currentProject?.name || slug}
+            </span>
+            <ChevronDown
+              size={14}
+              className={clsx(
+                "shrink-0 text-gray-500 transition-transform",
+                open && "rotate-180"
+              )}
+            />
+          </>
         )}
       </button>
     </div>

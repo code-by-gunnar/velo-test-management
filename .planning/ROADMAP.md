@@ -1,108 +1,86 @@
-# Roadmap: v1.2 Social Auth
+# Roadmap: v1.3 Project Management
 
 ## Overview
 
-Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/password auth. Four phases: lay the database schema and Fastify endpoint foundation (everything else depends on this), wire the full OAuth chain by fixing the Pages Router cookie bug and configuring Auth.js, add the login/signup UI and error handling, then update the GDPR erasure worker and run integration tests. Zero new npm packages -- all provider logic ships inside the already-installed `next-auth`.
+Surface projects as a first-class UI concept. The backend already has full CRUD (create, list, get-by-key, update, soft-delete) in `workspaces.ts`. This milestone adds the frontend: a project switcher dropdown in the sidebar, a create-project modal with tier upsell, and project settings (rename + delete). Three phases, all frontend-only.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3, 4): Planned milestone work
-- Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
-- Phase directories use global numbering (07-social-auth, etc.) to avoid collision with prior milestones
+- Integer phases (1, 2, 3): Planned milestone work
+- Phase directories use global numbering (08-project-switcher, 09-create-project, 10-project-settings) to avoid collision with prior milestones
 
-- [x] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths (completed 2026-03-12)
-- [x] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers (completed 2026-03-13)
-- [x] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture (completed 2026-03-13)
-- [ ] **Phase 4: GDPR Erasure Update & Verification** - Erasure worker deletes OAuth account rows during anonymization, integration tests verify all three user-resolution paths and erasure correctness
+- [ ] **Phase 1: Sidebar Project Switcher** - Wire the existing workspace pill dropdown to show projects, highlight current, navigate on click
+- [ ] **Phase 2: Create Project Modal** - Modal with name/key fields, auto-slug, free tier upsell, post-creation navigation
+- [ ] **Phase 3: Project Settings** - Editable project name, delete with calm confirmation, last-project guard
 
 ## Phase Details
 
-### Phase 1: Schema & Fastify Route
-**Goal**: The database schema supports OAuth users and the Fastify endpoint can resolve any OAuth sign-in (new user, returning user, auto-link) before Auth.js is wired
+### Phase 1: Sidebar Project Switcher
+**Goal**: Users can see which project they're in and switch between projects from the sidebar
 **Depends on**: Nothing (first phase)
-**Requirements**: INF-05, INF-08
+**Requirements**: PSW-01, PSW-02, PSW-03, PSW-04
 **Success Criteria** (what must be TRUE):
-  1. Migration 0009 runs cleanly -- `user_oauth_accounts` table exists with `UNIQUE(provider, provider_account_id)` and `ON DELETE CASCADE`, and `users.password_hash` accepts NULL
-  2. `POST /api/auth/oauth-signin` returns a user object with `{ id, email, name, workspace_id, workspace_slug, role }` for all three paths: new user (JIT provisioned), returning user (looked up by oauth account row), and auto-link (email-match with existing credentials user)
-  3. Integration tests confirm the endpoint is idempotent -- calling it twice for the same `(provider, provider_account_id)` does not create duplicate rows
-**Plans:** 2/2 plans complete
-Plans:
-- [ ] 07-01-PLAN.md -- Migration 0009 + Drizzle schema + null password_hash guard
-- [ ] 07-02-PLAN.md -- POST /api/auth/oauth-signin endpoint + integration tests
+  1. Clicking the workspace pill in the sidebar opens a dropdown listing all projects fetched from `GET /api/workspaces/:id/projects`
+  2. The current project (matching the URL's `projectKey`) is visually highlighted with `bg-primary-selected text-primary`
+  3. Clicking a different project navigates to `/app/{slug}/{projectKey}/cases` and updates localStorage `velo:last-project-key`
+  4. The dropdown shows a "+ New project" row at the bottom for editors/admins (disabled/hidden for viewers)
+  5. The dropdown closes on outside click and on Escape key
+  6. When sidebar is collapsed, the pill is still clickable and the dropdown still works (positioned correctly)
+**Plans:** 08-01 (Project Switcher Dropdown)
 
-### Phase 2: Auth.js Config & OAuth Chain
-**Goal**: Users can complete an OAuth sign-in flow end-to-end in development -- the full chain from clicking "Continue with Google/GitHub" through callback to landing in the app with a valid JWT carrying workspace_id and role
-**Depends on**: Phase 1
-**Requirements**: INF-06, OAP-01, OAP-02, OAP-03, OAP-04, ALK-01, ALK-02, ALK-03
+### Phase 2: Create Project Modal
+**Goal**: Users can create new projects from within the app (not just onboarding), with free tier limit communicated clearly
+**Depends on**: Phase 1 (the "+ New project" trigger)
+**Requirements**: PCR-01, PCR-02, PCR-03, PCR-04
 **Success Criteria** (what must be TRUE):
-  1. The Pages Router `[...nextauth].ts` bridge correctly forwards multiple `Set-Cookie` headers -- OAuth state and nonce cookies are not silently dropped
-  2. User can complete a Google OAuth sign-in from the login page and land in the app with `session.user.workspace_id` populated (non-null after workspace onboarding)
-  3. User can complete a GitHub OAuth sign-in including accounts with private email settings (GitHub `user:email` scope is requested and the email is resolved)
-  4. An existing email/password user who signs in via OAuth with the same email address is auto-linked -- no duplicate account is created, the existing workspace context is returned
-  5. OAuth session JWT carries identical fields to a Credentials session (`workspace_id`, `role`, `id`) -- verified by inspecting the session after page refresh
-**Plans:** 2/2 complete
-Plans:
-- [x] 07-03-PLAN.md -- Set-Cookie bridge fix + unit test (INF-06) (completed 2026-03-13)
-- [x] 07-04-PLAN.md -- Google/GitHub providers + signIn callback + OAuth callback tests (OAP-01-04, ALK-01-03) (completed 2026-03-13)
+  1. Clicking "+ New project" in the switcher dropdown opens a modal with name and project key fields
+  2. Project key auto-generates from name (e.g., "Mobile App" → "mobile-app") and is editable before submission
+  3. Modal calls `POST /api/workspaces/:id/projects` — on 201 success, navigates to the new project's cases page
+  4. When the API returns 403 with `code: "TIER_LIMIT_EXCEEDED"`, the modal shows an upsell message (e.g., "Free plan allows 1 project. Upgrade to Starter to add more.") instead of the creation form
+  5. Modal validates: name required, project key required + lowercase alphanumeric + hyphens only, handles 409 duplicate key error inline
+**Plans:** 09-01 (Create Project Modal)
 
-### Phase 3: Login/Signup UI & Error Handling
-**Goal**: The login and signup pages surface Google and GitHub as first-class sign-in options, auth failures show actionable messages rather than generic errors, and new OAuth users get their profile picture seeded automatically
-**Depends on**: Phase 2
-**Requirements**: UI-01, UI-02, UI-03, UI-04
+### Phase 3: Project Settings
+**Goal**: Users can rename projects and delete projects they no longer need, with guardrails
+**Depends on**: Phase 1 (navigation to settings), Phase 2 (multiple projects exist to test delete)
+**Requirements**: PST-01, PST-02, PST-03
 **Success Criteria** (what must be TRUE):
-  1. Login page shows "Continue with Google" and "Continue with GitHub" buttons above the email/password form with a visual separator -- both buttons trigger the correct provider flow
-  2. Signup page shows the same two social auth buttons with the same visual treatment
-  3. Navigating to `/auth/error` (or being redirected there by an auth failure) shows a page with an actionable error message specific to the failure type -- not the generic Auth.js error screen
-  4. A new user who signs in via OAuth for the first time has their profile picture populated from the provider's profile image -- visible in the sidebar avatar
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 07-05-PLAN.md -- Social auth buttons on login/signup + custom error page (UI-01, UI-02, UI-03) (completed 2026-03-13)
-- [x] 07-06-PLAN.md -- OAuth avatar seeding from provider profile picture (UI-04) (completed 2026-03-13)
-
-### Phase 4: GDPR Erasure Update & Verification
-**Goal**: OAuth account records are cleaned up during user anonymization (the schema CASCADE alone does not cover this path), and CI passes with integration tests covering all new behavior
-**Depends on**: Phase 3
-**Requirements**: INF-07
-**Success Criteria** (what must be TRUE):
-  1. The GDPR erasure worker explicitly deletes `user_oauth_accounts` rows for the target user before anonymizing the `users` row -- confirmed by test that the rows are gone after erasure runs
-  2. `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test` passes with zero errors, including integration tests for the three `oauth-signin` resolution paths and the erasure worker OAuth cleanup
-**Plans**: TBD
+  1. Project settings General tab shows the project name in an editable field — on save, calls `PATCH /api/workspaces/:id/projects/:projectId` with `{ name }`
+  2. Below the name field, a "Delete project" section with calm gray confirmation (matching Clean Elevation pattern)
+  3. Delete calls `DELETE /api/workspaces/:id/projects/:projectId` — on 204, navigates to workspace root (which redirects to remaining project)
+  4. If the project is the last one in the workspace, the delete button is disabled with text explaining "You need at least one project" — verified by checking project count from the list endpoint
+  5. Project key and IDs remain displayed as read-only (existing behavior preserved)
+**Plans:** 10-01 (Project Settings — Rename + Delete)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Schema & Fastify Route | 2/2 | Complete   | 2026-03-12 |
-| 2. Auth.js Config & OAuth Chain | 2/2 | Complete | 2026-03-13 |
-| 3. Login/Signup UI & Error Handling | 2/2 | Complete | 2026-03-13 |
-| 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
+| 1. Sidebar Project Switcher | 1/1 | Complete | 2026-03-13 |
+| 2. Create Project Modal | 1/1 | Complete | 2026-03-13 |
+| 3. Project Settings | 1/1 | Complete | 2026-03-13 |
 
 ## Coverage Map
 
 | Requirement | Phase |
 |-------------|-------|
-| INF-05 | Phase 1 |
-| INF-08 | Phase 1 |
-| INF-06 | Phase 2 |
-| OAP-01 | Phase 2 |
-| OAP-02 | Phase 2 |
-| OAP-03 | Phase 2 |
-| OAP-04 | Phase 2 |
-| ALK-01 | Phase 2 |
-| ALK-02 | Phase 2 |
-| ALK-03 | Phase 2 |
-| UI-01 | Phase 3 |
-| UI-02 | Phase 3 |
-| UI-03 | Phase 3 |
-| UI-04 | Phase 3 |
-| INF-07 | Phase 4 |
+| PSW-01 | Phase 1 |
+| PSW-02 | Phase 1 |
+| PSW-03 | Phase 1 |
+| PSW-04 | Phase 1 |
+| PCR-01 | Phase 2 |
+| PCR-02 | Phase 2 |
+| PCR-03 | Phase 2 |
+| PCR-04 | Phase 2 |
+| PST-01 | Phase 3 |
+| PST-02 | Phase 3 |
+| PST-03 | Phase 3 |
 
-**Total: 15/15 requirements mapped. No orphans.**
+**Total: 11/11 requirements mapped. No orphans.**
 
 ---
-*Roadmap created: 2026-03-12*
-*Last updated: 2026-03-12*
+*Roadmap created: 2026-03-13*
