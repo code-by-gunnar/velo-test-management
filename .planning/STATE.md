@@ -1,45 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: milestone
-status: completed
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-03-13T08:21:53.289Z"
+milestone: v1.3
+milestone_name: Project Management
+status: executing
+stopped_at: Phase 3 plan 10-01 executed
+last_updated: "2026-03-13T17:00:00Z"
 progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 30
-  completed_plans: 23
----
-
----
-gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: milestone
-status: planning
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-03-12T23:33:08.661Z"
-progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 30
-  completed_plans: 23
----
-
----
-gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Social Auth
-status: in_progress
-stopped_at: "Completed 01-02-PLAN.md"
-last_updated: "2026-03-12T23:29:00Z"
-last_activity: 2026-03-13 -- Executed 07-04: Google/GitHub providers + signIn callback + OAuth tests
-progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -55,12 +26,15 @@ progress:
 ### v1.1 -- GDPR & Data Lifecycle (20 requirements, 4 phases)
 **Status:** COMPLETE (20/20 satisfied, completed 2026-03-12)
 
-### Post-Milestone Additions (on master, after merge)
+### v1.2 -- Social Auth (15 requirements, 4 phases)
+**Status:** COMPLETE (15/15 satisfied, completed 2026-03-13)
+
+### Post-Milestone Additions (on master)
 - CSV import with suite auto-creation from area column
 - Suite management: right-click context menu (rename/delete), bulk delete with select mode
 - requireAdmin middleware + admin-only delete test run endpoint
-- Deleted test case handling in execution screen (404 -> user message)
-- Auto-resize step textareas on mount, whitespace-pre-wrap in view mode
+- Deleted test case handling in execution screen
+- Auto-resize step textareas, whitespace-pre-wrap in view mode
 - Calm gray confirmation pattern (no red/blue destructive styling)
 - User profile management: name edit, OTP-verified email change, R2 avatar upload
 - Sidebar popover menu (profile + sign out)
@@ -69,73 +43,57 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-12)
+See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Ship a focused, keyboard-first test management tool that startups actually want to use
-**Current focus:** v1.2 Social Auth -- Phase 3: Login/Signup UI & Error Handling
+**Current focus:** v1.3 Project Management -- all 3 phases complete
 
 ## Current Position
 
-Phase: Phase 3 -- Login/Signup UI & Error Handling
-Plan: 0 of ? complete
-Status: Not started
+Phase: Phase 3 -- Project Settings
+Plan: 1 of 1 complete
+Status: All phases complete — milestone ready for verification
 
 ```
-Progress: [x] Phase 1  [x] Phase 2  [ ] Phase 3  [ ] Phase 4
-          |___________|___________|___________|___________|
-          25%          50%                                 100%
+Progress: [x] Phase 1  [x] Phase 2  [x] Phase 3
+          |___________|___________|___________|
+          100%
 ```
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Auto-link accounts on email match (most SaaS standard)
-- Skip OTP for OAuth users (provider already verified)
-- Google + GitHub only (most common for dev-tool SaaS)
-- Auth.js v5 built-in providers (no custom OAuth)
-- Zero new npm packages -- all provider logic in existing next-auth
-- [Phase 01-foundation]: Null password_hash guard returns identical 401 error message as wrong password to prevent OAuth-account enumeration
-- [Phase 01-foundation]: Error codes captured as local variables inside transaction, reply.send() called after sql.begin() block (CLAUDE.md rule)
+- Project key is immutable (set at creation, never edited)
+- Switcher wired to existing workspace pill ChevronDown
+- Modal for project creation (not page redirect)
+- Last project cannot be deleted (client-side guard via projectCount)
+- Free tier upsell shown in create modal when limit reached
+- Project rename is inline save (not modal) — matches settings page pattern
+- Delete uses DeletionPanel two-step calm confirmation pattern
 
 ### Critical Implementation Notes
 
-- **OC3 RESOLVED (Plan 07-03):** The `[...nextauth].ts` bridge now uses `getSetCookie()` to forward Set-Cookie headers individually -- OAuth state/nonce/PKCE cookies are no longer corrupted.
-- **OC2 (Phase 2):** `workspace_id` MUST be injected into the `user` object inside the `signIn` callback. If not, OAuth users get null workspace permanently with no recovery path.
-- **OC4 (Phase 2):** GitHub requires explicit `user:email` scope. Handle null email case by redirecting to custom error page (not returning `false`).
-- **OC6 (Phase 4):** Schema `ON DELETE CASCADE` covers hard-delete path. Erasure worker needs explicit `DELETE FROM user_oauth_accounts WHERE user_id = $userId` for the anonymization path (which updates, not deletes, the user row).
-- **`allowDangerousEmailAccountLinking`:** Set the flag AND implement linking in the `signIn` callback. Flag alone is a no-op without a database adapter.
-- **verify-credentials null check:** Confirm the existing route short-circuits before `bcrypt.compare` when `password_hash IS NULL` before migration 0009 ships to production.
-
-### Environment Variables Needed
-
-- `AUTH_GOOGLE_ID` + `AUTH_GOOGLE_SECRET` -- Google Cloud Console OAuth credentials
-- `AUTH_GITHUB_ID` + `AUTH_GITHUB_SECRET` -- GitHub OAuth App credentials (two separate apps: dev + production)
-
-### Pitfalls Checklist (from research/PITFALLS.md)
-
-- [x] Set-Cookie multi-value fix in `[...nextauth].ts` bridge (07-03, ccfb8da)
-- [x] `workspace_id` injection in `signIn` callback (07-04, 5b908c2)
-- [x] GitHub `user:email` scope (built-in provider default, 07-04)
-- [ ] `allowDangerousEmailAccountLinking: true` on both providers (N/A -- no DB adapter, linking handled by backend)
-- [x] `verify-credentials` null `password_hash` safety confirmed before migration
-- [ ] Erasure worker explicit DELETE for anonymization path
-- [ ] Two GitHub OAuth Apps registered (dev + prod separate callback URLs)
+- **Backend CRUD complete**: All endpoints exist in `apps/api/src/routes/workspaces.ts` (lines 166-498)
+  - POST create (201), GET list, GET by-key, PATCH update, DELETE soft-delete
+  - Free tier limit returns 403 with `code: "TIER_LIMIT_EXCEEDED"`
+- **Sidebar pill**: `sidebar.tsx:124-131` — Now wired to ProjectSwitcher component (lines 380-518)
+- **URL pattern**: `/app/[slug]/[projectKey]/...` — projectKey comes from DB `project_key` column
+- **localStorage**: `velo:last-project-key` stores last viewed project key
+- **Workspace root**: `/app/[slug]/index.tsx` auto-redirects to first project's cases page
+- **Project settings**: `settings.tsx` — General tab has editable name + delete section; SSR fetches projectName + projectCount
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-None yet.
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:16:13Z
-Stopped at: Completed 07-04-PLAN.md
+Last session: 2026-03-13
+Stopped at: Phase 3 executed — lint + typecheck + tests pass
 Resume file: None
-Next action: Plan Phase 3 (Login/Signup UI & Error Handling)
+Next action: /gsd:complete-milestone or /gsd:verify-work
