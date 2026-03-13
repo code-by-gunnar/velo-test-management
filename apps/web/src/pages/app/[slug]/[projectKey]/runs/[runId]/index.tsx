@@ -84,7 +84,7 @@ export default function RunDetailPage({
   const [isRerunning, setIsRerunning] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isDeleteRunning, setIsDeleteRunning] = useState(false)
-  const [popoverId, setPopoverId] = useState<string | null>(null)
+
 
   // Update defect status in local items state when Linear sync event arrives
   const handleDefectStatusUpdate = useCallback((runItemId: string, externalStatus: string) => {
@@ -373,7 +373,13 @@ export default function RunDetailPage({
               <p className="text-sm text-gray-500">No test items in this run</p>
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[45%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
+                <col className="w-[25%]" />
+              </colgroup>
               <thead className="sticky top-0 bg-white shadow-sm">
                 <tr className="border-b border-gray-200">
                   <th className="py-2 pl-6 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -420,65 +426,29 @@ export default function RunDetailPage({
                       </td>
 
                       {/* Executed at */}
-                      <td className="py-3 pr-4 text-xs text-gray-400">
+                      <td className="py-3 pr-4 text-xs text-gray-400" suppressHydrationWarning>
                         {formatDate(item.executed_at)}
                       </td>
 
-                      {/* Notes: comment indicator + defect badge */}
+                      {/* Notes: defect link + comment */}
                       <td className="py-3 pr-6">
-                        <div className="flex items-center gap-2">
-                          {hasComment && (
-                            <span
-                              className="text-xs text-gray-400"
-                              title={item.comment ?? ""}
-                            >
-                              Comment
-                            </span>
-                          )}
+                        <div className="flex flex-col gap-1 min-w-0">
                           {hasDefect && (
-                            <div className="relative flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setPopoverId((prev) => (prev === item.id ? null : item.id))
-                                }}
-                                className="inline-flex items-center gap-1 rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text hover:bg-fail/10"
-                              >
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <span className="inline-flex items-center rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text shrink-0">
                                 Defect
-                              </button>
+                              </span>
                               <DefectBadge
                                 externalUrl={item.defect_external_url}
                                 externalStatus={item.defect_external_status}
                                 externalId={item.defect_external_id}
                               />
-                              {popoverId === item.id && (
-                                <div className="absolute left-0 top-7 z-10 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-                                  <button
-                                    type="button"
-                                    className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-                                    onClick={(e) => { e.stopPropagation(); setPopoverId(null) }}
-                                    aria-label="Close"
-                                  >
-                                    &#10005;
-                                  </button>
-                                  <p className="pr-4 text-xs font-semibold text-gray-900">
-                                    {item.defect_title ?? "Defect"}
-                                  </p>
-                                  {item.defect_external_url && /^https?:\/\//i.test(item.defect_external_url) && (
-                                    <a
-                                      href={item.defect_external_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="mt-1 block text-xs text-primary underline hover:no-underline"
-                                    >
-                                      {item.defect_external_id ?? "View in tracker"}
-                                    </a>
-                                  )}
-                                </div>
-                              )}
                             </div>
+                          )}
+                          {hasComment && (
+                            <p className="text-xs text-gray-400 truncate" title={item.comment ?? ""}>
+                              {item.comment}
+                            </p>
                           )}
                         </div>
                       </td>
