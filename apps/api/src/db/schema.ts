@@ -155,6 +155,8 @@ export const projects = pgTable(
     // project_key: lowercase letters/numbers only, e.g. "velo", "acme". Set at creation, not editable.
     project_key: varchar("project_key", { length: 20 }).notNull(),
     description: text("description"),
+    // test_format: 'steps' (traditional) | 'gwt' (given-when-then). Set at creation, immutable after.
+    test_format: varchar("test_format", { length: 10 }).notNull().default("steps"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -213,6 +215,8 @@ export const testCaseSteps = pgTable("test_case_steps", {
   step_order: integer("step_order").notNull(),
   action: text("action").notNull(),
   expected_result: text("expected_result"),
+  // step_type: 'action' = traditional step; GWT keywords: 'given'/'when'/'then'/'and'/'but'
+  step_type: varchar("step_type", { length: 10 }).notNull().default("action"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
