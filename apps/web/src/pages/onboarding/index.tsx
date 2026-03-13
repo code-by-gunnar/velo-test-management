@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react"
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
 import { Button, Input, FormField, Card } from "@/components/ui"
+import { FormatPicker } from "@/components/projects/FormatPicker"
+import type { TestFormat } from "@/components/projects/FormatPicker"
 
 type Step = "workspace" | "project" | "sample-data"
 
@@ -12,6 +14,7 @@ interface WizardState {
   workspaceSlug: string
   projectName: string
   projectKey: string
+  testFormat: TestFormat
   loadSampleData: boolean
 }
 
@@ -24,6 +27,7 @@ export default function OnboardingPage() {
     workspaceSlug: "",
     projectName: "",
     projectKey: "",
+    testFormat: "steps",
     loadSampleData: false,
   })
   const [error, setError] = useState("")
@@ -77,7 +81,11 @@ export default function OnboardingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: state.projectName, project_key: state.projectKey }),
+        body: JSON.stringify({
+          name: state.projectName,
+          project_key: state.projectKey,
+          test_format: state.testFormat,
+        }),
       })
       if (!res.ok) { setError("Could not create project. Please try again."); return }
       setStep("sample-data")
@@ -170,6 +178,18 @@ export default function OnboardingPage() {
                 />
                 <p className="text-xs text-gray-400">Lowercase letters and numbers only. Cannot be changed.</p>
               </FormField>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Test case format
+                </label>
+                <FormatPicker
+                  value={state.testFormat}
+                  onChange={(fmt) => setState((s) => ({ ...s, testFormat: fmt }))}
+                />
+                <p className="mt-1.5 text-xs text-gray-400">
+                  This cannot be changed after the project is created.
+                </p>
+              </div>
               <Button size="md" onClick={createProject} disabled={!state.projectName || !state.projectKey || loading}>
                 {loading ? "Creating..." : "Continue"}
               </Button>
