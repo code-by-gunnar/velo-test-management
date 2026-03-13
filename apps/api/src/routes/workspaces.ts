@@ -167,7 +167,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   // Creates a project within a workspace. Enforces Free tier limit.
   fastify.post<{
     Params: { workspaceId: string }
-    Body: { name: string; project_key: string; description?: string }
+    Body: { name: string; project_key: string; description?: string; test_format?: string }
   }>("/api/workspaces/:workspaceId/projects", {
     schema: {
       body: {
@@ -177,13 +177,14 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
           name: { type: "string", minLength: 1, maxLength: 255 },
           project_key: { type: "string", minLength: 1, maxLength: 20, pattern: "^[a-z0-9-]+$" },
           description: { type: "string", maxLength: 2000 },
+          test_format: { type: "string", enum: ["steps", "gwt"] },
         },
       },
     },
   }, async (request, reply) => {
     const userId = request.userId
     const { workspaceId } = request.params
-    const { name, project_key, description } = request.body
+    const { name, project_key, description, test_format } = request.body
 
     // Verify user is admin or editor in this workspace
     const memberRows = await sql`
@@ -224,8 +225,8 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
 
     await withWorkspace(workspaceId, async (tx) => {
       await tx`
-        INSERT INTO projects (id, workspace_id, name, project_key, description)
-        VALUES (${projectId}::uuid, ${workspaceId}::uuid, ${name}, ${project_key}, ${description ?? null})
+        INSERT INTO projects (id, workspace_id, name, project_key, description, test_format)
+        VALUES (${projectId}::uuid, ${workspaceId}::uuid, ${name}, ${project_key}, ${description ?? null}, ${test_format ?? 'steps'})
       `
     })
 
@@ -235,6 +236,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       name,
       project_key,
       description: description ?? null,
+      test_format: test_format ?? 'steps',
     })
   })
 
