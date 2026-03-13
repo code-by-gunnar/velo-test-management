@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useRouter } from "next/router"
 import { Button, Card, FormField, Input } from "@/components/ui"
+import { SocialAuthButtons, AuthDivider } from "@/components/auth/social-auth-buttons"
 
 const schema = z.object({
   email: z.string().email("Invalid email"),
@@ -13,6 +14,14 @@ const schema = z.object({
 })
 
 type FormData = z.infer<typeof schema>
+
+/** Maps OAuth error codes (from signIn callback redirects) to user-friendly messages */
+const oauthErrorMessages: Record<string, string> = {
+  no_email: "Your account doesn't have a public email address. Please update your provider settings and try again.",
+  oauth_error: "Something went wrong during sign-in. Please try again.",
+  unverified_email: "An account with this email already exists but hasn't been verified. Please check your inbox for the verification email.",
+  provider_conflict: "This email is already linked to a different sign-in method. Please use your original sign-in method.",
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -65,11 +74,20 @@ export default function LoginPage() {
             </div>
           )}
 
+          {typeof router.query.error === "string" && router.query.error in oauthErrorMessages && (
+            <div className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text mb-4" role="alert">
+              {oauthErrorMessages[router.query.error]}
+            </div>
+          )}
+
           {errors.root && (
             <div className="rounded-md bg-fail-bg px-3 py-2 text-sm text-fail-text mb-4" role="alert">
               {errors.root.message}
             </div>
           )}
+
+          <SocialAuthButtons callbackUrl={typeof router.query.next === "string" ? router.query.next : "/onboarding"} />
+          <AuthDivider />
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             <FormField label="Email" htmlFor="email" error={errors.email?.message}>

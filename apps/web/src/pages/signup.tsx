@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useRouter } from "next/router"
 import { Button, Card, FormField, Input } from "@/components/ui"
+import { SocialAuthButtons, AuthDivider } from "@/components/auth/social-auth-buttons"
 
 const schema = z.object({
   email: z.string().email("Invalid email"),
@@ -61,6 +62,9 @@ export default function SignupPage() {
               {errors.root.message}
             </div>
           )}
+
+          <SocialAuthButtons callbackUrl={typeof router.query.next === "string" ? router.query.next : "/onboarding"} />
+          <AuthDivider />
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             <FormField label="Name" htmlFor="name" error={errors.name?.message}>
