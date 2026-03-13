@@ -223,7 +223,7 @@ async function signInCallback({
   const email = (profile?.email ?? user.email) as string | null | undefined
   if (!email) return '/login?error=no_email'
 
-  const doFetch = _mockFetch ?? (globalThis.fetch as typeof _mockFetch)
+  const doFetch = _mockFetch ?? (globalThis.fetch as unknown as typeof _mockFetch)
   const res = await doFetch!(`http://localhost:3001/api/auth/oauth-signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
