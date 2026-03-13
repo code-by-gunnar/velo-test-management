@@ -63,9 +63,12 @@ export function KeywordPill({ value, onChange, readOnly = false, pillRef, onDele
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
       setFocusedIndex((prev) => Math.max(prev - 1, 0))
-    } else if (e.key === "Enter" && focusedIndex >= 0) {
+    } else if (e.key === "Enter" && focusedIndex >= 0 && focusedIndex < KEYWORDS.length) {
       e.preventDefault()
-      onChange(KEYWORDS[focusedIndex].value)
+      const selected = KEYWORDS[focusedIndex]
+      if (selected) {
+        onChange(selected.value)
+      }
       setOpen(false)
     }
   }

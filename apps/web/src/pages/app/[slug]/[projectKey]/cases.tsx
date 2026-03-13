@@ -8,12 +8,13 @@ interface CasesRouteProps {
   projectKey: string
   workspaceId: string
   projectId: string
+  testFormat: string
 }
 
-export default function CasesRoute({ slug, projectKey, workspaceId, projectId }: CasesRouteProps) {
+export default function CasesRoute({ slug, projectKey, workspaceId, projectId, testFormat }: CasesRouteProps) {
   return (
     <AppLayout slug={slug} projectKey={projectKey}>
-      <CasesPage workspaceId={workspaceId} projectId={projectId} />
+      <CasesPage workspaceId={workspaceId} projectId={projectId} testFormat={testFormat} />
     </AppLayout>
   )
 }
@@ -29,8 +30,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["__Secure-authjs.session-token"] ??
     context.req.cookies["authjs.session-token"]
 
-  // Resolve projectKey → UUID via single-row lookup
+  // Resolve projectKey → UUID and test_format via single-row lookup
   let projectId = ""
+  let testFormat = "steps"
   if (workspaceId && token) {
     try {
       const res = await fetch(
@@ -38,13 +40,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         { headers: { authorization: `Bearer ${token}` } }
       )
       if (res.ok) {
-        const project = await res.json() as { id: string }
+        const project = await res.json() as { id: string; test_format?: string }
         projectId = project.id
+        testFormat = project.test_format ?? "steps"
       }
     } catch {
       // projectId stays empty — CasesPage will handle the missing state gracefully
     }
   }
 
-  return { props: { slug, projectKey, workspaceId, projectId } }
+  return { props: { slug, projectKey, workspaceId, projectId, testFormat } }
 }

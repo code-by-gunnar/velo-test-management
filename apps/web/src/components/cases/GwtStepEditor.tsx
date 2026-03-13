@@ -20,7 +20,7 @@ function suggestKeyword(steps: Step[], index: number): GwtKeyword {
     case "but":
       // Walk back to find the last primary keyword and suggest what follows
       for (let i = index - 1; i >= 0; i--) {
-        const kw = steps[i].step_type
+        const kw = steps[i]?.step_type
         if (kw && kw !== "and" && kw !== "but") {
           return kw === "given" ? "when" : "then"
         }

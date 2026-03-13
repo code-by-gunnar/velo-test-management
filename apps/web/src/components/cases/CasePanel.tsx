@@ -4,12 +4,14 @@ import { useForm } from "react-hook-form"
 import { clsx } from "clsx"
 import { Button, Label } from "@/components/ui"
 import { StepEditor, type Step } from "./StepEditor"
+import { GwtStepEditor } from "./GwtStepEditor"
 
 interface CasePanelProps {
   isOpen: boolean
   caseId: string | null  // null = new case
   workspaceId: string
   projectId: string
+  testFormat: string
   selectedSuiteId: string | null
   onClose: () => void
   onSaved: () => void
@@ -28,6 +30,7 @@ export function CasePanel({
   caseId,
   workspaceId,
   projectId,
+  testFormat,
   selectedSuiteId,
   onClose,
   onSaved,
@@ -71,7 +74,10 @@ export function CasePanel({
     if (caseId === null) {
       // New case — reset form
       reset({ title: "", priority: "medium", preconditions: "" })
-      setSteps(DEFAULT_STEPS)
+      setSteps(testFormat === "gwt"
+        ? [{ action: "", expected_result: "", step_type: "given" }]
+        : DEFAULT_STEPS
+      )
       setIsEditing(true)
       setViewData(null)
     } else {
@@ -268,7 +274,11 @@ export function CasePanel({
               <div>
                 <Label>Steps</Label>
                 <div className="mt-1">
-                  <StepEditor steps={steps} onChange={setSteps} />
+                  {testFormat === "gwt" ? (
+                    <GwtStepEditor steps={steps} onChange={setSteps} />
+                  ) : (
+                    <StepEditor steps={steps} onChange={setSteps} />
+                  )}
                 </div>
               </div>
 
@@ -301,6 +311,19 @@ export function CasePanel({
                   <Label>Steps</Label>
                   {viewData.steps.length === 0 ? (
                     <p className="mt-1 text-sm text-gray-400">No steps</p>
+                  ) : testFormat === "gwt" ? (
+                    <div className="mt-2 space-y-1">
+                      {viewData.steps.map((step, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="shrink-0 w-[60px] rounded bg-gray-100 px-2 py-1.5 text-xs font-medium text-gray-700 text-center">
+                            {(step.step_type ?? "given").charAt(0).toUpperCase() + (step.step_type ?? "given").slice(1)}
+                          </span>
+                          <div className="flex-1 whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
+                            {step.action || <span className="text-gray-300">—</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="mt-2 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
