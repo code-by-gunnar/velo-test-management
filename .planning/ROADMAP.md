@@ -12,7 +12,7 @@ Add Google and GitHub OAuth as sign-in/sign-up options alongside existing email/
 - Phase directories use global numbering (07-social-auth, etc.) to avoid collision with prior milestones
 
 - [x] **Phase 1: Schema & Fastify Route** - Migration adds `user_oauth_accounts` table and nullable `password_hash`, Fastify `POST /api/auth/oauth-signin` endpoint handles all three user-resolution paths (completed 2026-03-12)
-- [ ] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers
+- [x] **Phase 2: Auth.js Config & OAuth Chain** - Pages Router bridge fix unblocks cookie forwarding, Auth.js providers wired with signIn callback, end-to-end OAuth sign-in works for both providers (completed 2026-03-13)
 - [ ] **Phase 3: Login/Signup UI & Error Handling** - Social auth buttons on both auth pages, custom error page with actionable messages, avatar seeded from OAuth profile picture
 - [ ] **Phase 4: GDPR Erasure Update & Verification** - Erasure worker deletes OAuth account rows during anonymization, integration tests verify all three user-resolution paths and erasure correctness
 
@@ -41,10 +41,10 @@ Plans:
   3. User can complete a GitHub OAuth sign-in including accounts with private email settings (GitHub `user:email` scope is requested and the email is resolved)
   4. An existing email/password user who signs in via OAuth with the same email address is auto-linked -- no duplicate account is created, the existing workspace context is returned
   5. OAuth session JWT carries identical fields to a Credentials session (`workspace_id`, `role`, `id`) -- verified by inspecting the session after page refresh
-**Plans:** 2/2 plans complete
+**Plans:** 2/2 complete
 Plans:
 - [x] 07-03-PLAN.md -- Set-Cookie bridge fix + unit test (INF-06) (completed 2026-03-13)
-- [ ] 07-04-PLAN.md -- Google/GitHub providers + signIn callback + OAuth callback tests (OAP-01–04, ALK-01–03)
+- [x] 07-04-PLAN.md -- Google/GitHub providers + signIn callback + OAuth callback tests (OAP-01-04, ALK-01-03) (completed 2026-03-13)
 
 ### Phase 3: Login/Signup UI & Error Handling
 **Goal**: The login and signup pages surface Google and GitHub as first-class sign-in options, auth failures show actionable messages rather than generic errors, and new OAuth users get their profile picture seeded automatically
@@ -74,7 +74,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Schema & Fastify Route | 2/2 | Complete   | 2026-03-12 |
-| 2. Auth.js Config & OAuth Chain | 1/2 | In progress | - |
+| 2. Auth.js Config & OAuth Chain | 2/2 | Complete | 2026-03-13 |
 | 3. Login/Signup UI & Error Handling | 0/? | Not started | - |
 | 4. GDPR Erasure Update & Verification | 0/? | Not started | - |
 
