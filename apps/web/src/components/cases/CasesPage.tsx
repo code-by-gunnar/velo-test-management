@@ -113,6 +113,7 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
         isOpen={importOpen}
         workspaceId={workspaceId}
         projectId={projectId}
+        testFormat={testFormat}
         onClose={() => setImportOpen(false)}
         onSuccess={handleImportSuccess}
       />
