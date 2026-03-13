@@ -239,7 +239,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
                   'id', tcs.id,
                   'step_order', tcs.step_order,
                   'action', tcs.action,
-                  'expected_result', tcs.expected_result
+                  'expected_result', tcs.expected_result,
+                  'step_type', tcs.step_type
                 ) ORDER BY tcs.step_order
               ) FILTER (WHERE tcs.id IS NOT NULL),
               '[]'
