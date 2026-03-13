@@ -1,5 +1,7 @@
 import NextAuth, { type DefaultSession } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import Google from "next-auth/providers/google"
+import GitHub from "next-auth/providers/github"
 import { z } from "zod"
 
 // ─── TypeScript module augmentation ──────────────────────────────────────────
@@ -37,6 +39,8 @@ const credentialsSchema = z.object({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
+    Google,   // OIDC — auto-detects AUTH_GOOGLE_ID + AUTH_GOOGLE_SECRET
+    GitHub,   // OAuth2 — auto-detects AUTH_GITHUB_ID + AUTH_GITHUB_SECRET, includes user:email scope
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -79,6 +83,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    // Step 0: signIn callback — resolve OAuth users via Fastify backend
+    async signIn({ user, account, profile }) {
+      // Credentials provider: authorize() already called Fastify, user is populated
+      if (!account || account.type === 'credentials') return true
+
+      // OAuth/OIDC: call Fastify to resolve/provision the user
+      const email = profile?.email ?? user.email
+      if (!email) return '/login?error=no_email'
+
+      const res = await fetch(`${process.env.API_URL}/api/auth/oauth-signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+          email,
+          name: profile?.name ?? user.name ?? null,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'oauth_error' })) as { error?: string }
+        return `/login?error=${err.error ?? 'oauth_error'}`
+      }
+
+      // Populate user object — jwt callback reads these fields
+      const backendUser = await res.json() as {
+        id: string
+        workspace_id: string | null
+        workspace_slug: string | null
+        role: string | null
+      }
+      user.id = backendUser.id
+      const u = user as Record<string, unknown>
+      u.workspace_id = backendUser.workspace_id
+      u.workspace_slug = backendUser.workspace_slug
+      u.role = backendUser.role
+
+      return true
+    },
+
     // Step 1: authorize() returns user → jwt callback receives it on first sign-in.
     // Also handles client-side update() calls (trigger === "update") which are used
     // after workspace creation to refresh workspace_id + workspace_slug without re-login.
