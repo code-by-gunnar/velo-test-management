@@ -37,9 +37,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const webRes = await webHandler(nextReq)
 
   res.status(webRes.status)
+  // Forward all headers except Set-Cookie (forEach comma-joins them, breaking OAuth cookies)
   webRes.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') return
     res.setHeader(key, value)
   })
+  // Forward Set-Cookie headers individually using getSetCookie() (Node.js 18+)
+  const setCookies = webRes.headers.getSetCookie()
+  if (setCookies.length > 0) {
+    res.setHeader('set-cookie', setCookies)
+  }
 
   const body = await webRes.text()
   res.send(body)
