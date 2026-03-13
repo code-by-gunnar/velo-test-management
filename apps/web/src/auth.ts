@@ -100,6 +100,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           providerAccountId: account.providerAccountId,
           email,
           name: profile?.name ?? user.name ?? null,
+          image: (profile as Record<string, unknown>)?.picture as string
+            ?? (profile as Record<string, unknown>)?.avatar_url as string
+            ?? user.image
+            ?? null,
         }),
       })
 

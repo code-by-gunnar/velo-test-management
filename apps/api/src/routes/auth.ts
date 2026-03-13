@@ -293,6 +293,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       providerAccountId: string
       email: string
       name?: string | null
+      image?: string | null
     }
   }>("/api/auth/oauth-signin", {
     schema: {
@@ -304,11 +305,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           providerAccountId: { type: "string", maxLength: 255 },
           email: { type: "string", format: "email" },
           name: { type: "string", maxLength: 255, nullable: true },
+          image: { type: "string", maxLength: 2048, nullable: true },
         },
       },
     },
   }, async (request, reply) => {
-    const { provider, providerAccountId, email, name } = request.body
+    const { provider, providerAccountId, email, name, image } = request.body
 
     let resolvedUser: {
       id: string
@@ -380,22 +382,31 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       if (existingUser) {
         // Auto-link: mark email as verified (provider has verified it)
         userId = existingUser.id
-        await q`
-          UPDATE users
-          SET email_verified = true, updated_at = NOW()
-          WHERE id = ${userId}::uuid
-        `
+        if (image) {
+          await q`
+            UPDATE users
+            SET email_verified = true, avatar_url = COALESCE(avatar_url, ${image}), updated_at = NOW()
+            WHERE id = ${userId}::uuid
+          `
+        } else {
+          await q`
+            UPDATE users
+            SET email_verified = true, updated_at = NOW()
+            WHERE id = ${userId}::uuid
+          `
+        }
       } else {
         // JIT provision: create a new user
         userId = uuidv7()
         await q`
-          INSERT INTO users (id, email, name, email_verified, password_hash)
+          INSERT INTO users (id, email, name, email_verified, password_hash, avatar_url)
           VALUES (
             ${userId}::uuid,
             ${email.toLowerCase()},
             ${name ?? null},
             true,
-            NULL
+            NULL,
+            ${image ?? null}
           )
         `
       }
