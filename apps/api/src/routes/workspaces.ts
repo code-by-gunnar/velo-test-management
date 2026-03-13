@@ -321,7 +321,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
 
       const projects = await withWorkspace(workspaceId, async (tx) =>
         tx`
-          SELECT id, name, project_key, description, created_at
+          SELECT id, name, project_key, description, test_format, created_at
           FROM projects
           WHERE workspace_id = ${workspaceId}::uuid
             AND deleted_at IS NULL
@@ -347,7 +347,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
 
       const project = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx`
-          SELECT id, name, project_key, description, created_at
+          SELECT id, name, project_key, description, test_format, created_at
           FROM projects
           WHERE workspace_id = ${workspaceId}::uuid
             AND project_key = ${projectKey}
