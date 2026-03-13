@@ -276,8 +276,14 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const avatarKey = (user as { avatar_url: string }).avatar_url
-    const url = await getR2PresignedUrl(avatarKey)
 
+    // External URLs (OAuth profile pictures) are returned directly
+    if (avatarKey.startsWith("https://")) {
+      return reply.send({ url: avatarKey })
+    }
+
+    // R2 keys are presigned for 1-hour access
+    const url = await getR2PresignedUrl(avatarKey)
     return reply.send({ url })
   })
 }
