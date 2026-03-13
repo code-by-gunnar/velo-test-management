@@ -61,7 +61,7 @@ export default function OnboardingPage() {
       // Without this, session.user.workspace_id remains null and requireAuth
       // redirects back to /onboarding in an infinite loop.
       // Auth.js v5 jwt callback handles trigger === "update" to merge these fields.
-      await update({ workspace_id: ws.id, workspace_slug: ws.slug })
+      await update({ workspace_id: ws.id, workspace_slug: ws.slug, role: "admin" })
 
       setStep("project")
     } finally {
