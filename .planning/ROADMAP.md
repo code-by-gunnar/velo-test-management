@@ -65,7 +65,7 @@ Add native Given-When-Then test case format as a project-level setting. Projects
   2. For GWT cases: steps render read-only with keyword labels, no per-step status controls
   3. A single status dropdown (Pass/Fail/Blocked/Skipped) applies to the entire scenario
   4. Run dashboard, results summary, and export all work identically — they operate at case level regardless of format
-**Plans:** TBD
+**Plans:** 14-01 (GWT Execution Adaptation)
 
 ### Phase 5: CSV Import
 **Goal**: GWT projects can bulk-import BDD scenarios from CSV files with a keyword column
@@ -77,7 +77,7 @@ Add native Given-When-Then test case format as a project-level setting. Projects
   3. Each imported row creates a step with the corresponding `step_type`
   4. If `colKeyword` is not mapped for a GWT project, imported steps default to `step_type: 'given'`
   5. Import still works identically for traditional-format projects (step_type defaults to 'action')
-**Plans:** TBD
+**Plans:** 15-01 (GWT CSV Import — Keyword Column)
 
 ## Progress
 
@@ -89,8 +89,8 @@ Phases execute in order: 1 → 2 → 3 → 4 → 5
 | 1. Schema & API | 1/1 | Planned | - |
 | 2. Format Selection | 1/1 | Planned | - |
 | 3. GWT Step Editor | 1/1 | Planned | - |
-| 4. Execution | 0/? | Planned | - |
-| 5. CSV Import | 0/? | Planned | - |
+| 4. Execution | 1/1 | Planned | - |
+| 5. CSV Import | 1/1 | Planned | - |
 
 ## Coverage Map
 
