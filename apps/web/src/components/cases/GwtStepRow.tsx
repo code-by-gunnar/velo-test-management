@@ -68,8 +68,8 @@ export function GwtStepRow({
         onChange={(kw) => onChangeKeyword(index, kw)}
         readOnly={readOnly}
         pillRef={pillRef}
-        onDeleteStep={index > 0 ? () => onDelete(index) : undefined}
         textIsEmpty={action === ""}
+        {...(index > 0 ? { onDeleteStep: () => onDelete(index) } : {})}
       />
       <textarea
         ref={textMountRef}

@@ -9,9 +9,10 @@ import { ImportModal } from "./ImportModal"
 interface CasesPageProps {
   workspaceId: string
   projectId: string
+  testFormat: string
 }
 
-export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
+export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps) {
   const {
     tree,
     flatList,
@@ -122,6 +123,7 @@ export function CasesPage({ workspaceId, projectId }: CasesPageProps) {
         caseId={openCaseId}
         workspaceId={workspaceId}
         projectId={projectId}
+        testFormat={testFormat}
         selectedSuiteId={selectedSuiteId}
         onClose={handleClosePanel}
         onSaved={handleSaved}
