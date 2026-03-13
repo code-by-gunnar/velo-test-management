@@ -6,53 +6,44 @@ import {
   Keyboard,
   Activity,
   GitBranch,
-  FolderTree,
-  GripVertical,
-  Upload,
+  Zap,
   ArrowRight,
   ClipboardList,
   Play,
   BarChart3,
-  Check,
-  X,
+  FlaskConical,
 } from "lucide-react"
 
 const features = [
   {
-    title: "Keyboard-First Editor",
+    title: "Keyboard-First Test Editor",
     description:
-      "Tab through steps, Enter to add, Backspace to remove. Write a complete test case in under 30 seconds.",
+      "Tab, Enter, Backspace — that's it. Write a full test case without touching your mouse. Traditional steps or Given-When-Then, your choice per project.",
     icon: <Keyboard size={20} />,
   },
   {
-    title: "Live Run Dashboard",
+    title: "Native BDD / Given-When-Then",
     description:
-      "Real-time progress via SSE. Pass rates, blockers, and coverage update as your team executes. No refresh needed.",
+      "Not a plugin. Not a Gherkin file parser. Pick your format at project creation and get a keyword-aware editor with auto-suggested steps. Import BDD scenarios from CSV.",
+    icon: <FlaskConical size={20} />,
+  },
+  {
+    title: "Live Execution Dashboard",
+    description:
+      "Server-sent events, not polling. Pass rates, blockers, and team progress update the instant someone records a verdict. No refresh, no stale data.",
     icon: <Activity size={20} />,
   },
   {
-    title: "CI/CD Ingestion",
+    title: "CI Pipeline Ingestion",
     description:
-      "Push JUnit XML or Allure JSON from any pipeline. Results auto-map to your test cases with zero config.",
+      "Push JUnit XML or Allure JSON from any CI runner. Results map to your cases automatically. No adapters, no paid add-ons, no YAML config files.",
     icon: <GitBranch size={20} />,
   },
   {
-    title: "Suite Tree & Drag-Drop",
+    title: "5-Minute Setup, No Training",
     description:
-      "Organize cases into nested suites. Drag to reorder or move between suites. Bulk actions for everything.",
-    icon: <FolderTree size={20} />,
-  },
-  {
-    title: "Drag-Drop Prioritization",
-    description:
-      "Reorder test cases by dragging. Sort by title, suite, or priority. Gap-based positioning keeps things fast.",
-    icon: <GripVertical size={20} />,
-  },
-  {
-    title: "CSV Import & Export",
-    description:
-      "Import existing cases from CSV. Export your entire workspace as JSON or CSV in a single ZIP download.",
-    icon: <Upload size={20} />,
+      "Create a workspace, invite your team, start writing cases. No implementation consultants, no 30-day onboarding programs, no per-seat surprise invoices.",
+    icon: <Zap size={20} />,
   },
 ]
 
@@ -78,12 +69,14 @@ const steps = [
 ]
 
 const comparisons = [
-  { feature: "Write a test case", velo: "< 30 seconds", others: "2+ minutes" },
-  { feature: "Live run tracking", velo: true, others: false },
-  { feature: "CI/CD ingestion", velo: true, others: "Paid add-on" },
-  { feature: "Setup time", velo: "5 minutes", others: "Days" },
-  { feature: "Per-seat pricing", velo: "Free during beta", others: "$30-80/seat" },
-  { feature: "Self-serve data export", velo: true, others: "Support ticket" },
+  { feature: "Write a test case", velo: "< 30 seconds", others: "2+ minutes of clicking" },
+  { feature: "BDD / Given-When-Then", velo: "Native, per-project", others: "Plugin or not supported" },
+  { feature: "Live run tracking", velo: "Real-time (SSE)", others: "Refresh to check" },
+  { feature: "CI result ingestion", velo: "Built-in, zero config", others: "Paid add-on or manual" },
+  { feature: "Setup to first test case", velo: "5 minutes", others: "Days to weeks" },
+  { feature: "Data export", velo: "Self-serve, one click", others: "File a support ticket" },
+  { feature: "Pricing model", velo: "Free during beta, flat after", others: "$30-80/seat/month" },
+  { feature: "Training required", velo: "None", others: "\"Implementation partner\"" },
 ]
 
 export default function Home() {
@@ -91,7 +84,7 @@ export default function Home() {
     <>
       <Head>
         <title>Velo — Test Management for Teams That Ship</title>
-        <meta name="description" content="Write test cases in 30 seconds. Track runs in real time. Ingest CI results automatically. Built for startups that ship fast." />
+        <meta name="description" content="Write test cases in 30 seconds — traditional steps or BDD. Track runs in real time. Ingest CI results with zero config. Built for teams that ship weekly." />
       </Head>
 
       <div className="min-h-screen bg-mist font-body">
@@ -144,9 +137,9 @@ export default function Home() {
               </h1>
 
               <p className="text-lg text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
-                30 seconds to a test case. Live run tracking. CI results
-                ingested automatically. Built for startups that move fast
-                and refuse to break things.
+                Write test cases in 30 seconds — traditional steps or BDD.
+                Track runs in real time. Ingest CI results with zero config.
+                Built for teams that ship weekly, not quarterly.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -170,7 +163,7 @@ export default function Home() {
           </section>
 
           {/* ── How it works ──────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-y border-gray-200">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-14">
                 <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">How it works</p>
@@ -237,7 +230,7 @@ export default function Home() {
           </section>
 
           {/* ── Comparison ────────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-y border-gray-200">
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-14">
                 <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Why Velo</p>
@@ -254,7 +247,7 @@ export default function Home() {
                 <div className="grid grid-cols-3 text-xs font-semibold uppercase tracking-widest text-gray-400 border-b border-gray-100 bg-gray-50">
                   <div className="px-5 py-3" />
                   <div className="px-5 py-3 text-primary">Velo</div>
-                  <div className="px-5 py-3">Others</div>
+                  <div className="px-5 py-3">Legacy tools</div>
                 </div>
                 {comparisons.map((row, i) => (
                   <div
@@ -262,19 +255,11 @@ export default function Home() {
                     className={`grid grid-cols-3 text-sm ${i < comparisons.length - 1 ? "border-b border-gray-100" : ""}`}
                   >
                     <div className="px-5 py-3 font-medium text-gray-700">{row.feature}</div>
-                    <div className="px-5 py-3 text-gray-900 flex items-center gap-1.5">
-                      {typeof row.velo === "boolean" ? (
-                        <Check size={15} className="text-pass" />
-                      ) : (
-                        <span className="font-medium">{row.velo}</span>
-                      )}
+                    <div className="px-5 py-3 text-gray-900">
+                      <span className="font-medium">{row.velo}</span>
                     </div>
-                    <div className="px-5 py-3 text-gray-400 flex items-center gap-1.5">
-                      {typeof row.others === "boolean" ? (
-                        row.others ? <Check size={15} className="text-pass" /> : <X size={15} className="text-gray-300" />
-                      ) : (
-                        <span>{row.others}</span>
-                      )}
+                    <div className="px-5 py-3 text-gray-400">
+                      {row.others}
                     </div>
                   </div>
                 ))}
