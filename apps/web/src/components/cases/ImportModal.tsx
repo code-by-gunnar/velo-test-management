@@ -6,6 +6,7 @@ interface ImportModalProps {
   isOpen: boolean
   workspaceId: string
   projectId: string
+  testFormat?: string
   onClose: () => void
   onSuccess: () => void
 }
@@ -15,6 +16,7 @@ interface ImportModalProps {
 interface FilePickerProps {
   onFile: (file: File) => void
   error: string | null
+  testFormat?: string
 }
 
 const SAMPLE_CSV_ROWS = [
@@ -24,18 +26,32 @@ const SAMPLE_CSV_ROWS = [
   ["User can reset password", "Click Forgot Password and enter email", "Reset email sent confirmation", "medium"],
 ]
 
-function downloadSampleCsv() {
-  const csv = SAMPLE_CSV_ROWS.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+const SAMPLE_GWT_CSV_ROWS = [
+  ["title", "suite", "keyword", "action", "priority"],
+  ["User can log in", "Auth", "Given", "the user is on the login page", "high"],
+  ["User can log in", "Auth", "When", "they enter valid credentials and click Sign In", "high"],
+  ["User can log in", "Auth", "Then", "the dashboard loads", "high"],
+  ["User sees error on bad password", "Auth", "Given", "the user is on the login page", "medium"],
+  ["User sees error on bad password", "Auth", "When", "they enter an incorrect password and click Sign In", "medium"],
+  ["User sees error on bad password", "Auth", "Then", "an error message is displayed", "medium"],
+  ["User can reset password", "Auth", "Given", "the user is on the login page", "medium"],
+  ["User can reset password", "Auth", "When", "they click Forgot Password and enter their email", "medium"],
+  ["User can reset password", "Auth", "Then", "a reset email confirmation is shown", "medium"],
+]
+
+function downloadSampleCsv(testFormat?: string) {
+  const rows = testFormat === "gwt" ? SAMPLE_GWT_CSV_ROWS : SAMPLE_CSV_ROWS
+  const csv = rows.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
   const blob = new Blob([csv], { type: "text/csv" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = "velo-sample-import.csv"
+  a.download = testFormat === "gwt" ? "velo-sample-gwt-import.csv" : "velo-sample-import.csv"
   a.click()
   URL.revokeObjectURL(url)
 }
 
-function FilePicker({ onFile, error }: FilePickerProps) {
+function FilePicker({ onFile, error, testFormat }: FilePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleDrop = useCallback(
@@ -93,7 +109,7 @@ function FilePicker({ onFile, error }: FilePickerProps) {
         Not sure about the format?{" "}
         <button
           type="button"
-          onClick={downloadSampleCsv}
+          onClick={() => downloadSampleCsv(testFormat)}
           className="text-primary underline hover:no-underline"
         >
           Download sample CSV
@@ -305,6 +321,7 @@ export function ImportModal({
   isOpen,
   workspaceId,
   projectId,
+  testFormat,
   onClose,
   onSuccess,
 }: ImportModalProps) {
@@ -369,7 +386,7 @@ export function ImportModal({
           {/* Step 1: File picker (idle, file-selected, or size error before a file is set) */}
           {(state.status === "idle" || state.status === "file-selected" ||
             (state.status === "error" && !state.file)) && (
-            <FilePicker onFile={selectFile} error={state.error} />
+            <FilePicker onFile={selectFile} error={state.error} {...(testFormat ? { testFormat } : {})} />
           )}
 
           {/* Step 2: Column mapping + preview */}
