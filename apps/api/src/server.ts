@@ -29,6 +29,7 @@ import lifecycleRoutes from "./routes/lifecycle.js"
 import erasureRoutes from "./routes/erasure.js"
 import exportRoutes from "./routes/export.js"
 import attachmentRoutes from "./routes/run-item-attachments.js"
+import reportsRoutes from "./routes/reports.js"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
@@ -244,6 +245,7 @@ await fastify.register(lifecycleRoutes)
 await fastify.register(erasureRoutes)
 await fastify.register(exportRoutes)
 await fastify.register(attachmentRoutes)
+await fastify.register(reportsRoutes)
 
 fastify.get("/robots.txt", async (_request, reply) => {
   return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")
