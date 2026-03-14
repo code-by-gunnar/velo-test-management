@@ -49,8 +49,7 @@ const NAV_ITEMS = [
     label: "Reports",
     href: (slug: string, key?: string) => key ? `/app/${slug}/${key}/reports` : "#",
     icon: <BarChart3 size={ICON_SIZE} />,
-    available: false,
-    tooltip: "Coming in a future phase",
+    available: true,
   },
 ] as const
 
