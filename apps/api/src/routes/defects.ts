@@ -110,7 +110,7 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
           const updated = await withWorkspace(workspaceId, async (tx) => {
             const rows = await tx`
               UPDATE defects
-              SET external_id = ${issue.id},
+              SET external_id = ${issue.identifier},
                   external_url = ${issue.url},
                   external_status = 'Todo',
                   updated_at = NOW()
