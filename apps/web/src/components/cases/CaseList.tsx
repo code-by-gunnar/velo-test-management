@@ -16,7 +16,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { Button } from "@/components/ui"
-import { ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowUp, ArrowDown, Sparkles } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { CaseListRow } from "./CaseListRow"
@@ -51,6 +51,7 @@ interface CaseListProps {
   projectId: string
   onNewCase: () => void
   onImport: () => void
+  onLinearImport?: () => void
   onOpenCase: (id: string) => void
   onCasesChange: (cases: TestCase[]) => void
   refetch: () => void
@@ -65,6 +66,7 @@ export function CaseList({
   projectId,
   onNewCase,
   onImport,
+  onLinearImport,
   onOpenCase,
   onCasesChange,
   refetch,
@@ -211,8 +213,14 @@ export function CaseList({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {onLinearImport && (
+            <Button variant="secondary" size="sm" onClick={onLinearImport} disabled={!canEdit}>
+              <Sparkles size={14} className="mr-1.5" />
+              From Linear
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={onImport} disabled={!canEdit}>
-            Import
+            Import CSV
           </Button>
           <Button variant="primary" size="sm" onClick={onNewCase} disabled={!canEdit}>
             New Case

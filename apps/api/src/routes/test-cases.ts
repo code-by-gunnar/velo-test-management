@@ -87,6 +87,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       preconditions?: string
       priority: string
       steps: Array<{ action: string; expected_result?: string; step_type?: string }>
+      source_url?: string
+      source_ref?: string
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases",
@@ -101,6 +103,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             title: { type: "string", minLength: 1, maxLength: 500 },
             preconditions: { type: "string" },
             priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+            source_url: { type: "string", maxLength: 500 },
+            source_ref: { type: "string", maxLength: 100 },
             steps: {
               type: "array",
               items: {
@@ -119,7 +123,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
-      const { suite_id, title, preconditions, priority, steps = [] } = request.body
+      const { suite_id, title, preconditions, priority, steps = [], source_url, source_ref } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
@@ -160,7 +164,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         const caseId = uuidv7()
 
         await tx`
-          INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
+          INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, source_url, source_ref)
           VALUES (
             ${caseId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
@@ -169,7 +173,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             ${title},
             ${preconditions ?? null},
             ${priority},
-            ${position}
+            ${position},
+            ${source_url ?? null},
+            ${source_ref ?? null}
           )
         `
 
