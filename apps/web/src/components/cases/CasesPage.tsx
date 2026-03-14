@@ -5,6 +5,7 @@ import { SuiteTree } from "./SuiteTree"
 import { CaseList } from "./CaseList"
 import { CasePanel } from "./CasePanel"
 import { ImportModal } from "./ImportModal"
+import { LinearImportModal } from "./LinearImportModal"
 
 interface CasesPageProps {
   workspaceId: string
@@ -27,6 +28,7 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
   const [panelOpen, setPanelOpen] = useState(false)
   const [openCaseId, setOpenCaseId] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [linearImportOpen, setLinearImportOpen] = useState(false)
 
   // N key shortcut to open new case panel (when panel is closed)
   useEffect(() => {
@@ -70,6 +72,10 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
     void refetchSuites()
   }
 
+  const handleLinearImportSuccess = () => {
+    void refetchCases()
+  }
+
   // Find selected suite for breadcrumb
   const selectedSuite = selectedSuiteId
     ? flatList.find((s) => s.id === selectedSuiteId) ?? null
@@ -102,6 +108,7 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
           projectId={projectId}
           onNewCase={handleNewCase}
           onImport={() => setImportOpen(true)}
+          onLinearImport={() => setLinearImportOpen(true)}
           onOpenCase={handleOpenCase}
           onCasesChange={setCases}
           refetch={refetchCases}
@@ -117,6 +124,19 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
         onClose={() => setImportOpen(false)}
         onSuccess={handleImportSuccess}
       />
+
+      {/* Linear AI import modal — keyed to remount on each open for clean state */}
+      {linearImportOpen && (
+        <LinearImportModal
+          isOpen
+          workspaceId={workspaceId}
+          projectId={projectId}
+          testFormat={testFormat}
+          selectedSuiteId={selectedSuiteId}
+          onClose={() => setLinearImportOpen(false)}
+          onSuccess={handleLinearImportSuccess}
+        />
+      )}
 
       {/* Right panel: Case editor (slide-in) */}
       <CasePanel

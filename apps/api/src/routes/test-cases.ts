@@ -1,8 +1,11 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
+import Anthropic from "@anthropic-ai/sdk"
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
+import { decrypt } from "../lib/encryption.js"
+import { getLinearIssueDetail } from "../lib/linear-client.js"
 
 // Free tier limit (shared with workspaces.ts)
 const FREE_TIER_MAX_TEST_CASES = 500
@@ -84,6 +87,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       preconditions?: string
       priority: string
       steps: Array<{ action: string; expected_result?: string; step_type?: string }>
+      source_url?: string
+      source_ref?: string
     }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/cases",
@@ -98,6 +103,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             title: { type: "string", minLength: 1, maxLength: 500 },
             preconditions: { type: "string" },
             priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+            source_url: { type: "string", maxLength: 500 },
+            source_ref: { type: "string", maxLength: 100 },
             steps: {
               type: "array",
               items: {
@@ -116,7 +123,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
-      const { suite_id, title, preconditions, priority, steps = [] } = request.body
+      const { suite_id, title, preconditions, priority, steps = [], source_url, source_ref } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
@@ -157,7 +164,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         const caseId = uuidv7()
 
         await tx`
-          INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
+          INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, source_url, source_ref)
           VALUES (
             ${caseId}::uuid,
             current_setting('app.workspace_id', true)::uuid,
@@ -166,7 +173,9 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             ${title},
             ${preconditions ?? null},
             ${priority},
-            ${position}
+            ${position},
+            ${source_url ?? null},
+            ${source_ref ?? null}
           )
         `
 
@@ -825,6 +834,159 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.status(201).send({ imported: importedCount })
+    }
+  )
+  // ── POST /linear-import — AI-powered test case generation from Linear issue ──
+
+  fastify.post<{
+    Params: { workspaceId: string; projectId: string }
+    Body: { issue_id: string }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/linear-import",
+    {
+      preHandler: [requireEditor],
+      schema: {
+        body: {
+          type: "object",
+          required: ["issue_id"],
+          properties: {
+            issue_id: { type: "string", minLength: 1, maxLength: 50 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+      const { issue_id } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return reply.status(503).send({ error: "AI service not configured" })
+      }
+
+      // 1. Get Linear connection for this workspace
+      const connection = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT access_token_enc FROM linear_connections
+          WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+        return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string } : null
+      })
+
+      if (!connection) {
+        return reply.status(400).send({ error: "No Linear connection. Connect Linear in Workspace Settings." })
+      }
+
+      // 2. Get project test_format
+      const project = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT test_format FROM projects WHERE id = ${projectId}::uuid LIMIT 1
+        `
+        return rows.length > 0 ? rows[0] as unknown as { test_format: string } : null
+      })
+
+      const testFormat = project?.test_format ?? "steps"
+
+      // 3. Fetch the Linear issue
+      let issue: { id: string; identifier: string; title: string; description: string | null; url: string }
+      try {
+        const accessToken = decrypt(connection.access_token_enc)
+        issue = await getLinearIssueDetail(accessToken, issue_id)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error"
+        if (msg.includes("Entity not found")) {
+          return reply.status(404).send({ error: `Issue ${issue_id} not found. Check the identifier and try again.` })
+        }
+        return reply.status(502).send({ error: "Failed to fetch issue from Linear. The connection may have expired." })
+      }
+
+      if (!issue.description || issue.description.trim().length === 0) {
+        return reply.status(422).send({
+          error: "This issue has no description to extract test cases from.",
+          issue: { id: issue.id, identifier: issue.identifier, title: issue.title, url: issue.url, description: "" },
+        })
+      }
+
+      // 4. Truncate description to ~4000 chars for Claude
+      const description = issue.description.length > 4000
+        ? issue.description.slice(0, 4000) + "\n\n[description truncated]"
+        : issue.description
+
+      // 5. Call Claude to extract test cases
+      const formatInstructions = testFormat === "gwt"
+        ? `For "gwt" format: each step must have a "step_type" field (one of: "given", "when", "then", "and", "but") and an "action" field (the step description text). Do NOT include an "expected_result" field.`
+        : `For "steps" format: each step must have an "action" field (what the tester does) and an "expected_result" field (what should happen).`
+
+      const prompt = `You are a senior QA engineer extracting test cases from a feature specification.
+
+Project test format: ${testFormat}
+
+Feature specification:
+---
+Title: ${issue.title}
+
+${description}
+---
+
+Extract test cases from the acceptance criteria, requirements, or behavioral descriptions above. Each test case should be a realistic, specific scenario a QA engineer would execute.
+
+Rules:
+- Each test case needs a clear, descriptive title
+- ${formatInstructions}
+- Include both positive (happy path) and negative (error/edge) scenarios when the spec implies them
+- Do NOT invent requirements not present in the spec
+- If no testable criteria are found, return an empty array
+
+Return ONLY a JSON array. No markdown, no code fences, no explanation. Example structure:
+${testFormat === "gwt"
+  ? `[{"title":"User can log in with valid credentials","steps":[{"step_type":"given","action":"the user is on the login page"},{"step_type":"when","action":"they enter valid credentials"},{"step_type":"then","action":"they are redirected to the dashboard"}]}]`
+  : `[{"title":"User can log in with valid credentials","steps":[{"action":"Navigate to login page","expected_result":"Login form is displayed"},{"action":"Enter valid email and password","expected_result":"Credentials accepted"},{"action":"Click Sign In","expected_result":"User redirected to dashboard"}]}]`
+}`
+
+      try {
+        const anthropic = new Anthropic()
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-6-20250514",
+          max_tokens: 2000,
+          messages: [{ role: "user", content: prompt }],
+        })
+
+        const text = message.content[0]?.type === "text" ? message.content[0].text : ""
+        let suggestedCases: Array<{
+          title: string
+          steps: Array<{ action: string; expected_result?: string; step_type?: string }>
+        }>
+
+        try {
+          suggestedCases = JSON.parse(text)
+          if (!Array.isArray(suggestedCases)) suggestedCases = []
+        } catch {
+          // If Claude returned markdown-wrapped JSON, try to extract it
+          const jsonMatch = text.match(/\[[\s\S]*\]/)
+          if (jsonMatch) {
+            suggestedCases = JSON.parse(jsonMatch[0])
+          } else {
+            suggestedCases = []
+          }
+        }
+
+        return reply.send({
+          issue: {
+            id: issue.id,
+            identifier: issue.identifier,
+            title: issue.title,
+            description: issue.description,
+            url: issue.url,
+          },
+          suggested_cases: suggestedCases,
+        })
+      } catch (err) {
+        fastify.log.error({ err, workspaceId, projectId, issue_id }, "Claude API call failed")
+        return reply.status(502).send({ error: "AI service temporarily unavailable. Please try again." })
+      }
     }
   )
 }

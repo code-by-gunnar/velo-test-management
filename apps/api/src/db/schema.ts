@@ -201,6 +201,9 @@ export const testCases = pgTable("test_cases", {
   position: integer("position").notNull().default(0),
   // Nullable — set when matched by CI ingestion parser for external ID mapping
   external_id: varchar("external_id", { length: 255 }),
+  // Source tracking — where this case was imported from (e.g. Linear issue)
+  source_url: varchar("source_url", { length: 500 }),
+  source_ref: varchar("source_ref", { length: 100 }),
   created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
