@@ -7,7 +7,6 @@ import { DefectPrompt } from "./DefectPrompt"
 import { StepCommentIcon } from "./StepCommentIcon"
 import type { StepComment } from "./StepCommentIcon"
 import { ExecutionHistory } from "./ExecutionHistory"
-import { StatusBadge } from "@/components/ui/status-badge"
 import { SegmentedBar } from "./SegmentedBar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
@@ -462,18 +461,54 @@ export function ExecutionScreen({
               </button>
             </div>
 
-            {/* Case header */}
+            {/* Case header with inline status buttons */}
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-1">
-                <StatusBadge status={
-                  (["pass","fail","blocked","skipped"].includes(currentItem.status)
-                    ? currentItem.status
-                    : "untested") as Parameters<typeof StatusBadge>[0]["status"]
-                } />
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-semibold text-gray-900">
+                    {currentItem.case_title}
+                  </h1>
+                </div>
+
+                {/* Compact status buttons */}
+                {canEdit && (
+                  <div className="flex items-center gap-1 shrink-0 mt-1">
+                    <StatusIconButton
+                      icon={<CheckCircle2 size={16} />}
+                      title="Pass (P)"
+                      active={currentItem.status === "pass"}
+                      activeClass="bg-pass text-white"
+                      hoverClass="text-pass hover:bg-pass-bg"
+                      onClick={() => void handleVerdict("pass")}
+                    />
+                    <StatusIconButton
+                      icon={<XCircle size={16} />}
+                      title="Fail (F)"
+                      active={currentItem.status === "fail"}
+                      activeClass="bg-fail text-white"
+                      hoverClass="text-fail hover:bg-fail-bg"
+                      onClick={() => void handleVerdict("fail")}
+                    />
+                    <StatusIconButton
+                      icon={<ShieldAlert size={16} />}
+                      title="Blocked (B)"
+                      active={currentItem.status === "blocked"}
+                      activeClass="bg-blocked text-white"
+                      hoverClass="text-blocked hover:bg-blocked-bg"
+                      onClick={() => void handleVerdict("blocked")}
+                    />
+                    <StatusIconButton
+                      icon={<SkipForward size={16} />}
+                      title="Skip (S)"
+                      active={currentItem.status === "skipped"}
+                      activeClass="bg-skipped text-white"
+                      hoverClass="text-skipped hover:bg-skipped-bg"
+                      onClick={() => void handleVerdict("skipped")}
+                    />
+                  </div>
+                )}
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {currentItem.case_title}
-              </h1>
+
               {currentDetail?.preconditions && (
                 <div className="mt-3 rounded-md border border-blocked/20 bg-blocked-bg px-4 py-2.5">
                   <p className="text-xs font-medium text-blocked-text mb-0.5">Preconditions</p>
@@ -579,40 +614,6 @@ export function ExecutionScreen({
               />
             )}
 
-            {/* Status buttons — always visible, allow re-execution */}
-            {canEdit && (
-              <div className="flex items-center gap-2 mb-4">
-                <StatusButton
-                  status="pass"
-                  icon={<CheckCircle2 size={15} />}
-                  label="Pass"
-                  active={currentItem.status === "pass"}
-                  onClick={() => void handleVerdict("pass")}
-                />
-                <StatusButton
-                  status="fail"
-                  icon={<XCircle size={15} />}
-                  label="Fail"
-                  active={currentItem.status === "fail"}
-                  onClick={() => void handleVerdict("fail")}
-                />
-                <StatusButton
-                  status="blocked"
-                  icon={<ShieldAlert size={15} />}
-                  label="Blocked"
-                  active={currentItem.status === "blocked"}
-                  onClick={() => void handleVerdict("blocked")}
-                />
-                <StatusButton
-                  status="skipped"
-                  icon={<SkipForward size={15} />}
-                  label="Skip"
-                  active={currentItem.status === "skipped"}
-                  onClick={() => void handleVerdict("skipped")}
-                />
-              </div>
-            )}
-
             {/* Filed defect indicator */}
             {(() => {
               const defect = filedDefects[currentItem.id]
@@ -701,45 +702,26 @@ export function ExecutionScreen({
   )
 }
 
-const STATUS_BUTTON_STYLES: Record<string, { active: string; inactive: string }> = {
-  pass: {
-    active: "bg-pass text-white border-pass",
-    inactive: "bg-white text-pass-text border-gray-200 hover:border-pass/40 hover:bg-pass-bg",
-  },
-  fail: {
-    active: "bg-fail text-white border-fail",
-    inactive: "bg-white text-fail-text border-gray-200 hover:border-fail/40 hover:bg-fail-bg",
-  },
-  blocked: {
-    active: "bg-blocked text-white border-blocked",
-    inactive: "bg-white text-blocked-text border-gray-200 hover:border-blocked/40 hover:bg-blocked-bg",
-  },
-  skipped: {
-    active: "bg-skipped text-white border-skipped",
-    inactive: "bg-white text-skipped-text border-gray-200 hover:border-skipped/40 hover:bg-skipped-bg",
-  },
-}
-
-function StatusButton({ status, icon, label, active, onClick }: {
-  status: string
+function StatusIconButton({ icon, title, active, activeClass, hoverClass, onClick }: {
   icon: React.ReactNode
-  label: string
+  title: string
   active: boolean
+  activeClass: string
+  hoverClass: string
   onClick: () => void
 }) {
-  const styles = STATUS_BUTTON_STYLES[status] ?? { active: "bg-pass text-white border-pass", inactive: "bg-white text-pass-text border-gray-200" }
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className={clsx(
-        "flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center justify-center w-8 h-8 rounded-md transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-        active ? styles.active : styles.inactive
+        active ? activeClass : `text-gray-400 ${hoverClass}`
       )}
     >
       {icon}
-      {label}
     </button>
   )
 }
