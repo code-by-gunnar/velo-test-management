@@ -3,6 +3,7 @@ import type { TransactionSql, Sql } from "postgres"
 import bcrypt from "bcrypt"
 import crypto from "node:crypto"
 import { uuidv7 } from "uuidv7"
+import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
 
@@ -10,6 +11,13 @@ const BCRYPT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 15
 const OTP_MAX_ATTEMPTS = 5
 const RESET_EXPIRY_HOURS = 1
+const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET ?? ""
+
+/** Guard for server-to-server routes (verify-credentials, oauth-signin) */
+function requireInternalSecret(request: { headers: Record<string, string | undefined> }): boolean {
+  if (!INTERNAL_API_SECRET) return false // no secret configured = block
+  return request.headers["x-internal-secret"] === INTERNAL_API_SECRET
+}
 
 // Generate a cryptographically random 6-digit OTP string
 function generateOtp(): string {
@@ -22,6 +30,13 @@ function generateResetToken(): string {
 }
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+
+  // Rate limit all auth endpoints by IP
+  await fastify.register(rateLimit, {
+    max: 10,
+    timeWindow: "1 minute",
+    keyGenerator: (request) => request.ip,
+  })
 
   // ── POST /api/auth/signup ─────────────────────────────────────────────────
   // Creates user, sends OTP email. Hard block until OTP verified.
@@ -42,10 +57,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { email, password, name } = request.body
 
-    // Check for existing user
+    // Check for existing user — return generic response to prevent email enumeration
     const existing = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase()}`
     if (existing.length > 0) {
-      return reply.status(409).send({ error: "Email already registered" })
+      return reply.send({ message: "If this email is not already registered, a verification code has been sent." })
     }
 
     const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS)
@@ -68,7 +83,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     await sendOtpEmail(email, otp)
 
-    return reply.status(201).send({ message: "Account created. Check your email for the verification code." })
+    return reply.status(201).send({ message: "If this email is not already registered, a verification code has been sent." })
   })
 
   // ── POST /api/auth/verify-otp ─────────────────────────────────────────────
@@ -145,7 +160,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /api/auth/verify-credentials ────────────────────────────────────
   // Called by Auth.js authorize() to verify email/password and return user object.
-  // NOT a public route — called server-to-server from Next.js.
+  // NOT a public route — protected by INTERNAL_API_SECRET header.
   fastify.post<{
     Body: { email: string; password: string }
   }>("/api/auth/verify-credentials", {
@@ -160,6 +175,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
   }, async (request, reply) => {
+    if (!requireInternalSecret(request as unknown as { headers: Record<string, string | undefined> })) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
     const { email, password } = request.body
 
     const [user] = await sql`
@@ -310,6 +328,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
   }, async (request, reply) => {
+    if (!requireInternalSecret(request as unknown as { headers: Record<string, string | undefined> })) {
+      return reply.status(403).send({ error: "Forbidden" })
+    }
     const { provider, providerAccountId, email, name, image } = request.body
 
     let resolvedUser: {

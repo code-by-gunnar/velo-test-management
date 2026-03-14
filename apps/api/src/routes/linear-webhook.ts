@@ -57,8 +57,9 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (!connection.webhook_signing_secret) {
-        // No signing secret stored — cannot verify
-        return reply.status(200).send({ ok: true })
+        // No signing secret stored — reject instead of silently accepting
+        fastify.log.warn({ orgId: payload.organizationId }, "Linear webhook rejected — no signing secret stored")
+        return reply.status(401).send({ error: "Webhook not configured" })
       }
 
       // Verify HMAC-SHA256 signature
@@ -101,11 +102,12 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           const externalId = data.id
           const newStatus = data.state.name
 
-          // Find the defect by external_id (bare sql — cross-workspace lookup)
+          // Find the defect by external_id scoped to the workspace that owns this connection
           const defects = await sql`
             UPDATE defects
             SET external_status = ${newStatus}, updated_at = NOW()
             WHERE external_id = ${externalId}
+              AND workspace_id = ${connection.workspace_id}::uuid
             RETURNING id, run_item_id
           `
 
@@ -145,6 +147,7 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
             UPDATE defects
             SET external_status = 'Deleted', updated_at = NOW()
             WHERE external_id = ${data.id}
+              AND workspace_id = ${connection.workspace_id}::uuid
           `
         }
       }
