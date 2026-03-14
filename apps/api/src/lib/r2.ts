@@ -73,6 +73,31 @@ export async function uploadToR2(key: string, body: Buffer, contentType: string)
 }
 
 /**
+ * Download an object from R2 and return it as a Buffer.
+ * Used internally (e.g. syncing evidence to Linear) — not for user-facing downloads.
+ */
+export async function downloadFromR2(key: string): Promise<Buffer> {
+  if (!R2_BUCKET_NAME) {
+    throw new Error("R2_BUCKET_NAME is not set.")
+  }
+
+  const client = getR2Client()
+  const command = new GetObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+  })
+
+  const response = await client.send(command)
+  if (!response.Body) throw new Error(`R2 object not found: ${key}`)
+
+  const chunks: Uint8Array[] = []
+  for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks)
+}
+
+/**
  * Generate a presigned download URL for an R2 object.
  * URL expires in 1 hour (3600 seconds).
  *
