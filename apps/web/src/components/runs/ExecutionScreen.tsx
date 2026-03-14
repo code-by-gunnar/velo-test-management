@@ -636,8 +636,9 @@ export function ExecutionScreen({
               )
             })()}
 
-            {/* Evidence attachments */}
+            {/* Evidence attachments — key forces remount on case change */}
             <EvidenceUpload
+              key={currentItem.id}
               workspaceId={workspaceId}
               runItemId={currentItem.id}
               canEdit={canEdit}
