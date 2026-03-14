@@ -2,7 +2,8 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { decrypt } from "../lib/encryption.js"
-import { createLinearIssue } from "../lib/linear-client.js"
+import { createLinearIssue, createLinearAttachmentLink } from "../lib/linear-client.js"
+import { r2Enabled, getR2PresignedUrl } from "../lib/r2.js"
 import { requireEditor } from "../plugins/require-editor.js"
 
 // UUID validation (any version)
@@ -120,6 +121,30 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
             `
             return rows.length > 0 ? rows[0] as Record<string, unknown> : null
           })
+
+          // Sync evidence attachments to Linear issue (best-effort)
+          if (r2Enabled()) {
+            try {
+              const attachments = await withWorkspace(workspaceId, async (tx) => {
+                return tx`
+                  SELECT filename, r2_key FROM run_item_attachments
+                  WHERE run_item_id = ${run_item_id}::uuid
+                  ORDER BY created_at ASC
+                `
+              })
+
+              for (const att of attachments as unknown as Array<{ filename: string; r2_key: string }>) {
+                try {
+                  const presignedUrl = await getR2PresignedUrl(att.r2_key)
+                  await createLinearAttachmentLink(accessToken, issue.id, att.filename, presignedUrl)
+                } catch (attErr) {
+                  fastify.log.warn({ attErr, filename: att.filename, defectId }, "Failed to sync attachment to Linear")
+                }
+              }
+            } catch (attErr) {
+              fastify.log.warn({ attErr, defectId }, "Failed to fetch attachments for Linear sync")
+            }
+          }
 
           if (updated) {
             return reply.status(201).send(updated)

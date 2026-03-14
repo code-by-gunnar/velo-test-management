@@ -183,6 +183,28 @@ export async function createLinearWebhook(
   return data.webhookCreate.webhook
 }
 
+// ── Create attachment link on issue ──────────────────────────────────────────
+
+export async function createLinearAttachmentLink(
+  accessToken: string,
+  issueId: string,
+  title: string,
+  url: string
+): Promise<boolean> {
+  const data = await linearGraphQL<{
+    attachmentLinkURL: { success: boolean }
+  }>(
+    accessToken,
+    `mutation AttachLink($issueId: String!, $title: String!, $url: String!) {
+      attachmentLinkURL(issueId: $issueId, title: $title, url: $url) {
+        success
+      }
+    }`,
+    { issueId, title, url }
+  )
+  return data.attachmentLinkURL.success
+}
+
 // ── Get issue detail ─────────────────────────────────────────────────────────
 
 export interface LinearIssueDetail {
