@@ -22,6 +22,9 @@ vi.mock("resend", () => ({
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
 process.env.RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_test_mock"
 process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
+process.env.INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET ?? "test-internal-secret"
+
+const INTERNAL_HEADERS = { "x-internal-secret": process.env.INTERNAL_API_SECRET }
 
 describe("Auth routes integration (AUTH-01, AUTH-02, AUTH-04)", () => {
   const app = Fastify({ logger: false })
@@ -49,22 +52,25 @@ describe("Auth routes integration (AUTH-01, AUTH-02, AUTH-04)", () => {
       payload: { email: testEmail, password: testPassword, name: "Test User" },
     })
     expect(res.statusCode).toBe(201)
-    expect((res.json() as { message: string }).message).toContain("Check your email")
+    expect((res.json() as { message: string }).message).toContain("verification code")
   })
 
-  it("POST /api/auth/signup returns 409 for duplicate email", async () => {
+  it("POST /api/auth/signup returns generic response for duplicate email (no enumeration)", async () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/signup",
       payload: { email: testEmail, password: testPassword },
     })
-    expect(res.statusCode).toBe(409)
+    // F6: generic response to prevent email enumeration
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { message: string }).message).toContain("verification code")
   })
 
   it("POST /api/auth/verify-credentials returns 403 before email verification", async () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/verify-credentials",
+      headers: INTERNAL_HEADERS,
       payload: { email: testEmail, password: testPassword },
     })
     expect(res.statusCode).toBe(403)
@@ -79,6 +85,7 @@ describe("Auth routes integration (AUTH-01, AUTH-02, AUTH-04)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/verify-credentials",
+      headers: INTERNAL_HEADERS,
       payload: { email: testEmail, password: "WrongPassword!" },
     })
     expect(res.statusCode).toBe(401)
@@ -88,6 +95,7 @@ describe("Auth routes integration (AUTH-01, AUTH-02, AUTH-04)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/verify-credentials",
+      headers: INTERNAL_HEADERS,
       payload: { email: testEmail, password: testPassword },
     })
     expect(res.statusCode).toBe(200)
@@ -140,6 +148,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
       payload: {
         provider: "google",
         providerAccountId: `test-${ts}-new`,
@@ -166,11 +175,11 @@ describe("OAuth signin (INF-08)", () => {
       name: "Returning OAuth User",
     }
 
-    const res1 = await app.inject({ method: "POST", url: "/api/auth/oauth-signin", payload })
+    const res1 = await app.inject({ method: "POST", url: "/api/auth/oauth-signin", headers: INTERNAL_HEADERS, payload })
     expect(res1.statusCode).toBe(200)
     const body1 = res1.json() as Record<string, unknown>
 
-    const res2 = await app.inject({ method: "POST", url: "/api/auth/oauth-signin", payload })
+    const res2 = await app.inject({ method: "POST", url: "/api/auth/oauth-signin", headers: INTERNAL_HEADERS, payload })
     expect(res2.statusCode).toBe(200)
     const body2 = res2.json() as Record<string, unknown>
 
@@ -192,6 +201,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
       payload: {
         provider: "google",
         providerAccountId: `test-${ts}-autolink`,
@@ -218,6 +228,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
       payload: {
         provider: "google",
         providerAccountId: `test-${ts}-unverified`,
@@ -250,6 +261,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
       payload: {
         provider: "github",
         providerAccountId: `test-${ts}-conflict-github`,
@@ -276,6 +288,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/verify-credentials",
+      headers: INTERNAL_HEADERS,
       payload: { email, password: "anything" },
     })
     expect(res.statusCode).toBe(401)
@@ -287,6 +300,7 @@ describe("OAuth signin (INF-08)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
       payload: {
         provider: "apple",
         providerAccountId: "some-id",
