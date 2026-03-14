@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import type { TestStatus } from "@/components/ui/status-badge"
+import { ExternalLink } from "lucide-react"
 
 interface HistoryEntry {
   run_item_id: string
@@ -10,6 +11,8 @@ interface HistoryEntry {
   run_id: string
   run_name: string
   executed_by_name: string | null
+  defect_external_id: string | null
+  defect_external_url: string | null
 }
 
 interface ExecutionHistoryProps {
@@ -112,6 +115,17 @@ export function ExecutionHistory({ caseId, workspaceId }: ExecutionHistoryProps)
                           </>
                         )}
                       </div>
+                      {entry.defect_external_id && entry.defect_external_url && (
+                        <a
+                          href={entry.defect_external_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 mt-0.5 text-xs font-medium text-fail-text hover:underline"
+                        >
+                          {entry.defect_external_id}
+                          <ExternalLink size={9} />
+                        </a>
+                      )}
                       {entry.comment && (
                         <p className="text-xs text-gray-500 mt-0.5 truncate italic">{entry.comment}</p>
                       )}
