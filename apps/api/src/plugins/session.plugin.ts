@@ -136,8 +136,13 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
             await valkey.set(roleKey, liveRole, "EX", 60)
           }
         }
-      } catch {
-        // Fail open — use JWT role if Valkey/DB unavailable
+      } catch (err) {
+        // Fail closed for deactivation check — deny access if Valkey is down
+        // rather than allowing potentially deactivated users through
+        request.log.warn({ err }, "Valkey/DB unavailable during session check — denying access")
+        request.userId = ""
+        request.workspaceId = null
+        request.userRole = null
       }
     }
   })

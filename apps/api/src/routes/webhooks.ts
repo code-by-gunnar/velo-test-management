@@ -10,6 +10,27 @@ function isUuid(value: string): boolean {
   return UUID_ANY_RE.test(value)
 }
 
+/** Block webhook URLs targeting private/internal networks (SSRF prevention) */
+function isPrivateUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr)
+    const hostname = url.hostname.toLowerCase()
+    // Block localhost
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") return true
+    // Block private IPv4 ranges
+    if (/^10\./.test(hostname)) return true
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true
+    if (/^192\.168\./.test(hostname)) return true
+    // Block link-local and metadata
+    if (/^169\.254\./.test(hostname)) return true
+    // Block non-HTTPS in production
+    if (process.env.NODE_ENV === "production" && url.protocol !== "https:") return true
+    return false
+  } catch {
+    return true // invalid URL = block
+  }
+}
+
 const VALID_EVENTS = ["run.completed", "run_item.failed"] as const
 type WebhookEvent = (typeof VALID_EVENTS)[number]
 
@@ -63,6 +84,10 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!isUuid(projectId)) {
         return reply.status(400).send({ error: "Invalid projectId" })
+      }
+
+      if (isPrivateUrl(endpoint_url)) {
+        return reply.status(400).send({ error: "Webhook URL must be a public HTTPS endpoint" })
       }
 
       // Validate event types

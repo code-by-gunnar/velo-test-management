@@ -55,7 +55,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // The API handles bcrypt comparison and returns user + workspace context
         const res = await fetch(`${process.env.API_URL}/api/auth/verify-credentials`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": process.env.INTERNAL_API_SECRET ?? "",
+          },
           body: JSON.stringify(parsed.data),
         })
 
@@ -94,7 +97,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const res = await fetch(`${process.env.API_URL}/api/auth/oauth-signin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': process.env.INTERNAL_API_SECRET ?? '',
+        },
         body: JSON.stringify({
           provider: account.provider,
           providerAccountId: account.providerAccountId,
