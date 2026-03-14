@@ -48,7 +48,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
   return (
     <div className="rounded-lg border border-fail/30 bg-fail-bg p-4 my-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-fail-text">File a defect for this failure?</p>
+        <p className="text-sm font-medium text-fail-text">Log a defect for this failure?</p>
         <button
           type="button"
           onClick={onSkip}
@@ -81,7 +81,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
 
         <div className="flex items-center gap-3">
           <Button type="submit" variant="destructive" size="sm">
-            File Defect
+            Log Defect
           </Button>
           <button
             type="button"
@@ -91,7 +91,7 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
             Skip
           </button>
           <span className="ml-auto text-xs text-gray-400">
-            Enter to file
+            Enter to log
           </span>
         </div>
       </form>
