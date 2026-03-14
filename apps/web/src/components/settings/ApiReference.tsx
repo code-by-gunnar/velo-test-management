@@ -2,7 +2,7 @@ import { useState } from "react"
 import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react"
 import { clsx } from "clsx"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
 
 interface ApiReferenceProps {
   workspaceId: string
