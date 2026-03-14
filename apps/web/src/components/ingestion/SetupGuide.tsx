@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Card, CardHeader, CardTitle } from "@/components/ui"
 import Link from "next/link"
 
-const API_BASE = "https://velo-test-management-production.up.railway.app"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"
 
 interface SetupGuideProps {
   workspaceId: string
