@@ -449,10 +449,13 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
             tr.id AS run_id,
             tr.name AS run_name,
             tr.created_at AS run_created_at,
-            u.name AS executed_by_name
+            u.name AS executed_by_name,
+            d.external_id AS defect_external_id,
+            d.external_url AS defect_external_url
           FROM run_items ri
           JOIN test_runs tr ON tr.id = ri.run_id
           LEFT JOIN users u ON u.id = ri.executed_by
+          LEFT JOIN defects d ON d.run_item_id = ri.id
           WHERE ri.test_case_id = ${caseId}::uuid
           ORDER BY ri.executed_at DESC NULLS LAST
           LIMIT 50
