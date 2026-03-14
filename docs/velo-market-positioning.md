@@ -1,6 +1,8 @@
 # Velo Market Positioning — Strategic Analysis
 
-Based on deep research into the 2026 QA test management landscape (see: "The Global Paradigm of Quality Assurance" analysis).
+Based on deep research into the 2026 QA test management landscape. Sources:
+- "The Global Paradigm of Quality Assurance" — market architecture and tool taxonomy analysis
+- Brijesh Deb, "Top trends in testing in 2026" — practitioner-focused trends analysis with Forrester, TestGuild, and World Quality Report data
 
 ## Where Velo Sits
 
@@ -12,6 +14,21 @@ Velo doesn't fit any of the four established architecture categories in the mark
 | Standalone | TestRail, Qase, Tuskr | Closest category, but differentiated by AI-native spec-to-test and keyboard-first UX |
 | Enterprise ALM | qTest, OpenText | Different ICP entirely — Velo is for startups, not compliance-heavy enterprises |
 | AI-Native (Automation) | Sauce Labs, TestCollab | These focus on automated test execution/self-healing. Velo's AI is upstream — converting specs into tests |
+
+## Industry Data Points That Validate Velo
+
+Key statistics from the research that directly support Velo's positioning:
+
+| Statistic | Source | Velo Relevance |
+|---|---|---|
+| 75% of testing problems trace to ambiguous requirements | TestGuild Survey | Linear AI Import targets the root cause, not symptoms |
+| 67% trust AI-generated tests only with human review | TestGuild Survey | Velo's human-in-the-loop design matches practitioner trust model |
+| 72.8% say AI testing is top priority, only 10% feel ready | Industry Survey | Velo makes AI accessible — paste an ID, review output. No AI expertise needed |
+| Testers spend 40% of time on test data preparation | Industry Reports | Velo's spec-to-test reduces the "write test cases from scratch" time sink |
+| Most orgs plateau at 25% automation coverage | Forrester | Velo serves the 75% of testing that remains manual — not competing with automation tools |
+| 34% are complete AI beginners, 49% cite lack of training | TestGuild Survey | Velo's AI requires zero training — the interface is "paste ID, review cases, import" |
+| 81% of executives tie quality directly to revenue | World Quality Report | Velo's reports (fragile areas, trends) give leadership the evidence they need |
+| Self-healing reduces maintenance 40-45% | Forrester | Not Velo's domain — but validates that test maintenance is a massive cost Velo reduces differently (AI generation > manual creation) |
 
 ## What the Market Research Validates
 
@@ -69,6 +86,35 @@ These are not gaps — they are intentional architectural decisions:
 | SOC2/ISO compliance | Enterprise requirement for regulated industries. Velo's ICP is startups (20-200 employees) shipping weekly, not banks filing audit reports. | Deferred |
 | Flakiness scoring | Automation metric. Meaningful for automated suites with hundreds of runs. Velo's Fragile Areas report surfaces failing patterns for manual/mixed execution. | Deferred |
 | Jira integration | Deliberate. Velo targets teams using Linear and modern PM tools. Jira integration may come in v2 to expand addressable market. | Deferred |
+
+## Alignment with 2026 Testing Trends
+
+Mapping Velo's features against the 10 trends identified in the practitioner research:
+
+| Trend | What the Research Says | Velo's Response |
+|---|---|---|
+| **1. AI augments, doesn't replace** | "The most practical wins show up where waste is biggest... generating candidate test cases from requirements" | Linear AI Import generates candidates. QA reviews. Human judgment stays central. |
+| **2. Testing AI systems** | Non-deterministic outputs need new approaches | Not directly applicable — Velo tests products, not AI models. But the BDD format naturally captures behavioral expectations. |
+| **3. API-first architecture** | "UI tests show symptoms, not root causes" | Velo ingests JUnit/Allure from CI — tests run at any layer, results flow into Velo regardless. |
+| **4. Shift everywhere** | "72% of organisations testing at earlier stages" | Spec-to-test conversion is the ultimate shift-left: test cases exist before code is written. |
+| **5. Continuous security testing** | Security as part of sprint workflow | Velo's test cases can include security scenarios. Not a specialized security tool, but security test cases are first-class citizens. |
+| **6. Tool consolidation vs sprawl** | "Tool sprawl is not a tooling problem. It is an ownership problem." | Velo + Linear = 2 tools with clear ownership. No 7-tool integration chain. |
+| **7. Judgment roles rise** | "The safest career is built on judgement, not throughput" | Velo is built for the judgment role: review AI suggestions, surface fragile areas, explain risk to leadership. |
+| **8. Test data management** | "Testers spend 40% of time on data preparation" | Velo reduces the case creation bottleneck. Data management is orthogonal — Velo doesn't solve it, but doesn't create it either. |
+| **9. Accessibility** | "Put accessibility into definition of done" | Accessibility test cases are regular cases in Velo. No special tooling needed. |
+| **10. Requirements are the root cause** | "75% of testing problems trace back to ambiguous requirements... AI can help surface ambiguity earlier" | **This is Velo's core feature.** The Linear AI Import converts requirements into test cases, exposing gaps in acceptance criteria before testing begins. |
+
+### The Quote That Defines Velo's Position
+
+> "Fast testing of unclear requirements is just fast confusion." — Brijesh Deb
+
+Velo doesn't make testing faster. Velo makes test cases clearer — by converting specs into structured steps that expose what's missing from the requirement before a single test is executed.
+
+### The Anti-Pattern Velo Avoids
+
+> "More speed. More complexity. More AI assisted code. More dashboards that glow green while risk quietly accumulates."
+
+Velo's Fragile Areas report is the antidote to green dashboards. It surfaces the cases that keep failing — the ones the green dashboard hides. Leadership doesn't need 50 charts. They need one table that answers "what keeps breaking?"
 
 ## Competitive Positioning Statement
 
