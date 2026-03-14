@@ -14,6 +14,7 @@ import {
   BarChart3,
   FlaskConical,
   Sparkles,
+  Paperclip,
 } from "lucide-react"
 
 const features = [
@@ -47,6 +48,12 @@ const features = [
     description:
       "Push JUnit XML or Allure JSON from any CI runner. Results map to your cases automatically. No adapters, no paid add-ons, no YAML config files.",
     icon: <GitBranch size={20} />,
+  },
+  {
+    title: "Test Evidence, Auto-Synced",
+    description:
+      "Upload screenshots and logs during execution. Log a defect and the evidence auto-attaches to the Linear issue. The developer gets the proof without the QA leaving Velo.",
+    icon: <Paperclip size={20} />,
   },
   {
     title: "5-Minute Setup, No Training",
