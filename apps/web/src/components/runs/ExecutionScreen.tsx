@@ -7,6 +7,7 @@ import { DefectPrompt } from "./DefectPrompt"
 import { StepCommentIcon } from "./StepCommentIcon"
 import type { StepComment } from "./StepCommentIcon"
 import { ExecutionHistory } from "./ExecutionHistory"
+import { EvidenceUpload } from "./EvidenceUpload"
 import { SegmentedBar } from "./SegmentedBar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
@@ -634,6 +635,13 @@ export function ExecutionScreen({
                 </div>
               )
             })()}
+
+            {/* Evidence attachments */}
+            <EvidenceUpload
+              workspaceId={workspaceId}
+              runItemId={currentItem.id}
+              canEdit={canEdit}
+            />
 
             {!canEdit && (
               <div className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-500 mb-4">
