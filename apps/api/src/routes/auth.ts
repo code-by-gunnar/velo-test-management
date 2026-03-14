@@ -11,12 +11,11 @@ const BCRYPT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 15
 const OTP_MAX_ATTEMPTS = 5
 const RESET_EXPIRY_HOURS = 1
-const INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET ?? ""
-
 /** Guard for server-to-server routes (verify-credentials, oauth-signin) */
 function requireInternalSecret(request: { headers: Record<string, string | undefined> }): boolean {
-  if (!INTERNAL_API_SECRET) return false // no secret configured = block
-  return request.headers["x-internal-secret"] === INTERNAL_API_SECRET
+  const secret = process.env.INTERNAL_API_SECRET ?? ""
+  if (!secret) return false // no secret configured = block
+  return request.headers["x-internal-secret"] === secret
 }
 
 // Generate a cryptographically random 6-digit OTP string
