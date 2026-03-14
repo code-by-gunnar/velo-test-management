@@ -231,28 +231,17 @@ export default function Home() {
                     className={clsx(
                       "group rounded-lg p-5 transition-all hover:shadow-card",
                       "highlight" in feature && feature.highlight
-                        ? "sm:col-span-2 lg:col-span-3 bg-gray-900 text-white border border-gray-800"
+                        ? "sm:col-span-2 lg:col-span-3 bg-primary-selected border border-primary/20"
                         : "bg-white border border-gray-200 hover:border-gray-300"
                     )}
                   >
-                    <div className={clsx(
-                      "w-9 h-9 rounded-md flex items-center justify-center mb-4 transition-colors",
-                      "highlight" in feature && feature.highlight
-                        ? "bg-primary text-white"
-                        : "bg-primary-selected text-primary group-hover:bg-primary group-hover:text-white"
-                    )}>
+                    <div className="w-9 h-9 rounded-md bg-primary-selected text-primary flex items-center justify-center mb-4 transition-colors group-hover:bg-primary group-hover:text-white">
                       {feature.icon}
                     </div>
-                    <h3 className={clsx(
-                      "text-sm font-semibold mb-1.5 font-display",
-                      "highlight" in feature && feature.highlight ? "text-white" : "text-gray-900"
-                    )}>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1.5 font-display">
                       {feature.title}
                     </h3>
-                    <p className={clsx(
-                      "text-sm leading-relaxed",
-                      "highlight" in feature && feature.highlight ? "text-gray-400" : "text-gray-500"
-                    )}>
+                    <p className="text-sm text-gray-500 leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
