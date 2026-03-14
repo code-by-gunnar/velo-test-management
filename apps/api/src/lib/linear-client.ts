@@ -183,6 +183,36 @@ export async function createLinearWebhook(
   return data.webhookCreate.webhook
 }
 
+// ── Get issue detail ─────────────────────────────────────────────────────────
+
+export interface LinearIssueDetail {
+  id: string
+  identifier: string
+  title: string
+  description: string | null
+  url: string
+}
+
+export async function getLinearIssueDetail(
+  accessToken: string,
+  issueIdentifier: string
+): Promise<LinearIssueDetail> {
+  const data = await linearGraphQL<{ issue: LinearIssueDetail }>(
+    accessToken,
+    `query IssueDetail($id: String!) {
+      issue(id: $id) {
+        id
+        identifier
+        title
+        description
+        url
+      }
+    }`,
+    { id: issueIdentifier }
+  )
+  return data.issue
+}
+
 // ── Get issue status ────────────────────────────────────────────────────────
 
 export async function getLinearIssueStatus(
