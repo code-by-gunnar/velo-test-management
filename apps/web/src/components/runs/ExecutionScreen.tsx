@@ -10,7 +10,9 @@ import { ExecutionHistory } from "./ExecutionHistory"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SegmentedBar } from "./SegmentedBar"
 import { Button } from "@/components/ui/button"
-import { Menu, ChevronLeft, ChevronRight } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
+import { clsx } from "clsx"
+import { Menu, ChevronLeft, ChevronRight, ExternalLink, CheckCircle2, XCircle, ShieldAlert, SkipForward } from "lucide-react"
 
 export interface RunItem {
   id: string
@@ -86,8 +88,11 @@ export function ExecutionScreen({
 }: ExecutionScreenProps) {
   const router = useRouter()
   const { canEdit } = useUserRole()
+  const { toast } = useToast()
 
   const [items, setItems] = useState<RunItem[]>(initialItems)
+  // Track filed defects per run item: itemId → { identifier, url }
+  const [filedDefects, setFiledDefects] = useState<Record<string, { identifier: string; url: string }>>({})
   const [currentIndex, setCurrentIndex] = useState(() => {
     if (startIndexProp != null && startIndexProp >= 0 && startIndexProp < initialItems.length) {
       return startIndexProp
@@ -171,20 +176,6 @@ export function ExecutionScreen({
     setSidebarOpen(false)
   }, [items.length])
 
-  const advanceToNext = useCallback(() => {
-    const nextIdx = items.findIndex(
-      (it, i) => i > currentIndex && UNTESTED_STATUSES.has(it.status)
-    )
-    if (nextIdx >= 0) {
-      setCurrentIndex(nextIdx)
-    } else {
-      const allDone = items.every((it, i) =>
-        i === currentIndex || !UNTESTED_STATUSES.has(it.status)
-      )
-      if (allDone) setDone(true)
-    }
-  }, [currentIndex, items])
-
   const handleVerdict = useCallback(
     async (verdict: Verdict) => {
       if (!currentItem) return
@@ -208,11 +199,10 @@ export function ExecutionScreen({
 
       if (verdict === "fail") {
         setShowDefectPrompt(true)
-      } else {
-        advanceToNext()
       }
+      // No auto-advance — QA navigates manually
     },
-    [currentItem, workspaceId, advanceToNext]
+    [currentItem, workspaceId]
   )
 
   const handleFileDefect = useCallback(
@@ -221,7 +211,7 @@ export function ExecutionScreen({
       setShowDefectPrompt(false)
 
       try {
-        await fetch(`/api/backend/workspaces/${workspaceId}/defects`, {
+        const res = await fetch(`/api/backend/workspaces/${workspaceId}/defects`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -230,19 +220,32 @@ export function ExecutionScreen({
             description: description || undefined,
           }),
         })
-      } catch {
-        // Silent
-      }
 
-      advanceToNext()
+        if (res.ok) {
+          const defect = await res.json() as { external_id?: string; external_url?: string }
+          if (defect.external_id && defect.external_url) {
+            setFiledDefects((prev) => ({
+              ...prev,
+              [currentItem.id]: { identifier: defect.external_id!, url: defect.external_url! },
+            }))
+            toast("success", `Defect logged: ${defect.external_id}`)
+          } else {
+            toast("success", "Defect logged locally")
+          }
+        } else {
+          toast("error", "Failed to log defect")
+        }
+      } catch {
+        toast("error", "Failed to log defect")
+      }
+      // No auto-advance — QA navigates manually
     },
-    [currentItem, workspaceId, advanceToNext]
+    [currentItem, workspaceId, toast]
   )
 
   const handleSkipDefect = useCallback(() => {
     setShowDefectPrompt(false)
-    advanceToNext()
-  }, [advanceToNext])
+  }, [])
 
   const saveComment = useCallback(() => {
     if (!currentItem) return
@@ -332,14 +335,13 @@ export function ExecutionScreen({
   const isCaseDeleted = deletedCaseIds.has(currentItem.test_case_id)
   const steps = currentDetail?.steps ?? []
   const stepComments = stepCommentCache[currentItem.id] ?? []
-  const isCurrentUntested = UNTESTED_STATUSES.has(currentItem.status)
+
 
   return (
     <div className="flex h-screen flex-col bg-mist overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-3">
-          {/* Case list toggle */}
           <button
             type="button"
             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -349,38 +351,10 @@ export function ExecutionScreen({
           >
             <Menu size={16} aria-hidden="true" />
           </button>
-
           <span className="text-sm font-semibold text-gray-900 truncate max-w-xs">{runName}</span>
-
-          {/* Prev / Next navigation */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => navigateTo(currentIndex - 1)}
-              disabled={currentIndex === 0}
-              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
-              title="Previous case"
-              aria-label="Previous case"
-            >
-              <ChevronLeft size={14} aria-hidden="true" />
-            </button>
-            <span className="text-xs tabular-nums text-gray-500 min-w-[3.5rem] text-center">
-              {currentIndex + 1} / {items.length}
-            </span>
-            <button
-              type="button"
-              onClick={() => navigateTo(currentIndex + 1)}
-              disabled={currentIndex === items.length - 1}
-              className="flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
-              title="Next case"
-              aria-label="Next case"
-            >
-              <ChevronRight size={14} aria-hidden="true" />
-            </button>
-          </div>
         </div>
 
-        <div className="flex-1 mx-6 max-w-xs">
+        <div className="flex-1 mx-6 max-w-sm">
           <SegmentedBar
             pass={stats.pass} fail={stats.fail} blocked={stats.blocked}
             skipped={stats.skipped} untested={stats.untested} total={stats.total}
@@ -438,12 +412,59 @@ export function ExecutionScreen({
         {/* Main content */}
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-6 py-8">
+            {/* Case navigation — prominent, in main content */}
+            <div className="flex items-center justify-between mb-6">
+              <button
+                type="button"
+                onClick={goPrev}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-white hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={16} />
+                Prev
+              </button>
+
+              <div className="text-center">
+                <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                  {currentIndex + 1} of {items.length}
+                </span>
+                {(() => {
+                  const nextUntested = items.findIndex(
+                    (it, i) => i > currentIndex && UNTESTED_STATUSES.has(it.status)
+                  )
+                  if (nextUntested >= 0) {
+                    return (
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Next untested: #{nextUntested + 1}
+                      </p>
+                    )
+                  }
+                  const allExecuted = items.every((it) => !UNTESTED_STATUSES.has(it.status))
+                  if (allExecuted) {
+                    return (
+                      <p className="text-[11px] text-pass-text mt-0.5">
+                        All cases executed
+                      </p>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={currentIndex === items.length - 1}
+                className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 hover:bg-white hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
             {/* Case header */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Test Case {currentIndex + 1}
-                </span>
                 <StatusBadge status={
                   (["pass","fail","blocked","skipped"].includes(currentItem.status)
                     ? currentItem.status
@@ -558,16 +579,70 @@ export function ExecutionScreen({
               />
             )}
 
+            {/* Status buttons — always visible, allow re-execution */}
+            {canEdit && (
+              <div className="flex items-center gap-2 mb-4">
+                <StatusButton
+                  status="pass"
+                  icon={<CheckCircle2 size={15} />}
+                  label="Pass"
+                  active={currentItem.status === "pass"}
+                  onClick={() => void handleVerdict("pass")}
+                />
+                <StatusButton
+                  status="fail"
+                  icon={<XCircle size={15} />}
+                  label="Fail"
+                  active={currentItem.status === "fail"}
+                  onClick={() => void handleVerdict("fail")}
+                />
+                <StatusButton
+                  status="blocked"
+                  icon={<ShieldAlert size={15} />}
+                  label="Blocked"
+                  active={currentItem.status === "blocked"}
+                  onClick={() => void handleVerdict("blocked")}
+                />
+                <StatusButton
+                  status="skipped"
+                  icon={<SkipForward size={15} />}
+                  label="Skip"
+                  active={currentItem.status === "skipped"}
+                  onClick={() => void handleVerdict("skipped")}
+                />
+              </div>
+            )}
+
+            {/* Filed defect indicator */}
+            {(() => {
+              const defect = filedDefects[currentItem.id]
+              if (!defect) return null
+              return (
+                <div className="flex items-center gap-2 mb-4 rounded-md border border-fail/20 bg-fail-bg px-3 py-2">
+                  <span className="text-xs font-medium text-fail-text">Defect logged:</span>
+                  <a
+                    href={defect.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    {defect.identifier}
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
+              )
+            })()}
+
             {!canEdit && (
               <div className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-500 mb-4">
                 You have view-only access to this run.
               </div>
             )}
 
-            {/* Case comment */}
+            {/* Notes */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-500">Case comment</label>
+                <label className="text-xs font-medium text-gray-500">Notes</label>
                 <div className="flex items-center gap-2">
                   {!commentSaved && (
                     <span className="text-[10px] text-gray-400">Unsaved</span>
@@ -609,31 +684,63 @@ export function ExecutionScreen({
       {/* Keyboard hints footer */}
       <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-2.5">
         <div className="flex items-center justify-center gap-6 text-xs text-gray-400">
-          {isCurrentUntested ? (
+          {canEdit && (
             <>
-              {canEdit && (
-                <>
-                  <KeyHint k="P" label="Pass" color="text-pass-text" />
-                  <KeyHint k="F" label="Fail" color="text-fail-text" />
-                  <KeyHint k="B" label="Blocked" color="text-blocked-text" />
-                  <KeyHint k="S" label="Skip" color="text-skipped-text" />
-                  <span className="text-gray-300">|</span>
-                </>
-              )}
-              <KeyHint k="←" label="Prev" color="text-gray-500" />
-              <KeyHint k="→" label="Next" color="text-gray-500" />
-            </>
-          ) : (
-            <>
-              <span className="text-gray-500">Already judged — navigate to review</span>
+              <KeyHint k="P" label="Pass" color="text-pass-text" />
+              <KeyHint k="F" label="Fail" color="text-fail-text" />
+              <KeyHint k="B" label="Blocked" color="text-blocked-text" />
+              <KeyHint k="S" label="Skip" color="text-skipped-text" />
               <span className="text-gray-300">|</span>
-              <KeyHint k="←" label="Prev" color="text-gray-500" />
-              <KeyHint k="→" label="Next" color="text-gray-500" />
             </>
           )}
+          <KeyHint k="←" label="Prev" color="text-gray-500" />
+          <KeyHint k="→" label="Next" color="text-gray-500" />
         </div>
       </div>
     </div>
+  )
+}
+
+const STATUS_BUTTON_STYLES: Record<string, { active: string; inactive: string }> = {
+  pass: {
+    active: "bg-pass text-white border-pass",
+    inactive: "bg-white text-pass-text border-gray-200 hover:border-pass/40 hover:bg-pass-bg",
+  },
+  fail: {
+    active: "bg-fail text-white border-fail",
+    inactive: "bg-white text-fail-text border-gray-200 hover:border-fail/40 hover:bg-fail-bg",
+  },
+  blocked: {
+    active: "bg-blocked text-white border-blocked",
+    inactive: "bg-white text-blocked-text border-gray-200 hover:border-blocked/40 hover:bg-blocked-bg",
+  },
+  skipped: {
+    active: "bg-skipped text-white border-skipped",
+    inactive: "bg-white text-skipped-text border-gray-200 hover:border-skipped/40 hover:bg-skipped-bg",
+  },
+}
+
+function StatusButton({ status, icon, label, active, onClick }: {
+  status: string
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  const styles = STATUS_BUTTON_STYLES[status] ?? { active: "bg-pass text-white border-pass", inactive: "bg-white text-pass-text border-gray-200" }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        "flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+        active ? styles.active : styles.inactive
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 

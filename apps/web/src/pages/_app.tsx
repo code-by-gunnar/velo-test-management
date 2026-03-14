@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import type { AppProps } from "next/app"
 import { SessionProvider, signOut } from "next-auth/react"
 import { DM_Sans, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google"
+import { ToastProvider } from "@/components/ui/toast"
 import "@/styles/globals.css"
 
 // Global fetch interceptor: force sign-out when API returns 401 (deactivated/expired session).
@@ -41,9 +42,11 @@ const jetbrainsMono = JetBrains_Mono({
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
-      <div className={`${dmSans.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable} font-body`}>
-        <Component {...pageProps} />
-      </div>
+      <ToastProvider>
+        <div className={`${dmSans.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable} font-body`}>
+          <Component {...pageProps} />
+        </div>
+      </ToastProvider>
     </SessionProvider>
   )
 }
