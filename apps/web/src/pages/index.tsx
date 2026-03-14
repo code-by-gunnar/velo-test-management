@@ -115,6 +115,12 @@ export default function Home() {
               </Link>
               <nav className="flex items-center gap-3">
                 <Link
+                  href="/why-velo"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
+                >
+                  Why Velo
+                </Link>
+                <Link
                   href="/login"
                   className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
                 >
@@ -333,6 +339,9 @@ export default function Home() {
               </div>
 
               <nav className="flex items-center gap-6" aria-label="Footer">
+                <Link href="/why-velo" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                  Why Velo
+                </Link>
                 <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Sign In
                 </Link>
