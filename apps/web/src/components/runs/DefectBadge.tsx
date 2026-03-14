@@ -25,17 +25,18 @@ function statusStyle(status: string): string {
 export function DefectBadge({ externalUrl, externalStatus, externalId }: DefectBadgeProps) {
   if (!externalUrl) return null
 
-  const label = externalStatus ?? "Linked"
+  const status = externalStatus ?? "Linked"
+  const label = externalId ?? status
 
   return (
     <a
       href={externalUrl}
       target="_blank"
       rel="noopener noreferrer"
-      title={externalId ? `${externalId} - ${label}` : label}
+      title={externalId ? `${externalId} · ${status}` : status}
       className={clsx(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-opacity hover:opacity-80",
-        statusStyle(label)
+        statusStyle(status)
       )}
     >
       <ExternalLink size={10} className="shrink-0" />
