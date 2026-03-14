@@ -198,8 +198,9 @@ export function ExecutionScreen({
 
       if (verdict === "fail") {
         setShowDefectPrompt(true)
+      } else {
+        setShowDefectPrompt(false)
       }
-      // No auto-advance — QA navigates manually
     },
     [currentItem, workspaceId]
   )
