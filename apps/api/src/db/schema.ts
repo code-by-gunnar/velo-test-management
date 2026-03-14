@@ -257,6 +257,20 @@ export const runItems = pgTable("run_items", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// ─── Run Item Attachments (test evidence) ─────────────────────────────────────
+
+export const runItemAttachments = pgTable("run_item_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  run_item_id: uuid("run_item_id").notNull().references(() => runItems.id, { onDelete: "cascade" }),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  r2_key: varchar("r2_key", { length: 500 }).notNull(),
+  content_type: varchar("content_type", { length: 100 }).notNull(),
+  size_bytes: integer("size_bytes").notNull(),
+  uploaded_by: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Defects (tenant-scoped) ──────────────────────────────────────────────────
 
 export const defects = pgTable("defects", {
