@@ -1,3 +1,4 @@
+import { clsx } from "clsx"
 import Link from "next/link"
 import Head from "next/head"
 import Image from "next/image"
@@ -12,9 +13,17 @@ import {
   Play,
   BarChart3,
   FlaskConical,
+  Sparkles,
 } from "lucide-react"
 
 const features = [
+  {
+    title: "Spec to Test in Seconds",
+    description:
+      "Paste a Linear issue ID. AI reads the acceptance criteria and generates test cases — traditional steps or BDD. Review, tweak, import. Your specs become tests before the sprint starts.",
+    icon: <Sparkles size={20} />,
+    highlight: true,
+  },
   {
     title: "Keyboard-First Test Editor",
     description:
@@ -69,6 +78,7 @@ const steps = [
 ]
 
 const comparisons = [
+  { feature: "Spec to test cases", velo: "AI-generated in seconds", others: "Manual transcription" },
   { feature: "Write a test case", velo: "< 30 seconds", others: "2+ minutes of clicking" },
   { feature: "BDD / Given-When-Then", velo: "Native, per-project", others: "Plugin or not supported" },
   { feature: "Live run tracking", velo: "Real-time (SSE)", others: "Refresh to check" },
@@ -84,7 +94,7 @@ export default function Home() {
     <>
       <Head>
         <title>Velo — Test Management for Teams That Ship</title>
-        <meta name="description" content="Write test cases in 30 seconds — traditional steps or BDD. Track runs in real time. Ingest CI results with zero config. Built for teams that ship weekly." />
+        <meta name="description" content="AI converts your Linear specs into test cases in seconds. Keyboard-first editor, live run tracking, CI ingestion. Built for teams that ship weekly." />
       </Head>
 
       <div className="min-h-screen bg-mist font-body">
@@ -137,8 +147,8 @@ export default function Home() {
               </h1>
 
               <p className="text-lg text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
-                Write test cases in 30 seconds — traditional steps or BDD.
-                Track runs in real time. Ingest CI results with zero config.
+                Paste a spec, get test cases. AI converts your Linear issues
+                into structured tests in seconds. Traditional steps or BDD.
                 Built for teams that ship weekly, not quarterly.
               </p>
 
@@ -212,15 +222,31 @@ export default function Home() {
                 {features.map((feature) => (
                   <div
                     key={feature.title}
-                    className="group bg-white border border-gray-200 rounded-lg p-5 transition-all hover:shadow-card hover:border-gray-300"
+                    className={clsx(
+                      "group rounded-lg p-5 transition-all hover:shadow-card",
+                      "highlight" in feature && feature.highlight
+                        ? "sm:col-span-2 lg:col-span-3 bg-gray-900 text-white border border-gray-800"
+                        : "bg-white border border-gray-200 hover:border-gray-300"
+                    )}
                   >
-                    <div className="w-9 h-9 rounded-md bg-primary-selected text-primary flex items-center justify-center mb-4 transition-colors group-hover:bg-primary group-hover:text-white">
+                    <div className={clsx(
+                      "w-9 h-9 rounded-md flex items-center justify-center mb-4 transition-colors",
+                      "highlight" in feature && feature.highlight
+                        ? "bg-primary text-white"
+                        : "bg-primary-selected text-primary group-hover:bg-primary group-hover:text-white"
+                    )}>
                       {feature.icon}
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1.5 font-display">
+                    <h3 className={clsx(
+                      "text-sm font-semibold mb-1.5 font-display",
+                      "highlight" in feature && feature.highlight ? "text-white" : "text-gray-900"
+                    )}>
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
+                    <p className={clsx(
+                      "text-sm leading-relaxed",
+                      "highlight" in feature && feature.highlight ? "text-gray-400" : "text-gray-500"
+                    )}>
                       {feature.description}
                     </p>
                   </div>
