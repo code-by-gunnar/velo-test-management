@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { decrypt } from "../lib/encryption.js"
-import { createLinearIssue, createLinearAttachmentLink } from "../lib/linear-client.js"
+import { createLinearIssue, createLinearAttachmentLink, getLinearBugLabelId } from "../lib/linear-client.js"
 import { r2Enabled, getR2PresignedUrl } from "../lib/r2.js"
 import { requireEditor } from "../plugins/require-editor.js"
 
@@ -101,10 +101,20 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (connection && connection.team_id && connection.team_id !== "pending") {
           const accessToken = decrypt(connection.access_token_enc)
+
+          // Look up "Bug" label ID (cached per request, best-effort)
+          let bugLabelId: string | null = null
+          try {
+            bugLabelId = await getLinearBugLabelId(accessToken)
+          } catch {
+            // Label lookup failed — create issue without label
+          }
+
           const issue = await createLinearIssue(accessToken, {
             teamId: connection.team_id,
             title,
             ...(description ? { description } : {}),
+            ...(bugLabelId ? { labelIds: [bugLabelId] } : {}),
           })
 
           // Update defect with Linear issue data
