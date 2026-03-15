@@ -266,8 +266,11 @@ export function ExecutionScreen({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comment: trimmed }),
       }
-    ).then(() => setCommentSaved(true))
-  }, [currentItem, commentValue, workspaceId])
+    ).then(() => {
+      setCommentSaved(true)
+      if (trimmed) toast("success", "Note saved")
+    })
+  }, [currentItem, commentValue, workspaceId, toast])
 
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setCommentValue(e.target.value)
