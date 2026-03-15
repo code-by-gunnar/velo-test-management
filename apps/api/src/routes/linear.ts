@@ -122,9 +122,11 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const tokens = await exchangeCodeForTokens(code, redirectUri)
 
-        // Fetch org info + teams
-        const org = await getLinearOrganization(tokens.access_token)
-        const teams = await getLinearTeams(tokens.access_token)
+        // Fetch org info + teams in parallel (independent API calls)
+        const [org, teams] = await Promise.all([
+          getLinearOrganization(tokens.access_token),
+          getLinearTeams(tokens.access_token),
+        ])
 
         // Store encrypted tokens in linear_connections
         const encAccessToken = encrypt(tokens.access_token)

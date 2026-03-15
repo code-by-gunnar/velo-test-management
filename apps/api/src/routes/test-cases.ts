@@ -1,6 +1,9 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import Anthropic from "@anthropic-ai/sdk"
+
+// Module-level singleton with timeout (25s < Railway's 30s proxy limit)
+const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 25_000 }) : null
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
@@ -724,18 +727,22 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         // Suite name → UUID cache (find-or-create during import)
         const suiteCache = new Map<string, string>()
 
-        for (const tc of parsed) {
-          const countRows = await tx`
-            SELECT COUNT(*)::int AS n
-            FROM test_cases
-            WHERE project_id = ${projectId}::uuid
-              AND deleted_at IS NULL
-          `
-          const count = parseInt(
-            String((countRows[0] as unknown as { n: number }).n ?? "0")
-          )
+        // Pre-check tier limit once (not per row)
+        const countRows = await tx`
+          SELECT COUNT(*)::int AS n
+          FROM test_cases
+          WHERE project_id = ${projectId}::uuid
+            AND deleted_at IS NULL
+        `
+        let currentCount = parseInt(
+          String((countRows[0] as unknown as { n: number }).n ?? "0")
+        )
 
-          if (count >= FREE_TIER_MAX_TEST_CASES) break
+        // Track max position per suite to avoid repeated MAX queries
+        const positionCache = new Map<string, number>()
+
+        for (const tc of parsed) {
+          if (currentCount >= FREE_TIER_MAX_TEST_CASES) break
 
           // Resolve suite_id from suite name (find-or-create)
           let suiteId: string | null = null
@@ -781,17 +788,22 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          const maxRows = await tx`
-            SELECT COALESCE(MAX(position), 0) AS max_pos
-            FROM test_cases
-            WHERE project_id = ${projectId}::uuid
-              AND suite_id ${suiteId ? tx`= ${suiteId}::uuid` : tx`IS NULL`}
-              AND deleted_at IS NULL
-          `
-          const maxPos = parseInt(
-            String((maxRows[0] as unknown as { max_pos: number }).max_pos ?? "0")
-          )
-          const position = maxPos + 1000
+          const posKey = suiteId ?? "__null__"
+          let position: number
+          const cachedPos = positionCache.get(posKey)
+          if (cachedPos !== undefined) {
+            position = cachedPos + 1000
+          } else {
+            const maxRows = await tx`
+              SELECT COALESCE(MAX(position), 0) AS max_pos
+              FROM test_cases
+              WHERE project_id = ${projectId}::uuid
+                AND suite_id ${suiteId ? tx`= ${suiteId}::uuid` : tx`IS NULL`}
+                AND deleted_at IS NULL
+            `
+            position = parseInt(String((maxRows[0] as unknown as { max_pos: number }).max_pos ?? "0")) + 1000
+          }
+          positionCache.set(posKey, position)
 
           const newCaseId = uuidv7()
           const priority = tc.priority ?? "medium"
@@ -830,6 +842,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           importedCount++
+          currentCount++
         }
       })
 
@@ -867,28 +880,22 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(503).send({ error: "AI service not configured" })
       }
 
-      // 1. Get Linear connection for this workspace
-      const connection = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx`
-          SELECT access_token_enc, api_key_enc FROM linear_connections
-          WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-        `
-        return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string; api_key_enc: string | null } : null
+      // 1. Get Linear connection + project format in one transaction
+      const { connection, testFormat } = await withWorkspace(workspaceId, async (tx) => {
+        const [connRows, projRows] = await Promise.all([
+          tx`SELECT access_token_enc, api_key_enc FROM linear_connections
+             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid`,
+          tx`SELECT test_format FROM projects WHERE id = ${projectId}::uuid LIMIT 1`,
+        ])
+        return {
+          connection: connRows.length > 0 ? connRows[0] as unknown as { access_token_enc: string; api_key_enc: string | null } : null,
+          testFormat: (projRows[0] as unknown as { test_format: string } | undefined)?.test_format ?? "steps",
+        }
       })
 
       if (!connection) {
         return reply.status(400).send({ error: "No Linear connection. Connect Linear in Workspace Settings." })
       }
-
-      // 2. Get project test_format
-      const project = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx`
-          SELECT test_format FROM projects WHERE id = ${projectId}::uuid LIMIT 1
-        `
-        return rows.length > 0 ? rows[0] as unknown as { test_format: string } : null
-      })
-
-      const testFormat = project?.test_format ?? "steps"
 
       // 3. Fetch the Linear issue (prefer API key over OAuth token)
       let issue: { id: string; identifier: string; title: string; description: string | null; url: string }
@@ -949,8 +956,10 @@ ${testFormat === "gwt"
 }`
 
       try {
-        const anthropic = new Anthropic()
-        const message = await anthropic.messages.create({
+        if (!anthropicClient) {
+          return reply.status(503).send({ error: "AI service not configured" })
+        }
+        const message = await anthropicClient.messages.create({
           model: "claude-sonnet-4-5",
           max_tokens: 2000,
           messages: [{ role: "user", content: prompt }],
