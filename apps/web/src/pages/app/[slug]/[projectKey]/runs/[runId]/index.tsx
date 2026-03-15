@@ -375,9 +375,10 @@ export default function RunDetailPage({
           ) : (
             <table className="w-full table-fixed">
               <colgroup>
-                <col className="w-[45%]" />
-                <col className="w-[12%]" />
-                <col className="w-[18%]" />
+                <col className="w-[35%]" />
+                <col className="w-[10%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
                 <col className="w-[25%]" />
               </colgroup>
               <thead className="sticky top-0 bg-white shadow-sm">
@@ -390,6 +391,9 @@ export default function RunDetailPage({
                   </th>
                   <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Executed At
+                  </th>
+                  <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Defect
                   </th>
                   <th className="py-2 pr-6 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Notes
@@ -430,27 +434,26 @@ export default function RunDetailPage({
                         {formatDate(item.executed_at)}
                       </td>
 
-                      {/* Notes: defect link + comment */}
+                      {/* Defect */}
+                      <td className="py-3 pr-4">
+                        {hasDefect && (
+                          <div className="flex items-center gap-1.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+                            <DefectBadge
+                              externalUrl={item.defect_external_url}
+                              externalStatus={item.defect_external_status}
+                              externalId={item.defect_external_id}
+                            />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Notes */}
                       <td className="py-3 pr-6">
-                        <div className="flex flex-col gap-1 min-w-0">
-                          {hasDefect && (
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <span className="inline-flex items-center rounded-full border border-fail/20 bg-fail-bg px-2 py-0.5 text-xs font-medium text-fail-text shrink-0">
-                                Defect
-                              </span>
-                              <DefectBadge
-                                externalUrl={item.defect_external_url}
-                                externalStatus={item.defect_external_status}
-                                externalId={item.defect_external_id}
-                              />
-                            </div>
-                          )}
-                          {hasComment && (
-                            <p className="text-xs text-gray-400 truncate" title={item.comment ?? ""}>
-                              {item.comment}
-                            </p>
-                          )}
-                        </div>
+                        {hasComment && (
+                          <p className="text-xs text-gray-500 truncate" title={item.comment ?? ""}>
+                            {item.comment}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   )
