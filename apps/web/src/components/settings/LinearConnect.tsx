@@ -301,8 +301,8 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
             </div>
             <p className="text-xs text-gray-500 mb-2">
               {status.has_api_key
-                ? "API key is configured. Defects and imports use this key instead of OAuth."
-                : "Add a Linear API key for reliable integration. OAuth tokens expire — API keys don't."
+                ? "API key is configured. All Linear operations use this key."
+                : "Add your Linear API key to enable defect syncing and issue imports."
               }
             </p>
             <div className="flex items-center gap-2">
