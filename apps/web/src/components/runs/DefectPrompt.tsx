@@ -1,5 +1,15 @@
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+
+const TEMPLATE = `**Environment:**
+
+**Steps to reproduce:**
+1.
+
+**Expected:**
+
+**Actual:**
+`
 
 interface DefectPromptProps {
   isOpen: boolean
@@ -11,6 +21,8 @@ interface DefectPromptProps {
 export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPromptProps) {
   const titleRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const descRef = useRef<HTMLTextAreaElement>(null)
+  const [useTemplate, setUseTemplate] = useState(true)
 
   // Focus title input when opened
   useEffect(() => {
@@ -43,6 +55,22 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
     onFile(title, description)
   }
 
+  const handleClearTemplate = () => {
+    setUseTemplate(false)
+    if (descRef.current) {
+      descRef.current.value = ""
+      descRef.current.focus()
+    }
+  }
+
+  const handleUseTemplate = () => {
+    setUseTemplate(true)
+    if (descRef.current) {
+      descRef.current.value = TEMPLATE
+      descRef.current.focus()
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -71,11 +99,33 @@ export function DefectPrompt({ isOpen, caseTitle, onFile, onSkip }: DefectPrompt
         </div>
 
         <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-gray-500">Description</label>
+            {useTemplate ? (
+              <button
+                type="button"
+                onClick={handleClearTemplate}
+                className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear template
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleUseTemplate}
+                className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Use template
+              </button>
+            )}
+          </div>
           <textarea
+            ref={descRef}
             name="description"
-            rows={2}
+            rows={useTemplate ? 8 : 2}
+            defaultValue={useTemplate ? TEMPLATE : ""}
             placeholder="Description (optional)"
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-y font-mono text-xs leading-relaxed"
           />
         </div>
 
