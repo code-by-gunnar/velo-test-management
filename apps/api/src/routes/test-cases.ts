@@ -870,10 +870,10 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       // 1. Get Linear connection for this workspace
       const connection = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx`
-          SELECT access_token_enc FROM linear_connections
+          SELECT access_token_enc, api_key_enc FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
         `
-        return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string } : null
+        return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string; api_key_enc: string | null } : null
       })
 
       if (!connection) {
@@ -890,10 +890,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const testFormat = project?.test_format ?? "steps"
 
-      // 3. Fetch the Linear issue
+      // 3. Fetch the Linear issue (prefer API key over OAuth token)
       let issue: { id: string; identifier: string; title: string; description: string | null; url: string }
       try {
-        const accessToken = decrypt(connection.access_token_enc)
+        const accessToken = connection.api_key_enc
+          ? decrypt(connection.api_key_enc)
+          : decrypt(connection.access_token_enc)
         issue = await getLinearIssueDetail(accessToken, issue_id)
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error"
