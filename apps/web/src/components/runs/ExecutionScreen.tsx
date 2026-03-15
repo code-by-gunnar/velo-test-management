@@ -231,7 +231,7 @@ export function ExecutionScreen({
             }))
             toast("success", `Defect logged: ${defect.external_id}`)
           } else {
-            toast("success", "Defect logged locally")
+            toast("error", "Defect saved in Velo but failed to create in Linear")
           }
         } else {
           toast("error", "Failed to log defect")
