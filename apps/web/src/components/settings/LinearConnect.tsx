@@ -11,6 +11,7 @@ interface LinearStatus {
   connected_by_name?: string
   teams?: Array<{ id: string; name: string }>
   needs_team_selection?: boolean
+  has_api_key?: boolean
 }
 
 interface LinearConnectProps {
@@ -28,6 +29,9 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState("")
   const [savingTeam, setSavingTeam] = useState(false)
+  const [apiKeyInput, setApiKeyInput] = useState("")
+  const [savingApiKey, setSavingApiKey] = useState(false)
+  const [apiKeySuccess, setApiKeySuccess] = useState(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -130,6 +134,32 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
       setError(err instanceof Error ? err.message : "Failed to disconnect Linear")
     } finally {
       setDisconnecting(false)
+    }
+  }
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyInput.trim()) return
+    setSavingApiKey(true)
+    setError(null)
+    setApiKeySuccess(false)
+    try {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/linear/api-key`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKeyInput.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(data.error ?? `Failed to save API key (${res.status})`)
+      }
+      setApiKeyInput("")
+      setApiKeySuccess(true)
+      setTimeout(() => setApiKeySuccess(false), 3000)
+      await fetchStatus()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save API key")
+    } finally {
+      setSavingApiKey(false)
     }
   }
 
@@ -253,6 +283,52 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
               </>
             )}
           </dl>
+
+          {/* API Key section */}
+          <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <h5 className="text-xs font-semibold text-gray-700">API Key</h5>
+              {status.has_api_key && (
+                <span className="inline-flex items-center rounded-full bg-pass-bg px-1.5 py-0.5 text-[10px] font-medium text-pass-text">
+                  Configured
+                </span>
+              )}
+              {!status.has_api_key && (
+                <span className="inline-flex items-center rounded-full bg-blocked-bg px-1.5 py-0.5 text-[10px] font-medium text-blocked-text">
+                  Required
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              {status.has_api_key
+                ? "API key is configured. Defects and imports use this key instead of OAuth."
+                : "Add a Linear API key for reliable integration. OAuth tokens expire — API keys don't."
+              }
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder={status.has_api_key ? "Replace API key..." : "lin_api_..."}
+                className="flex-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void handleSaveApiKey()}
+                disabled={!apiKeyInput.trim() || savingApiKey}
+              >
+                {savingApiKey ? "Validating..." : "Save"}
+              </Button>
+            </div>
+            {apiKeySuccess && (
+              <p className="mt-1.5 text-xs text-pass-text">API key saved and validated.</p>
+            )}
+            <p className="mt-2 text-[10px] text-gray-400">
+              Generate a key in Linear: Settings &gt; Account &gt; Security &amp; Access &gt; API Keys
+            </p>
+          </div>
 
           {confirmDisconnect ? (
             <div className="rounded-md border border-fail/20 bg-fail-bg p-3">

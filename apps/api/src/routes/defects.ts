@@ -108,15 +108,18 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         const connection = await withWorkspace(workspaceId, async (tx) => {
           const rows = await tx`
-            SELECT access_token_enc, team_id
+            SELECT access_token_enc, api_key_enc, team_id
             FROM linear_connections
             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           `
-          return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string; team_id: string } : null
+          return rows.length > 0 ? rows[0] as unknown as { access_token_enc: string; api_key_enc: string | null; team_id: string } : null
         })
 
         if (connection && connection.team_id && connection.team_id !== "pending") {
-          const accessToken = decrypt(connection.access_token_enc)
+          // Prefer API key (never expires) over OAuth token (may expire)
+          const accessToken = connection.api_key_enc
+            ? decrypt(connection.api_key_enc)
+            : decrypt(connection.access_token_enc)
 
           // Look up "Bug" label ID (cached per request, best-effort)
           let bugLabelId: string | null = null

@@ -295,7 +295,7 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
 
       const connection = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx`
-          SELECT linear_org_name, team_id, team_name, connected_by, connected_at
+          SELECT linear_org_name, team_id, team_name, connected_by, connected_at, api_key_enc
           FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
         `
@@ -317,7 +317,61 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         connected_at: connection.connected_at,
         connected_by: connection.connected_by,
         needs_team_selection: needsTeamSelection,
+        has_api_key: Boolean(connection.api_key_enc),
       })
+    }
+  )
+
+  // ── PUT /linear/api-key — Store a persistent Linear API key ──────────────
+  fastify.put<{
+    Params: { workspaceId: string }
+    Body: { api_key: string }
+  }>(
+    "/api/workspaces/:workspaceId/linear/api-key",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["api_key"],
+          properties: {
+            api_key: { type: "string", minLength: 1 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId } = request.params
+      const { api_key } = request.body
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      // Validate the key works by making a test API call
+      try {
+        const { getLinearOrganization } = await import("../lib/linear-client.js")
+        await getLinearOrganization(api_key)
+      } catch {
+        return reply.status(400).send({ error: "Invalid API key — could not authenticate with Linear" })
+      }
+
+      const encApiKey = encrypt(api_key)
+
+      const result = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          UPDATE linear_connections
+          SET api_key_enc = ${encApiKey}
+          WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+          RETURNING id
+        `
+        return rows.length > 0 ? "updated" as const : "not_found" as const
+      })
+
+      if (result === "not_found") {
+        return reply.status(404).send({ error: "No Linear connection found. Connect Linear first via OAuth." })
+      }
+
+      return reply.send({ saved: true })
     }
   )
 

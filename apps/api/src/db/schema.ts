@@ -316,6 +316,9 @@ export const linearConnections = pgTable("linear_connections", {
   linear_org_name: varchar("linear_org_name", { length: 255 }),
   team_id: varchar("team_id", { length: 255 }).notNull(),
   team_name: varchar("team_name", { length: 255 }),
+  // Persistent API key (encrypted) — used for all server-to-server API calls.
+  // Unlike OAuth tokens, API keys don't expire.
+  api_key_enc: text("api_key_enc"),
   webhook_signing_secret: text("webhook_signing_secret"),
   connected_by: uuid("connected_by").references(() => users.id, { onDelete: "set null" }),
   connected_at: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
