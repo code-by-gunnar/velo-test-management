@@ -114,21 +114,13 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
 
         const stats = statsRows[0]!
 
-        // 3. Recompute run status: if no untested items remain, auto-complete the run
+        // 3. Recompute run status using already-computed stats (no redundant subqueries)
         const isComplete = stats.untested === 0
         await tx`
           UPDATE test_runs
-          SET status = CASE
-            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = ${runId}::uuid) = 0
-              THEN 'completed'::run_status
-            ELSE 'active'::run_status
-          END,
-          completed_at = CASE
-            WHEN (SELECT COUNT(*) FILTER (WHERE status = 'untested') FROM run_items WHERE run_id = ${runId}::uuid) = 0
-              THEN NOW()
-            ELSE NULL
-          END,
-          updated_at = NOW()
+          SET status = ${isComplete ? "completed" : "active"}::run_status,
+              completed_at = ${isComplete ? tx`NOW()` : tx`NULL`},
+              updated_at = NOW()
           WHERE id = ${runId}::uuid
         `
 
