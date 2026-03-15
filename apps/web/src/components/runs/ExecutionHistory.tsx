@@ -126,9 +126,6 @@ export function ExecutionHistory({ caseId, workspaceId }: ExecutionHistoryProps)
                           <ExternalLink size={9} />
                         </a>
                       )}
-                      {entry.comment && (
-                        <p className="text-xs text-gray-500 mt-0.5 truncate italic">{entry.comment}</p>
-                      )}
                     </div>
                   </li>
                 ))}

@@ -253,6 +253,12 @@ export function ExecutionScreen({
     const trimmed = commentValue.trim()
 
     if (commentSaveTimeout.current) clearTimeout(commentSaveTimeout.current)
+
+    // Update local items array so navigating back shows the saved note
+    setItems((prev) =>
+      prev.map((it) => (it.id === currentItem.id ? { ...it, comment: trimmed || null } : it))
+    )
+
     void fetch(
       `/api/backend/workspaces/${workspaceId}/run-items/${currentItem.id}/comment`,
       {
