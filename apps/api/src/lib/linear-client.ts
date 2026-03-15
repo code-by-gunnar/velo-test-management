@@ -104,12 +104,32 @@ export async function getLinearTeams(
   return data.teams.nodes
 }
 
+// ── Label lookup ────────────────────────────────────────────────────────────
+
+let _cachedBugLabelId: string | null | undefined
+
+/** Look up the "Bug" label ID (cached for the process lifetime) */
+export async function getLinearBugLabelId(accessToken: string): Promise<string | null> {
+  if (_cachedBugLabelId !== undefined) return _cachedBugLabelId
+
+  const data = await linearGraphQL<{
+    issueLabels: { nodes: Array<{ id: string; name: string }> }
+  }>(
+    accessToken,
+    `{ issueLabels(filter: { name: { eq: "Bug" } }, first: 1) { nodes { id name } } }`
+  )
+
+  _cachedBugLabelId = data.issueLabels.nodes[0]?.id ?? null
+  return _cachedBugLabelId
+}
+
 // ── Create issue ────────────────────────────────────────────────────────────
 
 export interface CreateLinearIssueParams {
   teamId: string
   title: string
   description?: string | undefined
+  labelIds?: string[]
 }
 
 export interface LinearIssue {
@@ -126,8 +146,8 @@ export async function createLinearIssue(
     issueCreate: { success: boolean; issue: LinearIssue }
   }>(
     accessToken,
-    `mutation CreateIssue($teamId: String!, $title: String!, $description: String) {
-      issueCreate(input: { teamId: $teamId, title: $title, description: $description }) {
+    `mutation CreateIssue($teamId: String!, $title: String!, $description: String, $labelIds: [String!]) {
+      issueCreate(input: { teamId: $teamId, title: $title, description: $description, labelIds: $labelIds }) {
         success
         issue {
           id
@@ -136,7 +156,7 @@ export async function createLinearIssue(
         }
       }
     }`,
-    { teamId: params.teamId, title: params.title, description: params.description }
+    { teamId: params.teamId, title: params.title, description: params.description, labelIds: params.labelIds }
   )
 
   if (!data.issueCreate.success) {
