@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui"
 import { Link, Unlink, ChevronDown, ExternalLink } from "lucide-react"
 
@@ -181,12 +182,7 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5">
       <div className="flex items-center gap-2 mb-1">
-        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-          <path
-            d="M2.3 46.2A49.9 49.9 0 0 0 46.2 97.7L2.3 46.2Zm3.1 12.1 36.3 42.4A50 50 0 0 0 97.7 53.8L53.8 2.3A50 50 0 0 0 5.4 58.3Zm91.5-12.1L53.8 2.3"
-            fill="#5E6AD2"
-          />
-        </svg>
+        <Image src="/linear-logo.svg" alt="" aria-hidden="true" width={20} height={20} />
         <h4 className="text-sm font-semibold text-gray-900">Linear</h4>
       </div>
 
