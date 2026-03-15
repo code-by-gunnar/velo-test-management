@@ -9,6 +9,22 @@ import { requireEditor } from "../plugins/require-editor.js"
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** Retry an async function up to maxRetries times with exponential backoff */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, baseDelayMs = 1000): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastErr = err
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * (attempt + 1)))
+      }
+    }
+  }
+  throw lastErr
+}
+
 function isUuid(value: string): boolean {
   return UUID_ANY_RE.test(value)
 }
@@ -110,12 +126,12 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
             // Label lookup failed — create issue without label
           }
 
-          const issue = await createLinearIssue(accessToken, {
+          const issue = await withRetry(() => createLinearIssue(accessToken, {
             teamId: connection.team_id,
             title,
             ...(description ? { description } : {}),
             ...(bugLabelId ? { labelIds: [bugLabelId] } : {}),
-          })
+          }))
 
           // Update defect with Linear issue data
           const updated = await withWorkspace(workspaceId, async (tx) => {
