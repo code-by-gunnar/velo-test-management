@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import Anthropic from "@anthropic-ai/sdk"
 
-// Module-level singleton with timeout (25s < Railway's 30s proxy limit)
-const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 25_000 }) : null
+// Module-level singleton — 60s timeout for complex specs that generate many test cases
+const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 60_000 }) : null
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
