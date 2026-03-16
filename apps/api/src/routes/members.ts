@@ -228,39 +228,53 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       // Accept the invitation — mark accepted and add to workspace_members
       let result: { workspace_id: string; role: string } | "already_member" | null = null
 
-      try {
-        result = await withWorkspace(workspaceId, async (tx) => {
-          // Mark invitation as accepted
-          await tx`
-            UPDATE workspace_invitations
-            SET accepted_at = NOW()
-            WHERE id = ${matchedInvitation!.id}::uuid
-          `
+      result = await withWorkspace(workspaceId, async (tx) => {
+        // Mark invitation as accepted
+        await tx`
+          UPDATE workspace_invitations
+          SET accepted_at = NOW()
+          WHERE id = ${matchedInvitation!.id}::uuid
+        `
 
-          // Insert workspace_members row
-          const memberId = uuidv7()
-          await tx`
-            INSERT INTO workspace_members (id, workspace_id, user_id, role)
-            VALUES (${memberId}::uuid, ${workspaceId}::uuid, ${userId}::uuid, ${matchedInvitation!.role})
-          `
+        // Check if user already has a membership row (may be deactivated)
+        const existingMember = await tx`
+          SELECT id, is_active FROM workspace_members
+          WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${userId}::uuid
+        `
 
-          return { workspace_id: workspaceId, role: matchedInvitation!.role }
-        })
-      } catch (err: unknown) {
-        // Unique constraint violation — user is already a member
-        if (
-          err instanceof Error &&
-          "code" in err &&
-          (err as { code: string }).code === "23505"
-        ) {
-          result = "already_member"
-        } else {
-          throw err
+        if (existingMember.length > 0) {
+          const member = existingMember[0] as unknown as { id: string; is_active: boolean }
+          if (!member.is_active) {
+            // Reactivate deactivated member with the invited role
+            await tx`
+              UPDATE workspace_members
+              SET is_active = true, role = ${matchedInvitation!.role}, updated_at = NOW()
+              WHERE id = ${member.id}::uuid
+            `
+
+            // Clear the deactivation blocklist in Valkey (best-effort)
+            try {
+              await fastify.valkey.del(`deactivated:${workspaceId}:${userId}`)
+            } catch { /* Valkey failure is non-fatal */ }
+
+            return { workspace_id: workspaceId, role: matchedInvitation!.role }
+          }
+          // Already an active member
+          return "already_member" as const
         }
-      }
+
+        // New member — insert
+        const memberId = uuidv7()
+        await tx`
+          INSERT INTO workspace_members (id, workspace_id, user_id, role)
+          VALUES (${memberId}::uuid, ${workspaceId}::uuid, ${userId}::uuid, ${matchedInvitation!.role})
+        `
+
+        return { workspace_id: workspaceId, role: matchedInvitation!.role }
+      })
 
       if (result === "already_member") {
-        return reply.status(409).send({ error: "You are already a member of this workspace" })
+        return reply.status(409).send({ error: "You are already an active member of this workspace" })
       }
 
       return reply.send(result)

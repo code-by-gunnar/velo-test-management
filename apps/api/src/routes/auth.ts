@@ -56,9 +56,25 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { email, password, name } = request.body
 
-    // Check for existing user — return generic response to prevent email enumeration
-    const existing = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase()}`
+    // Check for existing user
+    const existing = await sql`SELECT id, email_verified FROM users WHERE email = ${email.toLowerCase()}`
     if (existing.length > 0) {
+      const existingUser = existing[0] as { id: string; email_verified: boolean }
+      if (!existingUser.email_verified) {
+        // Unverified account exists — resend OTP so the user can complete signup
+        const otp = generateOtp()
+        const tokenHash = await bcrypt.hash(otp, 10)
+        const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
+
+        // Invalidate old tokens and create new one
+        await sql`DELETE FROM verification_tokens WHERE user_id = ${existingUser.id}::uuid`
+        await sql`
+          INSERT INTO verification_tokens (id, user_id, token_hash, expires_at, attempt_count)
+          VALUES (${uuidv7()}::uuid, ${existingUser.id}::uuid, ${tokenHash}, ${expiresAt}, 0)
+        `
+        await sendOtpEmail(email, otp)
+      }
+      // Generic response for both verified and unverified (prevents enumeration)
       return reply.send({ message: "If this email is not already registered, a verification code has been sent." })
     }
 
