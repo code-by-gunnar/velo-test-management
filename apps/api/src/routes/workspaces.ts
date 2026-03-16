@@ -28,7 +28,22 @@ function slugify(name: string): string {
 
 const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // ── Auth guard: all workspace routes require a valid session ──────────────
+  // ── Public: workspace slug lookup (used during invite acceptance) ─────────
+  fastify.get<{
+    Params: { workspaceId: string }
+  }>("/api/workspaces/:workspaceId/slug", async (request, reply) => {
+    const { workspaceId } = request.params
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
+      return reply.status(400).send({ error: "Invalid workspaceId" })
+    }
+    const rows = await sql`SELECT slug FROM workspaces WHERE id = ${workspaceId}::uuid`
+    if (rows.length === 0) {
+      return reply.status(404).send({ error: "Workspace not found" })
+    }
+    return reply.send({ slug: (rows[0] as { slug: string }).slug })
+  })
+
+  // ── Auth guard: all workspace routes below require a valid session ────────
   // Without this, unauthenticated requests hit workspace queries with userId = ""
   // which causes a PostgreSQL UUID cast error instead of a clean 401.
   fastify.addHook("preHandler", async (request, reply) => {
