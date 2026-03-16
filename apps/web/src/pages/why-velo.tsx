@@ -1,8 +1,9 @@
 import Link from "next/link"
 import Head from "next/head"
-import Image from "next/image"
 import { Button } from "@/components/ui"
 import { ArrowRight, Sparkles, Keyboard, TrendingDown, X } from "lucide-react"
+import { MarketingNav } from "@/components/layout/marketing-nav"
+import { MarketingFooter } from "@/components/layout/marketing-footer"
 
 const stats = [
   { value: "75%", label: "of testing problems trace to requirements, not tools", source: "TestGuild Survey" },
@@ -30,55 +31,7 @@ export default function WhyVeloPage() {
       </Head>
 
       <div className="min-h-screen bg-mist font-body">
-        {/* Navigation */}
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14">
-              <Link href="/" className="flex items-center gap-2 shrink-0">
-                <Image
-                  src="/velo-mark-cobalt.svg"
-                  alt=""
-                  aria-hidden="true"
-                  width={26}
-                  height={26}
-                  priority
-                />
-                <span className="text-lg font-semibold text-gray-900 font-display">Velo</span>
-              </Link>
-              <nav className="flex items-center gap-3">
-                <Link
-                  href="/why-velo"
-                  className="text-sm font-medium text-primary px-2.5 py-1.5"
-                >
-                  Why Velo
-                </Link>
-                <Link
-                  href="/features"
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
-                >
-                  Features
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
-                >
-                  Pricing
-                </Link>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
-                >
-                  Sign In
-                </Link>
-                <Link href="/signup">
-                  <Button variant="primary" size="sm">
-                    Get Started
-                  </Button>
-                </Link>
-              </nav>
-            </div>
-          </div>
-        </header>
+        <MarketingNav activePath="/why-velo" />
 
         <main>
           {/* ── Section 1: The Problem ──────────────────────────────────────── */}
@@ -260,28 +213,7 @@ export default function WhyVeloPage() {
           </section>
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-gray-200 bg-white">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div className="flex items-center gap-2">
-                <Image src="/velo-mark-cobalt.svg" alt="" aria-hidden="true" width={22} height={22} />
-                <span className="text-sm font-semibold text-gray-900 font-display">Velo</span>
-              </div>
-              <nav className="flex items-center gap-6" aria-label="Footer">
-                <Link href="/why-velo" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Why Velo</Link>
-                <Link href="/features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
-                <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Pricing</Link>
-                <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign In</Link>
-                <Link href="/signup" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign Up</Link>
-                <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Privacy</Link>
-              </nav>
-            </div>
-            <div className="mt-8 pt-6 border-t border-gray-100 text-xs text-gray-400">
-              &copy; {new Date().getFullYear()} Velo Test Management. Built for QA teams that ship.
-            </div>
-          </div>
-        </footer>
+        <MarketingFooter />
       </div>
     </>
   )
