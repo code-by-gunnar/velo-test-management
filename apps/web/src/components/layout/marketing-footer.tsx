@@ -17,6 +17,7 @@ export function MarketingFooter() {
             <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign In</Link>
             <Link href="/signup" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign Up</Link>
             <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Privacy</Link>
+            <a href="mailto:support@runvelo.app" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Contact</a>
           </nav>
         </div>
         <div className="mt-8 pt-6 border-t border-gray-100 text-xs text-gray-400">
