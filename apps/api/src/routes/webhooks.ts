@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -118,6 +119,12 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
           RETURNING id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at
         `
         return rows[0] as Record<string, unknown>
+      })
+
+      captureEvent(request.userId as string, "webhook_created", {
+        workspace_id: workspaceId,
+        project_id: projectId,
+        events,
       })
 
       // Return with secret — shown once

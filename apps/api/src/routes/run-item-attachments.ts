@@ -4,6 +4,7 @@ import { requireEditor } from "../plugins/require-editor.js"
 import { r2Enabled, uploadToR2, getR2PresignedUrl, deleteR2Objects } from "../lib/r2.js"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
+import { captureEvent } from "../lib/posthog.js"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -103,6 +104,11 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
           RETURNING id, filename, content_type, size_bytes, created_at
         `
         return rows[0] as Record<string, unknown>
+      })
+
+      captureEvent(request.userId as string, "evidence_uploaded", {
+        workspace_id: workspaceId,
+        content_type: data.mimetype,
       })
 
       return reply.status(201).send(attachment)

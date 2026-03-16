@@ -6,6 +6,7 @@ import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
 import { emailQueue } from "../queues/email.queue.js"
 import { valkey } from "../lib/valkey.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // Free tier limits — mirrors workspaces.ts constant
 const FREE_TIER_LIMITS = {
@@ -147,6 +148,8 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
           inviterName,
         },
       })
+
+      captureEvent(userId as string, "member_invited", { workspace_id: workspaceId, role })
 
       return reply.status(201).send({
         id: inviteId,
@@ -405,6 +408,8 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Bust Valkey role cache
       await valkey.del(`member_role:${workspaceId}:${targetUserId}`)
+
+      captureEvent(callerId as string, "member_deactivated", { workspace_id: workspaceId, target_user_id: targetUserId })
 
       return reply.send({ deactivated: true })
     }

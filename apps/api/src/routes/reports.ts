@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
+import { captureEvent } from "../lib/posthog.js"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -109,6 +110,11 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Cache for 60 seconds
       await fastify.valkey.set(cacheKey, JSON.stringify(payload), "EX", 60).catch(() => {})
+
+      captureEvent(request.userId as string, "report_viewed", {
+        workspace_id: workspaceId,
+        project_id: projectId,
+      })
 
       return reply.send(payload)
     }

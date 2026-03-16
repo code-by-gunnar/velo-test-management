@@ -3,6 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -183,6 +184,12 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
           completed_at: new Date().toISOString(),
         }).catch(() => {})
       }
+
+      captureEvent(executedBy as string, "run_item_status_changed", {
+        workspace_id: workspaceId,
+        run_id: result.runId,
+        status: result.status,
+      })
 
       return reply.send(result)
     }

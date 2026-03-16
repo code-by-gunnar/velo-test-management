@@ -9,6 +9,7 @@ import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } fr
 import { requireEditor } from "../plugins/require-editor.js"
 import { decrypt } from "../lib/encryption.js"
 import { getLinearIssueDetail } from "../lib/linear-client.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // Free tier limit (shared with workspaces.ts)
 const FREE_TIER_MAX_TEST_CASES = 500
@@ -210,6 +211,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           limit: "max_test_cases",
         })
       }
+
+      captureEvent(request.userId as string, "test_case_created", { workspace_id: workspaceId, project_id: projectId })
 
       return reply.status(201).send({
         id: result.caseId,
@@ -846,6 +849,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         }
       })
 
+      captureEvent(request.userId as string, "test_cases_imported_csv", {
+        workspace_id: workspaceId,
+        project_id: projectId,
+        imported_count: importedCount,
+      })
+
       return reply.status(201).send({ imported: importedCount })
     }
   )
@@ -989,6 +998,12 @@ ${testFormat === "gwt"
             suggestedCases = []
           }
         }
+
+        captureEvent(request.userId as string, "test_cases_imported_linear_ai", {
+          workspace_id: workspaceId,
+          project_id: projectId,
+          suggested_count: suggestedCases.length,
+        })
 
         return reply.send({
           issue: {
