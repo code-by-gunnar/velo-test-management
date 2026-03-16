@@ -11,6 +11,7 @@
     "deploy:production": "git checkout master && git merge staging --no-edit && git push origin master && echo '✓ Deployed to runvelo.app'"
   },
   "devDependencies": {
+    "playwright": "^1.58.2",
     "typescript": "^5.7.0"
   },
   "engines": {

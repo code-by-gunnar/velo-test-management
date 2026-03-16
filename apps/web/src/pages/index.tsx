@@ -128,6 +128,12 @@ export default function Home() {
                   Why Velo
                 </Link>
                 <Link
+                  href="/features"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
+                >
+                  Features
+                </Link>
+                <Link
                   href="/pricing"
                   className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
                 >
@@ -343,6 +349,9 @@ export default function Home() {
               <nav className="flex items-center gap-6" aria-label="Footer">
                 <Link href="/why-velo" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Why Velo
+                </Link>
+                <Link href="/features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                  Features
                 </Link>
                 <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
                   Pricing
