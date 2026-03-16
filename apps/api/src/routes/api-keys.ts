@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { sql } from "../db/client.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -99,6 +100,8 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
           )
         `
       })
+
+      captureEvent(request.userId as string, "api_key_created", { workspace_id: workspaceId })
 
       return reply.status(201).send({
         id: keyId,

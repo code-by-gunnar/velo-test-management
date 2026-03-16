@@ -3,6 +3,7 @@ import { sql } from "../db/client.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { sendLifecycleEmails } from "../lib/email.js"
+import { captureEvent } from "../lib/posthog.js"
 
 const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -65,6 +66,11 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
 
     await logAuditEvent("workspace", workspaceId, "requested", {
       requested_by: userId,
+      scheduled_at: scheduledAt.toISOString(),
+    })
+
+    captureEvent(userId as string, "workspace_deletion_requested", {
+      workspace_id: workspaceId,
       scheduled_at: scheduledAt.toISOString(),
     })
 

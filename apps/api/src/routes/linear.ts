@@ -9,6 +9,7 @@ import {
   getLinearTeams,
   createLinearWebhook,
 } from "../lib/linear-client.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // Extend Fastify route config to support skipAuth flag
 declare module "fastify" {
@@ -190,6 +191,8 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
           JSON.stringify(teams),
           "EX", 300
         )
+
+        captureEvent(parsed.userId, "linear_connected", { workspace_id: workspaceId })
 
         // Redirect back to frontend settings with success flag
         // Frontend will detect this and show team selection
@@ -401,6 +404,8 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       if (result === "not_found") {
         return reply.status(404).send({ error: "No Linear connection found" })
       }
+
+      captureEvent(request.userId as string, "linear_disconnected", { workspace_id: workspaceId })
 
       return reply.send({ disconnected: true })
     }
