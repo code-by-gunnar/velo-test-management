@@ -157,7 +157,7 @@ function MappingStep({
     <div className="flex flex-col gap-4">
       <div className="text-sm text-gray-500">
         File: <span className="font-medium text-gray-800">{fileName}</span>
-        {rowCount > 0 && <span className="ml-2 text-gray-400">({rowCount} rows preview)</span>}
+        {rowCount > 0 && <span className="ml-2 text-gray-400">({rowCount} rows total, showing first {Math.min(preview.length, 10)})</span>}
       </div>
 
       {/* Column mapping controls */}
@@ -165,7 +165,7 @@ function MappingStep({
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
           Column Mapping
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {/* Title — required */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-700">
@@ -368,7 +368,7 @@ export function ImportModal({
       }}
     >
       {/* Modal box */}
-      <div className="relative w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-4xl rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 className="text-base font-semibold text-gray-900">Import Test Cases</h2>
@@ -399,7 +399,7 @@ export function ImportModal({
               onMappingChange={setColumnMapping}
               onBack={handleBack}
               onImport={() => void runImport()}
-              rowCount={state.preview.length}
+              rowCount={state.totalRows}
             />
           )}
 
