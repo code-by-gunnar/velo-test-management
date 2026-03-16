@@ -26,7 +26,7 @@ Never guess at root causes. Always pull logs first.
 
 ```bash
 railway logs --tail 50                    # API errors, DB errors, startup failures
-vercel logs https://velo-test-management.vercel.app --limit 50  # Frontend, gateway 5xx, SSR
+vercel logs https://runvelo.app --limit 50  # Frontend, gateway 5xx, SSR
 gh run list --limit 5 && gh run view <id> --log-failed          # CI failures
 ```
 
@@ -245,9 +245,9 @@ velo-test-management/
 
 | Service | URL |
 |---------|-----|
-| Web (prod) | https://velo-test-management.vercel.app |
-| API (prod) | https://velo-test-management-production.up.railway.app |
-| API health | https://velo-test-management-production.up.railway.app/health |
+| Web (prod) | https://runvelo.app |
+| API (prod) | https://api.runvelo.app |
+| API health | https://api.runvelo.app/health |
 | Web (local) | http://localhost:3000 |
 | API (local) | http://localhost:3001 |
 

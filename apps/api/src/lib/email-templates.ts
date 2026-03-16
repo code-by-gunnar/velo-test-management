@@ -9,7 +9,7 @@ const TEXT_SECONDARY = "#6B6560"
 const BORDER = "#E8E4DE"
 
 // Logo hosted on the web app's public folder — email clients block data URIs
-const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+const WEB_URL = process.env.WEB_URL ?? "https://runvelo.app"
 const LOGO_URL = `${WEB_URL}/velo-lockup-light.svg`
 
 function layout(content: string): string {

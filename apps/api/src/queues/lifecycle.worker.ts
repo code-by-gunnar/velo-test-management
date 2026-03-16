@@ -148,6 +148,9 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           console.error("[lifecycle-worker] Failed to send user erasure completion email:", err)
         }
 
+        // Delete OAuth account links (provider_account_id is PII)
+        await sql`DELETE FROM user_oauth_accounts WHERE user_id = ${userId}::uuid`
+
         // PII anonymization
         const anonEmail = `deleted-${erasureRequestId}@deleted.invalid`
         await sql`
@@ -222,7 +225,7 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
       }
       case "lifecycle-warning": {
         const { warningType, entityId } = job.data
-        const WEB_URL_WARN = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+        const WEB_URL_WARN = process.env.WEB_URL ?? "https://runvelo.app"
 
         if (warningType === "workspace-deletion") {
           const [ws] = await sql<{ name: string; deletion_scheduled_at: string; deletion_status: string | null }[]>`
