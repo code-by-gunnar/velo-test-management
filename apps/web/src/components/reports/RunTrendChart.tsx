@@ -14,7 +14,7 @@ interface RunTrendChartProps {
   data: RunTrendEntry[]
 }
 
-const CHART_HEIGHT = 200
+const CHART_HEIGHT = 140
 const BAR_GAP = 4
 const PADDING = { top: 24, right: 48, bottom: 48, left: 40 }
 
