@@ -95,7 +95,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
     <>
     <aside
       className={clsx(
-        "flex h-screen shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-200",
+        "flex h-full shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-200",
         collapsed ? "w-sidebar-collapsed" : "w-sidebar"
       )}
       aria-label="Main navigation"
