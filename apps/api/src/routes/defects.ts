@@ -5,6 +5,7 @@ import { decrypt } from "../lib/encryption.js"
 import { createLinearIssue, createLinearAttachmentLink, getLinearBugLabelId } from "../lib/linear-client.js"
 import { r2Enabled, getR2PresignedUrl } from "../lib/r2.js"
 import { requireEditor } from "../plugins/require-editor.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -102,6 +103,8 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
 
         return rows[0] as Record<string, unknown>
       })
+
+      captureEvent(createdBy as string, "defect_filed", { workspace_id: workspaceId })
 
       // Step 2: After transaction commits, attempt Linear auto-filing
       // Defect is saved regardless of what happens below

@@ -34,6 +34,7 @@
     "jose": "^6.2.1",
     "papaparse": "^5.5.3",
     "postgres": "^3.4.8",
+    "posthog-node": "^5.28.2",
     "resend": "^6.9.3",
     "uuidv7": "^1.1.0"
   },

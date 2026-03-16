@@ -31,6 +31,7 @@ import exportRoutes from "./routes/export.js"
 import attachmentRoutes from "./routes/run-item-attachments.js"
 import reportsRoutes from "./routes/reports.js"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
+import { shutdownPostHog } from "./lib/posthog.js"
 
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
@@ -278,3 +279,12 @@ await fastify.listen({
 })
 
 fastify.log.info(`Velo API listening on port ${port}`)
+
+// Flush PostHog events on graceful shutdown
+const shutdown = async () => {
+  await shutdownPostHog()
+  await fastify.close()
+  process.exit(0)
+}
+process.once("SIGTERM", shutdown)
+process.once("SIGINT", shutdown)

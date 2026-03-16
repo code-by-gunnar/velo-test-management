@@ -5,6 +5,7 @@ import { parseJUnitXml } from "../lib/junit-parser.js"
 import { parseAllureJson } from "../lib/allure-parser.js"
 import { uploadToR2, buildR2Key, getR2PresignedUrl, r2Enabled } from "../lib/r2.js"
 import { verifyApiKey } from "./api-keys.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -215,6 +216,14 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       totalTests = txResult.total
       matchedTests = txResult.matched
 
+      captureEvent(workspaceId, "ci_results_ingested", {
+        format: "junit",
+        workspace_id: workspaceId,
+        project_id: projectId,
+        total_tests: totalTests,
+        matched_tests: matchedTests,
+      })
+
       return reply.status(201).send({
         ingestion_id: ingestionId,
         run_id: runId,
@@ -404,6 +413,14 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         `
 
         return { newRunId, total, matched }
+      })
+
+      captureEvent(workspaceId, "ci_results_ingested", {
+        format: "allure",
+        workspace_id: workspaceId,
+        project_id: projectId,
+        total_tests: txResult.total,
+        matched_tests: txResult.matched,
       })
 
       return reply.status(201).send({

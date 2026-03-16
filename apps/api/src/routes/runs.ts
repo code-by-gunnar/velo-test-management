@@ -7,6 +7,7 @@ import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -137,6 +138,13 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       if (result === null) {
         return reply.status(400).send({ error: "No test cases match the selected scope" })
       }
+
+      captureEvent(request.userId as string, "test_run_created", {
+        workspace_id: workspaceId,
+        project_id,
+        item_count: result.item_count,
+        has_suite_filter: (suite_ids?.length ?? 0) > 0,
+      })
 
       return reply.status(201).send({
         id: result.runId,

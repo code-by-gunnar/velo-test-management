@@ -6,6 +6,7 @@ import { uuidv7 } from "uuidv7"
 import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
+import { captureEvent } from "../lib/posthog.js"
 
 const BCRYPT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 15
@@ -97,6 +98,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     `
 
     await sendOtpEmail(email, otp)
+    captureEvent(userId, "user_signed_up", { method: "email" })
 
     return reply.status(201).send({ message: "If this email is not already registered, a verification code has been sent." })
   })
@@ -169,6 +171,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       await q`UPDATE verification_tokens SET used_at = NOW() WHERE id = ${token.id}::uuid`
       await q`UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = ${user.id}::uuid`
     })
+    captureEvent(user.id as string, "email_verified")
 
     return reply.send({ message: "Email verified. You can now sign in." })
   })

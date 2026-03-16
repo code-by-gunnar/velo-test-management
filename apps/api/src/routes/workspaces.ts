@@ -3,6 +3,7 @@ import type postgres from "postgres"
 import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
+import { captureEvent } from "../lib/posthog.js"
 
 // postgres.js TransactionSql has its call signatures omitted by TypeScript's Omit<>.
 // Cast tx through unknown to postgres.Sql to enable template tag calls inside sql.begin().
@@ -96,6 +97,8 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
         VALUES (${memberId}::uuid, ${workspaceId}::uuid, ${userId}::uuid, 'admin')
       `
     })
+
+    captureEvent(userId as string, "workspace_created", { workspace_id: workspaceId, plan_tier: "free" })
 
     return reply.status(201).send({
       id: workspaceId,
