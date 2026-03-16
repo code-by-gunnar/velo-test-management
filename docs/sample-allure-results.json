@@ -1,0 +1,245 @@
+[
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000001",
+    "name": "User can sign in with valid credentials",
+    "fullName": "auth.login#User can sign in with valid credentials",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680000000,
+    "stop": 1773680003210,
+    "labels": [
+      { "name": "suite", "value": "Login & Authentication" },
+      { "name": "severity", "value": "critical" }
+    ],
+    "steps": [
+      { "name": "Navigate to login page", "status": "passed", "start": 1773680000000, "stop": 1773680001000 },
+      { "name": "Enter valid credentials", "status": "passed", "start": 1773680001000, "stop": 1773680002500 },
+      { "name": "Verify dashboard loads", "status": "passed", "start": 1773680002500, "stop": 1773680003210 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000002",
+    "name": "User sees error on invalid password",
+    "fullName": "auth.login#User sees error on invalid password",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680004000,
+    "stop": 1773680006150,
+    "labels": [
+      { "name": "suite", "value": "Login & Authentication" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Navigate to login page", "status": "passed", "start": 1773680004000, "stop": 1773680004800 },
+      { "name": "Enter invalid password", "status": "passed", "start": 1773680004800, "stop": 1773680005500 },
+      { "name": "Verify error message displayed", "status": "passed", "start": 1773680005500, "stop": 1773680006150 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000003",
+    "name": "User can reset password via email",
+    "fullName": "auth.password#User can reset password via email",
+    "status": "failed",
+    "stage": "finished",
+    "start": 1773680007000,
+    "stop": 1773680011890,
+    "statusDetails": {
+      "message": "Reset email not received within timeout",
+      "trace": "AssertionError: Expected email received within 10s\n  at PasswordResetTest.testResetEmail (PasswordResetTest.java:45)"
+    },
+    "labels": [
+      { "name": "suite", "value": "Login & Authentication" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Navigate to forgot password page", "status": "passed", "start": 1773680007000, "stop": 1773680008000 },
+      { "name": "Enter registered email", "status": "passed", "start": 1773680008000, "stop": 1773680009000 },
+      { "name": "Wait for reset email", "status": "failed", "start": 1773680009000, "stop": 1773680011890 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000004",
+    "name": "User can sign out and session is cleared",
+    "fullName": "auth.session#User can sign out and session is cleared",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680012000,
+    "stop": 1773680014200,
+    "labels": [
+      { "name": "suite", "value": "Login & Authentication" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Click sign out button", "status": "passed", "start": 1773680012000, "stop": 1773680013000 },
+      { "name": "Verify redirect to login", "status": "passed", "start": 1773680013000, "stop": 1773680013800 },
+      { "name": "Verify session cookie cleared", "status": "passed", "start": 1773680013800, "stop": 1773680014200 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000005",
+    "name": "Dashboard loads within 2 seconds",
+    "fullName": "dashboard.performance#Dashboard loads within 2 seconds",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680015000,
+    "stop": 1773680016830,
+    "labels": [
+      { "name": "suite", "value": "Dashboard & Navigation" },
+      { "name": "severity", "value": "critical" }
+    ],
+    "steps": [
+      { "name": "Sign in", "status": "passed", "start": 1773680015000, "stop": 1773680015800 },
+      { "name": "Measure dashboard load time", "status": "passed", "start": 1773680015800, "stop": 1773680016830 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000006",
+    "name": "Sidebar collapses and state persists on refresh",
+    "fullName": "dashboard.sidebar#Sidebar collapses and state persists on refresh",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680017000,
+    "stop": 1773680020450,
+    "labels": [
+      { "name": "suite", "value": "Dashboard & Navigation" },
+      { "name": "severity", "value": "minor" }
+    ],
+    "steps": [
+      { "name": "Click collapse button", "status": "passed", "start": 1773680017000, "stop": 1773680018200 },
+      { "name": "Refresh page", "status": "passed", "start": 1773680018200, "stop": 1773680019500 },
+      { "name": "Verify sidebar still collapsed", "status": "passed", "start": 1773680019500, "stop": 1773680020450 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000007",
+    "name": "Search returns relevant results",
+    "fullName": "search.basic#Search returns relevant results",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680021000,
+    "stop": 1773680023340,
+    "labels": [
+      { "name": "suite", "value": "Search & Filtering" },
+      { "name": "severity", "value": "critical" }
+    ],
+    "steps": [
+      { "name": "Navigate to search page", "status": "passed", "start": 1773680021000, "stop": 1773680021800 },
+      { "name": "Enter search term", "status": "passed", "start": 1773680021800, "stop": 1773680022500 },
+      { "name": "Verify results are relevant", "status": "passed", "start": 1773680022500, "stop": 1773680023340 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000008",
+    "name": "Empty search shows helpful state",
+    "fullName": "search.empty#Empty search shows helpful state",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680024000,
+    "stop": 1773680025120,
+    "labels": [
+      { "name": "suite", "value": "Search & Filtering" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Enter gibberish search term", "status": "passed", "start": 1773680024000, "stop": 1773680024500 },
+      { "name": "Verify empty state message", "status": "passed", "start": 1773680024500, "stop": 1773680025120 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000009",
+    "name": "Pagination works on long lists",
+    "fullName": "search.pagination#Pagination works on long lists",
+    "status": "failed",
+    "stage": "finished",
+    "start": 1773680026000,
+    "stop": 1773680030560,
+    "statusDetails": {
+      "message": "Second page returned duplicate items",
+      "trace": "AssertionError: Expected page 2 unique from page 1\n  3 duplicates found: Product A, Product B, Product C\n  at PaginationTest.testNoDuplicates (PaginationTest.java:78)"
+    },
+    "labels": [
+      { "name": "suite", "value": "Search & Filtering" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Navigate to page with 50+ items", "status": "passed", "start": 1773680026000, "stop": 1773680027000 },
+      { "name": "Click next page", "status": "passed", "start": 1773680027000, "stop": 1773680028500 },
+      { "name": "Verify no duplicates", "status": "failed", "start": 1773680028500, "stop": 1773680030560 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000010",
+    "name": "Filter by category narrows results",
+    "fullName": "search.filter#Filter by category narrows results",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680031000,
+    "stop": 1773680034210,
+    "labels": [
+      { "name": "suite", "value": "Search & Filtering" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Select category filter", "status": "passed", "start": 1773680031000, "stop": 1773680032000 },
+      { "name": "Verify filtered results", "status": "passed", "start": 1773680032000, "stop": 1773680034210 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000011",
+    "name": "User can update profile name",
+    "fullName": "profile.edit#User can update profile name",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680035000,
+    "stop": 1773680037340,
+    "labels": [
+      { "name": "suite", "value": "Profile & Settings" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Navigate to profile", "status": "passed", "start": 1773680035000, "stop": 1773680035800 },
+      { "name": "Change display name", "status": "passed", "start": 1773680035800, "stop": 1773680036500 },
+      { "name": "Verify name saved", "status": "passed", "start": 1773680036500, "stop": 1773680037340 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000012",
+    "name": "User can upload avatar",
+    "fullName": "profile.avatar#User can upload avatar",
+    "status": "passed",
+    "stage": "finished",
+    "start": 1773680038000,
+    "stop": 1773680042120,
+    "labels": [
+      { "name": "suite", "value": "Profile & Settings" },
+      { "name": "severity", "value": "minor" }
+    ],
+    "steps": [
+      { "name": "Click upload", "status": "passed", "start": 1773680038000, "stop": 1773680039500 },
+      { "name": "Select image file", "status": "passed", "start": 1773680039500, "stop": 1773680040800 },
+      { "name": "Verify avatar updated", "status": "passed", "start": 1773680040800, "stop": 1773680042120 }
+    ]
+  },
+  {
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-100000000013",
+    "name": "Email notification preferences save correctly",
+    "fullName": "profile.notifications#Email notification preferences save correctly",
+    "status": "failed",
+    "stage": "finished",
+    "start": 1773680043000,
+    "stop": 1773680045560,
+    "statusDetails": {
+      "message": "Notification toggle state not persisted after page reload",
+      "trace": "AssertionError: Expected email_notifications=false after toggle+reload\n  Actual: email_notifications=true\n  at NotificationPrefsTest.testTogglePersistence (NotificationPrefsTest.java:33)"
+    },
+    "labels": [
+      { "name": "suite", "value": "Profile & Settings" },
+      { "name": "severity", "value": "normal" }
+    ],
+    "steps": [
+      { "name": "Toggle email notifications off", "status": "passed", "start": 1773680043000, "stop": 1773680043800 },
+      { "name": "Reload page", "status": "passed", "start": 1773680043800, "stop": 1773680044800 },
+      { "name": "Verify toggle state persisted", "status": "failed", "start": 1773680044800, "stop": 1773680045560 }
+    ]
+  }
+]

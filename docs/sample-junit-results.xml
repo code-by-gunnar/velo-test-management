@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Velo Demo Regression" tests="15" failures="3" errors="0" skipped="1" time="42.831">
+  <testsuite name="Login & Authentication" tests="4" failures="1" errors="0" skipped="0" time="12.450">
+    <testcase name="User can sign in with valid credentials" classname="auth.login" time="3.210">
+    </testcase>
+    <testcase name="User sees error on invalid password" classname="auth.login" time="2.150">
+    </testcase>
+    <testcase name="User can reset password via email" classname="auth.password" time="4.890">
+      <failure message="Reset email not received within timeout" type="AssertionError">
+Expected: email received within 10s
+Actual: timeout after 10s waiting for email
+
+at PasswordResetTest.testResetEmail (PasswordResetTest.java:45)
+at sun.reflect.NativeMethodAccessorImpl.invoke0 (Native Method)
+      </failure>
+    </testcase>
+    <testcase name="User can sign out and session is cleared" classname="auth.session" time="2.200">
+    </testcase>
+  </testsuite>
+
+  <testsuite name="Dashboard & Navigation" tests="3" failures="0" errors="0" skipped="1" time="8.120">
+    <testcase name="Dashboard loads within 2 seconds" classname="dashboard.performance" time="1.830">
+    </testcase>
+    <testcase name="Sidebar collapses and state persists on refresh" classname="dashboard.sidebar" time="3.450">
+    </testcase>
+    <testcase name="Dark mode toggle is accessible" classname="dashboard.accessibility" time="0.000">
+      <skipped message="Feature not yet implemented" />
+    </testcase>
+  </testsuite>
+
+  <testsuite name="Search & Filtering" tests="4" failures="1" errors="0" skipped="0" time="11.230">
+    <testcase name="Search returns relevant results" classname="search.basic" time="2.340">
+    </testcase>
+    <testcase name="Empty search shows helpful state" classname="search.empty" time="1.120">
+    </testcase>
+    <testcase name="Pagination works on long lists" classname="search.pagination" time="4.560">
+      <failure message="Second page returned duplicate items" type="AssertionError">
+Expected: page 2 items unique from page 1
+Actual: 3 items duplicated across pages
+
+Items duplicated: ["Product A", "Product B", "Product C"]
+at PaginationTest.testNoDuplicates (PaginationTest.java:78)
+      </failure>
+    </testcase>
+    <testcase name="Filter by category narrows results" classname="search.filter" time="3.210">
+    </testcase>
+  </testsuite>
+
+  <testsuite name="Profile & Settings" tests="4" failures="1" errors="0" skipped="0" time="11.031">
+    <testcase name="User can update profile name" classname="profile.edit" time="2.340">
+    </testcase>
+    <testcase name="User can upload avatar" classname="profile.avatar" time="4.120">
+    </testcase>
+    <testcase name="Email notification preferences save correctly" classname="profile.notifications" time="2.560">
+      <failure message="Notification toggle state not persisted after page reload" type="AssertionError">
+Expected: email_notifications = false after toggle off + reload
+Actual: email_notifications = true
+
+at NotificationPrefsTest.testTogglePersistence (NotificationPrefsTest.java:33)
+      </failure>
+    </testcase>
+    <testcase name="Account deletion shows confirmation dialog" classname="profile.deletion" time="2.011">
+    </testcase>
+  </testsuite>
+</testsuites>
