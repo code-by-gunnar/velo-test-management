@@ -123,9 +123,14 @@ export function LinearImportModal({
               </div>
 
               {state.status === "fetching" && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Loader2 size={14} className="animate-spin" />
-                  Fetching issue and generating test cases…
+                <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Loader2 size={14} className="animate-spin text-primary" />
+                    Fetching issue and generating test cases…
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    Detailed specs with many acceptance criteria may take up to a minute.
+                  </p>
                 </div>
               )}
 
