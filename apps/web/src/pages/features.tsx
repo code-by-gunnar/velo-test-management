@@ -1,8 +1,9 @@
+import { useState } from "react"
 import Link from "next/link"
 import Head from "next/head"
 import Image from "next/image"
 import { Button } from "@/components/ui"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, X } from "lucide-react"
 import { MarketingNav } from "@/components/layout/marketing-nav"
 import { MarketingFooter } from "@/components/layout/marketing-footer"
 
@@ -10,8 +11,8 @@ const features = [
   {
     title: "AI Spec-to-Test Conversion",
     description: "Paste a Linear issue ID and AI generates structured test cases from the acceptance criteria. Traditional steps or BDD — your choice. Review, tweak, import. Specs become tests before the sprint starts.",
-    screenshot: "/screenshots/test-cases-traditional.png",
-    alt: "Velo test cases list with suites, priorities, and step counts",
+    screenshot: "/screenshots/linear-import.png",
+    alt: "Velo AI import from Linear showing generated test cases from acceptance criteria",
   },
   {
     title: "Native Given-When-Then Editor",
@@ -40,6 +41,8 @@ const features = [
 ]
 
 export default function FeaturesPage() {
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
   return (
     <>
       <Head>
@@ -83,9 +86,13 @@ export default function FeaturesPage() {
                     </p>
                   </div>
 
-                  {/* Screenshot */}
+                  {/* Screenshot — click to enlarge */}
                   <div className="lg:w-3/5">
-                    <div className="rounded-xl border border-gray-200 shadow-card overflow-hidden bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxSrc(feature.screenshot)}
+                      className="w-full rounded-xl border border-gray-200 shadow-card overflow-hidden bg-white cursor-zoom-in hover:shadow-dropdown transition-shadow"
+                    >
                       <Image
                         src={feature.screenshot}
                         alt={feature.alt}
@@ -94,7 +101,7 @@ export default function FeaturesPage() {
                         className="w-full h-auto"
                         quality={90}
                       />
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -123,6 +130,32 @@ export default function FeaturesPage() {
         </main>
 
         <MarketingFooter />
+
+        {/* Lightbox */}
+        {lightboxSrc && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 cursor-zoom-out"
+            onClick={() => setLightboxSrc(null)}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxSrc(null)}
+              className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+              aria-label="Close"
+            >
+              <X size={24} />
+            </button>
+            <Image
+              src={lightboxSrc}
+              alt="Enlarged screenshot"
+              width={1440}
+              height={900}
+              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
+              quality={95}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
       </div>
     </>
   )
