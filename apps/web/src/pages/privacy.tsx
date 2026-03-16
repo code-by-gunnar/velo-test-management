@@ -42,8 +42,8 @@ export default function PrivacyPage() {
               </p>
               <p>
                 Contact:{" "}
-                <a href="mailto:privacy@runvelo.app" className="text-primary hover:underline">
-                  privacy@runvelo.app
+                <a href="mailto:support@runvelo.app" className="text-primary hover:underline">
+                  support@runvelo.app
                 </a>
               </p>
             </Section>
@@ -172,8 +172,8 @@ export default function PrivacyPage() {
               </ul>
               <p>
                 To exercise any of these rights, email{" "}
-                <a href="mailto:privacy@runvelo.app" className="text-primary hover:underline">
-                  privacy@runvelo.app
+                <a href="mailto:support@runvelo.app" className="text-primary hover:underline">
+                  support@runvelo.app
                 </a>
                 .
               </p>
@@ -206,8 +206,8 @@ export default function PrivacyPage() {
               </p>
               <p className="flex items-center gap-2">
                 <Mail size={16} className="text-gray-400" />
-                <a href="mailto:privacy@runvelo.app" className="text-primary hover:underline">
-                  privacy@runvelo.app
+                <a href="mailto:support@runvelo.app" className="text-primary hover:underline">
+                  support@runvelo.app
                 </a>
               </p>
             </Section>
