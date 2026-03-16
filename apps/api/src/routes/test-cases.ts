@@ -961,7 +961,7 @@ ${testFormat === "gwt"
         }
         const message = await anthropicClient.messages.create({
           model: "claude-sonnet-4-5",
-          max_tokens: 2000,
+          max_tokens: 4096,
           messages: [{ role: "user", content: prompt }],
         })
 
@@ -975,11 +975,17 @@ ${testFormat === "gwt"
           suggestedCases = JSON.parse(text)
           if (!Array.isArray(suggestedCases)) suggestedCases = []
         } catch {
-          // If Claude returned markdown-wrapped JSON, try to extract it
-          const jsonMatch = text.match(/\[[\s\S]*\]/)
-          if (jsonMatch) {
-            suggestedCases = JSON.parse(jsonMatch[0])
-          } else {
+          // If Claude returned markdown-wrapped JSON or truncated output, try to extract
+          try {
+            const jsonMatch = text.match(/\[[\s\S]*\]/)
+            if (jsonMatch) {
+              suggestedCases = JSON.parse(jsonMatch[0])
+            } else {
+              suggestedCases = []
+            }
+          } catch {
+            // JSON is malformed (truncated, trailing comma, etc.) — return empty
+            fastify.log.warn({ textLength: text.length }, "Claude returned unparseable JSON for linear-import")
             suggestedCases = []
           }
         }
