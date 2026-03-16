@@ -21,6 +21,7 @@ export interface ImportState {
   file: File | null
   headers: string[]
   preview: ParsedRow[]
+  totalRows: number
   columnMapping: ColumnMapping
   error: string | null
   importedCount: number
@@ -61,6 +62,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
     file: null,
     headers: [],
     preview: [],
+    totalRows: 0,
     columnMapping: EMPTY_MAPPING,
     error: null,
     importedCount: 0,
@@ -79,7 +81,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
 
     setState((prev) => ({ ...prev, status: "file-selected", file, error: null }))
 
-    // Client-side preview using papaparse
+    // Client-side preview using papaparse (10 rows for display)
     Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
@@ -87,13 +89,34 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
       complete: (result) => {
         const headers = result.meta.fields ?? []
         const mapping = detectColumnMapping(headers)
-        setState((prev) => ({
-          ...prev,
-          status: "previewing",
-          headers,
-          preview: result.data,
-          columnMapping: mapping,
-        }))
+        const previewData = result.data
+
+        // Count total rows (separate quick parse without preview limit)
+        Papa.parse<Record<string, string>>(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (fullResult) => {
+            setState((prev) => ({
+              ...prev,
+              status: "previewing",
+              headers,
+              preview: previewData,
+              totalRows: fullResult.data.length,
+              columnMapping: mapping,
+            }))
+          },
+          error: () => {
+            // Fallback to preview count
+            setState((prev) => ({
+              ...prev,
+              status: "previewing",
+              headers,
+              preview: previewData,
+              totalRows: previewData.length,
+              columnMapping: mapping,
+            }))
+          },
+        })
       },
       error: (err) => {
         setState((prev) => ({
@@ -166,6 +189,7 @@ export function useImport({ workspaceId, projectId, onSuccess }: UseImportOption
       file: null,
       headers: [],
       preview: [],
+      totalRows: 0,
       columnMapping: EMPTY_MAPPING,
       error: null,
       importedCount: 0,
