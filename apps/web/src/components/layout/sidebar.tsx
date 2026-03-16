@@ -20,6 +20,7 @@ import {
   User,
   Plus,
   Check,
+  MessageCircle,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -267,6 +268,18 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             {!collapsed && <span>Workspace Settings</span>}
           </span>
         )}
+        {/* Feedback */}
+        <a
+          href="mailto:support@runvelo.app?subject=Feedback"
+          title={collapsed ? "Give Feedback" : undefined}
+          className={clsx(
+            "flex items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors",
+            collapsed ? "justify-center px-2" : "px-3"
+          )}
+        >
+          <MessageCircle size={ICON_SIZE} className="shrink-0" />
+          {!collapsed && <span>Give Feedback</span>}
+        </a>
       </nav>
 
       {/* User section */}
