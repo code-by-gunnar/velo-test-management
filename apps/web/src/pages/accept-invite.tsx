@@ -41,8 +41,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   // Look up workspace slug from the API
   const apiBase =
+    process.env.API_URL ??
     process.env.BACKEND_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
     "http://localhost:3001"
 
   const cookie = context.req.headers.cookie ?? ""
@@ -52,6 +52,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     ""
 
   try {
+    // Fetch workspaces the user belongs to and find the matching one
     const res = await fetch(`${apiBase}/api/workspaces`, {
       headers: {
         Authorization: `Bearer ${sessionToken}`,
@@ -66,6 +67,21 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         return {
           redirect: {
             destination: `/app/${match.slug}/accept-invite?token=${token}&workspace=${workspace}`,
+            permanent: false,
+          },
+        }
+      }
+    }
+
+    // User may not be a member yet (new signup from invite).
+    // Look up slug via the public workspace info endpoint.
+    const slugRes = await fetch(`${apiBase}/api/workspaces/${workspace}/slug`)
+    if (slugRes.ok) {
+      const slugData = (await slugRes.json()) as { slug: string }
+      if (slugData.slug) {
+        return {
+          redirect: {
+            destination: `/app/${slugData.slug}/accept-invite?token=${token}&workspace=${workspace}`,
             permanent: false,
           },
         }
