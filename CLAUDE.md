@@ -248,6 +248,8 @@ velo-test-management/
 | Web (prod) | https://runvelo.app |
 | API (prod) | https://api.runvelo.app |
 | API health | https://api.runvelo.app/health |
+| Web (staging) | https://staging.runvelo.app |
+| API (staging) | https://api-staging.runvelo.app |
 | Web (local) | http://localhost:3000 |
 | API (local) | http://localhost:3001 |
 
