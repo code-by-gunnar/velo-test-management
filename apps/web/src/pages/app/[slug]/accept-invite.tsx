@@ -21,7 +21,7 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
   const startedRef = useRef(false)
 
   const acceptInvite = useCallback(
-    (onSuccess: () => void, onError: (msg: string) => void) => {
+    (onSuccess: (role: string) => void, onError: (msg: string) => void) => {
       fetch(`/api/backend/workspaces/${workspaceId}/invitations/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,7 +33,8 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
             onError(body.message ?? "Invalid or expired invitation.")
             return
           }
-          onSuccess()
+          const data = await res.json() as { workspace_id: string; role: string }
+          onSuccess(data.role)
         })
         .catch(() => {
           onError("An unexpected error occurred. Please try again.")
@@ -47,15 +48,13 @@ export default function AcceptInvitePage({ slug, workspaceId, token }: AcceptInv
     startedRef.current = true
 
     acceptInvite(
-      () => {
+      async (role) => {
         setState("success")
-        // Refresh JWT with new workspace_id/slug so requireAuth
-        // doesn't bounce to /onboarding on the next page load
-        void update({ workspace_id: workspaceId, workspace_slug: slug }).then(() => {
-          setTimeout(() => {
-            void router.push(`/app/${slug}`)
-          }, 2000)
-        })
+        // Refresh JWT with workspace_id, slug, AND role
+        await update({ workspace_id: workspaceId, workspace_slug: slug, role })
+        setTimeout(() => {
+          void router.push(`/app/${slug}`)
+        }, 2000)
       },
       (msg) => {
         setErrorMessage(msg)
