@@ -288,12 +288,12 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       )
       if (projectRows.length === 0) return reply.status(400).send({ error: "No project found to seed" })
 
-      const project = projectRows[0]!
+      const project = projectRows[0] as { id: string; test_format?: string }
+      const isGwt = project.test_format === "gwt"
       const suiteAId = uuidv7()
       const suiteBId = uuidv7()
 
       await withWorkspace(workspaceId, async (tx) => {
-        // Create 2 sample suites
         await tx`
           INSERT INTO suites (id, workspace_id, project_id, name, position)
           VALUES
@@ -301,13 +301,73 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
             (${suiteBId}::uuid, ${workspaceId}::uuid, ${project.id}::uuid, 'Dashboard & Navigation', 2000)
         `
 
-        // Create 5 sample test cases across the two suites
+        const traditionalSteps = {
+          signIn: [
+            { action: "Navigate to the login page", expected: "Login form is displayed", type: "action" },
+            { action: "Enter valid email and password", expected: "Fields accept input", type: "action" },
+            { action: "Click Sign In", expected: "User is redirected to the dashboard", type: "action" },
+          ],
+          badPassword: [
+            { action: "Navigate to the login page", expected: "Login form is displayed", type: "action" },
+            { action: "Enter valid email and incorrect password", expected: "Fields accept input", type: "action" },
+            { action: "Click Sign In", expected: "Error message is displayed", type: "action" },
+          ],
+          resetPassword: [
+            { action: "Click Forgot Password on login page", expected: "Reset form is displayed", type: "action" },
+            { action: "Enter registered email address", expected: "Email field accepts input", type: "action" },
+            { action: "Click Send Reset Link", expected: "Confirmation message shown", type: "action" },
+          ],
+          dashboardLoad: [
+            { action: "Sign in with valid credentials", expected: "Dashboard page loads", type: "action" },
+            { action: "Observe page load time", expected: "Page loads within 2 seconds", type: "action" },
+          ],
+          sidebarCollapse: [
+            { action: "Click the sidebar collapse button", expected: "Sidebar collapses", type: "action" },
+            { action: "Refresh the page", expected: "Sidebar remains collapsed", type: "action" },
+          ],
+        }
+
+        const gwtSteps = {
+          signIn: [
+            { action: "the user is on the login page", expected: "", type: "given" },
+            { action: "they enter valid email and password", expected: "", type: "when" },
+            { action: "they click Sign In", expected: "", type: "and" },
+            { action: "they are redirected to the dashboard", expected: "", type: "then" },
+          ],
+          badPassword: [
+            { action: "the user is on the login page", expected: "", type: "given" },
+            { action: "they enter an incorrect password", expected: "", type: "when" },
+            { action: "they click Sign In", expected: "", type: "and" },
+            { action: "an error message is displayed", expected: "", type: "then" },
+          ],
+          resetPassword: [
+            { action: "the user is on the login page", expected: "", type: "given" },
+            { action: "they click Forgot Password", expected: "", type: "when" },
+            { action: "they enter their registered email", expected: "", type: "and" },
+            { action: "a reset confirmation is shown", expected: "", type: "then" },
+          ],
+          dashboardLoad: [
+            { action: "the user is signed in", expected: "", type: "given" },
+            { action: "the dashboard page loads", expected: "", type: "when" },
+            { action: "the page loads within 2 seconds", expected: "", type: "then" },
+          ],
+          sidebarCollapse: [
+            { action: "the user is on the dashboard", expected: "", type: "given" },
+            { action: "they click the sidebar collapse button", expected: "", type: "when" },
+            { action: "the sidebar collapses", expected: "", type: "then" },
+            { action: "they refresh the page", expected: "", type: "when" },
+            { action: "the sidebar remains collapsed", expected: "", type: "then" },
+          ],
+        }
+
+        const steps = isGwt ? gwtSteps : traditionalSteps
+
         const cases = [
-          { suite: suiteAId, title: "User can sign in with valid credentials", priority: "high", pos: 1000 },
-          { suite: suiteAId, title: "User sees error on invalid password", priority: "medium", pos: 2000 },
-          { suite: suiteAId, title: "User can reset password via email", priority: "medium", pos: 3000 },
-          { suite: suiteBId, title: "Dashboard loads within 2 seconds", priority: "high", pos: 1000 },
-          { suite: suiteBId, title: "Sidebar collapses and state persists on refresh", priority: "low", pos: 2000 },
+          { suite: suiteAId, title: "User can sign in with valid credentials", priority: "high", pos: 1000, steps: steps.signIn },
+          { suite: suiteAId, title: "User sees error on invalid password", priority: "medium", pos: 2000, steps: steps.badPassword },
+          { suite: suiteAId, title: "User can reset password via email", priority: "medium", pos: 3000, steps: steps.resetPassword },
+          { suite: suiteBId, title: "Dashboard loads within 2 seconds", priority: "high", pos: 1000, steps: steps.dashboardLoad },
+          { suite: suiteBId, title: "Sidebar collapses and state persists on refresh", priority: "low", pos: 2000, steps: steps.sidebarCollapse },
         ]
 
         for (const tc of cases) {
@@ -319,6 +379,13 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
               ${project.id}::uuid, ${tc.title}, ${tc.priority}, ${tc.pos}
             )
           `
+          for (let i = 0; i < tc.steps.length; i++) {
+            const step = tc.steps[i]!
+            await tx`
+              INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+              VALUES (${uuidv7()}::uuid, ${caseId}::uuid, ${(i + 1) * 1000}, ${step.action}, ${step.expected || null}, ${step.type})
+            `
+          }
         }
       })
 
