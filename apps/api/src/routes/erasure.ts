@@ -72,7 +72,7 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // ── TRN-03: Send erasure acknowledgment email ──────────────────────────
-    const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+    const WEB_URL = process.env.WEB_URL ?? "https://runvelo.app"
     void (async () => {
       try {
         const [user] = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${userId}::uuid`

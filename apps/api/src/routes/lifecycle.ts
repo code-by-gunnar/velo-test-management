@@ -75,7 +75,7 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     // ── WLC-05: Notify all active workspace members ────────────────────────
-    const WEB_URL = process.env.WEB_URL ?? "https://velo-test-management.vercel.app"
+    const WEB_URL = process.env.WEB_URL ?? "https://runvelo.app"
     const exportUrl = `${WEB_URL}/workspace/settings`
 
     // Query member emails (fire-and-forget — don't block the response)
