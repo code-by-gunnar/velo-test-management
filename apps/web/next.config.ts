@@ -13,6 +13,9 @@ export default withSentryConfig(config, {
   org: "velo-qa",
   project: "javascript-nextjs",
 
+  // Source map upload auth token
+  ...(process.env.SENTRY_AUTH_TOKEN ? { authToken: process.env.SENTRY_AUTH_TOKEN } : {}),
+
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
@@ -21,11 +24,4 @@ export default withSentryConfig(config, {
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers
   tunnelRoute: "/api/t",
-
-  webpack: {
-    automaticVercelMonitors: true,
-    treeshake: {
-      removeDebugLogging: true,
-    },
-  },
 })
