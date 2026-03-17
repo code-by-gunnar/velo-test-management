@@ -255,6 +255,17 @@ await fastify.register(exportRoutes)
 await fastify.register(attachmentRoutes)
 await fastify.register(reportsRoutes)
 
+// Temporary Sentry test endpoint — remove after verification
+fastify.get("/sentry-test", async () => {
+  try {
+    throw new Error("Sentry API test error — delete me")
+  } catch (e) {
+    Sentry.captureException(e)
+    await Sentry.flush(2000)
+    return { captured: true }
+  }
+})
+
 fastify.get("/robots.txt", async (_request, reply) => {
   return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")
 })
