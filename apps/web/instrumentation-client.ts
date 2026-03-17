@@ -12,8 +12,5 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
 
-  // Temporarily enable debug to verify SDK initialization
-  debug: true,
-
   integrations: [Sentry.replayIntegration()],
 })
