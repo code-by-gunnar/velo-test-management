@@ -285,6 +285,7 @@ velo-test-management/
 - **Sentry Pages Router** — Uses `sentry.client.config.ts` pattern BUT also needs `instrumentation-client.ts` with direct `Sentry.init()` call for Next.js 16. `_error.tsx` required for error capture.
 - **Sentry API (Fastify)** — `--import` flag didn't work in Railway container. Use direct `import "./instrument.js"` at top of `server.ts` instead.
 - **Railway start command** — Defined in root `railway.toml`, NOT `apps/api/railway.toml`. Root toml is what Railway uses.
+- **Vercel API_URL env var** — After domain changes, audit ALL Vercel env vars. `API_URL` was still pointing to old Vercel URL after the runvelo.app migration, causing the gateway proxy to fail silently. Login appeared broken but the real issue was Vercel → Railway routing.
 
 ## PostHog Events (19 total)
 
