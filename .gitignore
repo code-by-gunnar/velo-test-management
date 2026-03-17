@@ -13,3 +13,6 @@ claude.nd
 .mcp.json
 .1code/
 .planning/
+
+# Sentry Config File
+.env.sentry-build-plugin
