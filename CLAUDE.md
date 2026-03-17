@@ -30,7 +30,9 @@ vercel logs https://runvelo.app --limit 50  # Frontend, gateway 5xx, SSR
 gh run list --limit 5 && gh run view <id> --log-failed          # CI failures
 ```
 
-Workflow: Railway logs → Vercel logs → CI logs → read the error → then fix.
+Sentry dashboard: https://velo-qa.sentry.io (frontend: velo-production, API: api-production)
+
+Workflow: Sentry issues → Railway logs → Vercel logs → CI logs → read the error → then fix.
 
 ---
 
@@ -44,11 +46,16 @@ velo-test-management/
 │   │   │   └── meta/           — Drizzle journal
 │   │   └── src/
 │   │       ├── db/             — client.ts (postgres.js), tenant.ts (withWorkspace), schema.ts
-│   │       ├── lib/            — encryption.ts, r2.ts, linear-client.ts, rate-limiter.ts, email.ts, sse.ts
+│   │       ├── lib/            — encryption.ts, r2.ts, linear-client.ts, rate-limiter.ts, email.ts, sse.ts, posthog.ts
 │   │       ├── plugins/        — session.plugin.ts, auth.plugin.ts, require-editor.ts, require-admin.ts
 │   │       ├── queues/         — webhook.worker.ts, lifecycle.worker.ts, lifecycle.queue.ts
 │   │       └── routes/         — All API route handlers (see Route Map below)
+│   │       ├── instrument.ts    — Sentry init (imported first in server.ts)
 │   └── web/                    — Next.js 16 frontend
+│       ├── instrumentation-client.ts  — Sentry client init (browser)
+│       ├── instrumentation.ts         — Sentry server/edge init hook
+│       ├── sentry.server.config.ts    — Sentry server config
+│       ├── sentry.edge.config.ts      — Sentry edge config
 │       └── src/
 │           ├── auth.ts         — Auth.js v5 config, JWT augmentation, OAuth callbacks
 │           ├── components/
@@ -67,6 +74,7 @@ velo-test-management/
 │               ├── index.tsx           — Landing page
 │               ├── why-velo.tsx        — Positioning page
 │               ├── _app.tsx            — SessionProvider + ToastProvider
+│               ├── _error.tsx          — Sentry Pages Router error capture
 │               ├── api/backend/[...path].ts  — Gateway proxy to Railway API
 │               └── app/[slug]/[projectKey]/
 │                   ├── cases.tsx       — Test cases page
@@ -128,6 +136,8 @@ velo-test-management/
 | AI | Anthropic Claude API | claude-sonnet-4-5 for spec-to-test conversion |
 | Icons | lucide-react | No inline SVGs |
 | DnD | dnd-kit | Case reordering in list |
+| Analytics | PostHog (posthog-node) | Server-side, EU region (eu.i.posthog.com), 19 events |
+| Error Tracking | Sentry | `@sentry/nextjs` (web) + `@sentry/node` (api) |
 | Testing | Vitest | API integration tests against test PostgreSQL |
 | Hosting | Vercel (web) + Railway (api) | Auto-deploy from master |
 | Package manager | pnpm workspaces | Monorepo |
@@ -143,6 +153,8 @@ velo-test-management/
 - **Rate limiting**: Auth routes use `@fastify/rate-limit` (10/min per IP). V1 API routes use custom rate limiter keyed by API key.
 - **Webhook SSRF protection**: `isPrivateUrl()` blocks private IPs and requires HTTPS in production.
 - **Session fail-closed**: If Valkey is down, session plugin denies access rather than allowing potentially deactivated users.
+- **Sentry**: `@sentry/node` initialized via `import "./instrument.js"` at top of `server.ts`. `setupFastifyErrorHandler(fastify)` registered before all routes. Flush on shutdown with `Sentry.close(2000)`.
+- **PostHog**: Server-side via `posthog-node`. Lazy singleton in `lib/posthog.ts`. 19 events tracked across all routes. Graceful shutdown flush.
 
 ### Frontend
 
@@ -151,6 +163,7 @@ velo-test-management/
 - **exactOptionalPropertyTypes**: TypeScript is strict — cannot pass `undefined` to optional props. Use spread pattern: `{...(value ? { prop: value } : {})}`.
 - **ToastProvider**: Mounted globally in `_app.tsx`. Use `useToast()` anywhere.
 - **Component keying for remount**: When a component needs fresh state on prop change (e.g., `EvidenceUpload`), use `key={someId}` to force remount.
+- **Sentry**: `@sentry/nextjs` with `withSentryConfig()` in `next.config.ts`. Client init in `instrumentation-client.ts`, server in `sentry.server.config.ts`, edge in `sentry.edge.config.ts`. Tunnel route `/api/t` bypasses ad-blockers. DSN hardcoded (not env var — `NEXT_PUBLIC_` vars weren't baked in at Vercel build time). Pages Router error capture via `pages/_error.tsx`.
 
 ### Test Formats (GWT/BDD)
 
@@ -219,6 +232,8 @@ velo-test-management/
 | `RESEND_API_KEY` | Email sending |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` | Cloudflare R2 |
 | `WEB_URL` | Frontend URL for redirects |
+| `POSTHOG_KEY` | PostHog project API key |
+| `POSTHOG_HOST` | PostHog ingest URL (eu.i.posthog.com) |
 | `PORT` | Default 3001 |
 
 ### Vercel (Web)
@@ -231,6 +246,9 @@ velo-test-management/
 | `AUTH_SECRET` | Auth.js encryption key |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google OAuth |
 | `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` | GitHub OAuth |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN (also hardcoded as fallback) |
+| `POSTHOG_KEY` | PostHog project API key |
+| `POSTHOG_HOST` | PostHog ingest URL (eu.i.posthog.com) |
 
 ## Performance Notes
 
@@ -262,3 +280,44 @@ velo-test-management/
 - **Lucide `Image` icon** — Triggers `jsx-a11y/alt-text` ESLint rule. Import as `ImageIcon` instead.
 - **suppressHydrationWarning** — Required on any cell using `toLocaleString()` since server/client locales differ.
 - **Linear tokens expire** — OAuth access tokens expire ~24hrs. Always prefer the stored API key (`api_key_enc`) for server-to-server calls.
+- **Sentry DSN must be hardcoded** — `NEXT_PUBLIC_SENTRY_DSN` env var was not baked in at Vercel build time. Hardcode DSN directly in `instrumentation-client.ts` (DSN is public, not a secret).
+- **Sentry tunnel route** — `/monitoring` is blocked by ad-blockers. Use `/api/t` instead.
+- **Sentry Pages Router** — Uses `sentry.client.config.ts` pattern BUT also needs `instrumentation-client.ts` with direct `Sentry.init()` call for Next.js 16. `_error.tsx` required for error capture.
+- **Sentry API (Fastify)** — `--import` flag didn't work in Railway container. Use direct `import "./instrument.js"` at top of `server.ts` instead.
+- **Railway start command** — Defined in root `railway.toml`, NOT `apps/api/railway.toml`. Root toml is what Railway uses.
+
+## PostHog Events (19 total)
+
+| Event | Route | Type |
+|---|---|---|
+| `user_signed_up` | auth.ts | Signup |
+| `email_verified` | auth.ts | Auth |
+| `workspace_created` | workspaces.ts | Core |
+| `test_case_created` | test-cases.ts | Core |
+| `test_cases_imported_csv` | test-cases.ts | Import |
+| `test_cases_imported_linear_ai` | test-cases.ts | AI |
+| `test_run_created` | runs.ts | Core |
+| `run_item_status_changed` | run-items.ts | Execution |
+| `evidence_uploaded` | run-item-attachments.ts | Evidence |
+| `defect_filed` | defects.ts | Defects |
+| `report_viewed` | reports.ts | Reports |
+| `ci_results_ingested` | ingestion.ts | CI |
+| `linear_connected` | linear.ts | Integration |
+| `linear_disconnected` | linear.ts | Churn |
+| `member_invited` | members.ts | Growth |
+| `member_deactivated` | members.ts | Churn |
+| `webhook_created` | webhooks.ts | CI |
+| `api_key_created` | api-keys.ts | CI |
+| `workspace_deletion_requested` | lifecycle.ts | Churn |
+
+## Sentry Error Tracking
+
+| Layer | Sentry Project | Org |
+|---|---|---|
+| Frontend (Next.js) | `velo-production` | `velo-qa` |
+| API (Fastify) | `api-production` | `velo-qa` |
+
+- **Region**: EU (de.sentry.io)
+- **Frontend**: 10% trace sampling, 10% session replay (100% on error), tunnel via `/api/t`
+- **API**: 10% trace sampling, `includeLocalVariables: true`, `setupFastifyErrorHandler` before routes
+- **DSNs**: Hardcoded in source (public, not secrets)
