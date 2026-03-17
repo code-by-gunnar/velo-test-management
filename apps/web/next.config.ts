@@ -20,7 +20,7 @@ export default withSentryConfig(config, {
   widenClientFileUpload: true,
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers
-  tunnelRoute: "/monitoring",
+  tunnelRoute: "/api/t",
 
   webpack: {
     automaticVercelMonitors: true,
