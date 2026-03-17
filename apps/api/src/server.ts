@@ -1,3 +1,6 @@
+// Sentry must be imported FIRST — before any other modules
+import "./instrument.js"
+
 import { fileURLToPath } from "node:url"
 import Fastify from "fastify"
 import cors from "@fastify/cors"
