@@ -14,17 +14,33 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   const { slug } = context.params as { slug: string }
-  const workspaceId = session.user.workspace_id
+  let workspaceId = session.user.workspace_id
+
+  // Read the raw JWE token so we can authenticate the server-side fetch to Railway.
+  const token =
+    context.req.cookies["__Secure-authjs.session-token"] ??
+    context.req.cookies["authjs.session-token"]
+
+  // If workspace_id is not in the JWT yet (e.g., just accepted an invite and JWT
+  // hasn't propagated), look up the workspace by slug from the URL.
+  if (!workspaceId) {
+    try {
+      const slugRes = await fetch(
+        `${process.env.API_URL}/api/workspaces/${slug}`,
+        { headers: token ? { authorization: `Bearer ${token}` } : {} }
+      )
+      if (slugRes.ok) {
+        const data = await slugRes.json() as { id: string }
+        workspaceId = data.id
+      }
+    } catch {
+      // API unreachable — fall through
+    }
+  }
 
   if (!workspaceId) {
     return { redirect: { destination: "/onboarding", permanent: false } }
   }
-
-  // Read the raw JWE token so we can authenticate the server-side fetch to Railway.
-  // Same pattern as the Next.js gateway — avoids cross-origin cookie issues.
-  const token =
-    context.req.cookies["__Secure-authjs.session-token"] ??
-    context.req.cookies["authjs.session-token"]
 
   try {
     const res = await fetch(
