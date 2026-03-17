@@ -184,6 +184,31 @@ export function userErasureWarningEmail(
   )
 }
 
+// ── Welcome Email (24h after verification) ──────────────────────────────────
+
+export function welcomeEmail(userName: string): string {
+  const firstName = userName.split(" ")[0] ?? userName
+  return layout(
+    heading(`Welcome to Velo, ${firstName}`) +
+    paragraph(`Thanks for joining the beta. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools — something fast, clean, and built for how modern teams actually work.`) +
+    paragraph("Here are three things to try first:") +
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
+        <strong style="color:${TEXT_PRIMARY};">Create a test case</strong> — our keyboard-first editor lets you write a complete case in under 30 seconds. Use P/F/B/S to mark results without touching the mouse.
+      </td></tr>
+      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
+        <strong style="color:${TEXT_PRIMARY};">Import from CSV</strong> — if you have test cases in spreadsheets, drag and drop a CSV file and Velo maps your columns automatically. No more lost Google Sheets.
+      </td></tr>
+      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
+        <strong style="color:${TEXT_PRIMARY};">Import from Linear</strong> — paste a Linear issue ID and our AI converts the spec into structured test cases. It's the feature people don't believe until they try it.
+      </td></tr>
+    </table>` +
+    button("Open Velo", WEB_URL) +
+    muted("If you have questions or feedback, just hit reply — I read every email.") +
+    `<p style="margin:16px 0 0;font-size:15px;color:${TEXT_PRIMARY};line-height:24px;">Gunnar<br/><span style="color:${TEXT_SECONDARY};font-size:13px;">Founder, Velo</span></p>`
+  )
+}
+
 export function userErasureCompletedEmail(): string {
   return layout(
     heading("Account data erased") +

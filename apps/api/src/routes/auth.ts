@@ -6,6 +6,7 @@ import { uuidv7 } from "uuidv7"
 import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
+import { emailQueue } from "../queues/email.queue.js"
 import { captureEvent } from "../lib/posthog.js"
 
 const BCRYPT_ROUNDS = 12
@@ -172,6 +173,19 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       await q`UPDATE users SET email_verified = true, updated_at = NOW() WHERE id = ${user.id}::uuid`
     })
     captureEvent(user.id as string, "email_verified")
+
+    // Enqueue welcome email — 24 hours after verification (fire-and-forget)
+    emailQueue.add("welcome-email", {
+      to: email,
+      subject: "Welcome to Velo — here's how to get started",
+      type: "welcome" as const,
+      payload: { userName: user.name ?? email.split("@")[0] ?? "there" },
+    }, {
+      delay: 24 * 60 * 60 * 1000, // 24 hours
+      jobId: `welcome-${user.id}`, // Prevents duplicate welcome emails
+    }).catch(() => {
+      // Non-fatal — don't fail verification if email queue is down
+    })
 
     return reply.send({ message: "Email verified. You can now sign in." })
   })
