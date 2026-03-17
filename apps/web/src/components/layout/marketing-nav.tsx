@@ -23,7 +23,7 @@ export function MarketingNav({ activePath }: MarketingNavProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <Image src="/velo-mark-cobalt.svg" alt="" aria-hidden="true" width={26} height={26} priority />
+            <Image src="/velo-mark-cobalt.svg" alt="" aria-hidden="true" width={40} height={40} priority />
             <span className="text-lg font-semibold text-gray-900 font-display">Velo</span>
           </Link>
 
