@@ -2,6 +2,7 @@ import { Worker } from "bullmq"
 import { Resend } from "resend"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import {
+  welcomeEmail,
   workspaceInviteEmail,
   workspaceDeletionRequestedEmail,
   workspaceDeletionWarningEmail,
@@ -30,11 +31,22 @@ export const emailWorker = new Worker<EmailJobData>(
 
     switch (type) {
       case "otp":
-      case "password-reset":
-      case "welcome": {
+      case "password-reset": {
         // These types are handled via the email.ts lib directly from auth routes.
-        // Worker receives them as a no-op fallback — log and skip.
         console.log(`[email-worker] type=${type} handled upstream — skipping worker send`)
+        break
+      }
+      case "welcome": {
+        const { userName } = job.data.payload as { userName: string }
+        const resend = getResend()
+        await resend.emails.send({
+          from: "Gunnar from Velo <support@runvelo.app>",
+          replyTo: "support@runvelo.app",
+          to,
+          subject,
+          html: welcomeEmail(userName),
+          text: `Hey ${userName.split(" ")[0]},\n\nThanks for joining the Velo beta. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools.\n\nThree things to try first:\n\n1. Create a test case — our keyboard-first editor lets you write a complete case in under 30 seconds.\n2. Import from CSV — drag and drop a CSV file and Velo maps your columns automatically.\n3. Import from Linear — paste a Linear issue ID and our AI converts the spec into structured test cases.\n\nOpen Velo: https://runvelo.app\n\nIf you have questions or feedback, just hit reply — I read every email.\n\nGunnar\nFounder, Velo`,
+        })
         break
       }
       case "workspace-invite": {
