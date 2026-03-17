@@ -30,6 +30,7 @@ import erasureRoutes from "./routes/erasure.js"
 import exportRoutes from "./routes/export.js"
 import attachmentRoutes from "./routes/run-item-attachments.js"
 import reportsRoutes from "./routes/reports.js"
+import * as Sentry from "@sentry/node"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 import { shutdownPostHog } from "./lib/posthog.js"
 
@@ -219,6 +220,9 @@ await fastify.register(cors, {
   credentials: true,
 })
 
+// Sentry error handler — must be registered BEFORE routes (unlike Express)
+Sentry.setupFastifyErrorHandler(fastify)
+
 await fastify.register(helmet)
 await fastify.register(cookie)
 await fastify.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB limit
@@ -282,6 +286,7 @@ fastify.log.info(`Velo API listening on port ${port}`)
 
 // Flush PostHog events on graceful shutdown
 const shutdown = async () => {
+  await Sentry.close(2000)
   await shutdownPostHog()
   await fastify.close()
   process.exit(0)
