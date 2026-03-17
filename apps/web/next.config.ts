@@ -11,7 +11,7 @@ const config: NextConfig = {
 
 export default withSentryConfig(config, {
   org: "velo-qa",
-  project: "javascript-nextjs",
+  project: "velo-production",
 
   // Source map upload auth token
   ...(process.env.SENTRY_AUTH_TOKEN ? { authToken: process.env.SENTRY_AUTH_TOKEN } : {}),
