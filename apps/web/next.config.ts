@@ -10,7 +10,7 @@ const config: NextConfig = {
 }
 
 export default withSentryConfig(config, {
-  org: "velo-2k",
+  org: "velo-qa",
   project: "javascript-nextjs",
 
   // Only print logs for uploading source maps in CI
