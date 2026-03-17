@@ -7,3 +7,7 @@ startCommand = "node apps/api/dist/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
+# Zero-downtime: keep old container running while new one starts + passes health check
+overlapSeconds = 120
+# Give old container 15s to finish in-flight requests after new one is healthy
+drainingSeconds = 15
