@@ -235,6 +235,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: "Email not verified" })
     }
 
+    captureEvent(user.id as string, "user_signed_in", { method: "email" })
+
     return reply.send({
       id: user.id,
       email: user.email,
@@ -374,6 +376,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       role: string | null
     } | null = null
     let errorCode: "unverified_email" | "provider_conflict" | null = null
+    let isNewUser = false
 
     await sql.begin(async (tx: TransactionSql) => {
       const q = tx as unknown as Sql
@@ -451,6 +454,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       } else {
         // JIT provision: create a new user
         userId = uuidv7()
+        isNewUser = true
         await q`
           INSERT INTO users (id, email, name, email_verified, password_hash, avatar_url)
           VALUES (
@@ -513,6 +517,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         message: "This account is already linked to a different sign-in method.",
       })
     }
+
+    if (isNewUser) {
+      captureEvent(resolvedUser!.id, "user_signed_up", { method: provider })
+    }
+    captureEvent(resolvedUser!.id, "user_signed_in", { method: provider })
 
     return reply.send({
       id: resolvedUser!.id,
