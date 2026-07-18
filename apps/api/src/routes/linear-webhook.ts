@@ -9,6 +9,25 @@ import { sql } from "../db/client.js"
 
 const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
 
+  // Capture the raw request bytes so the HMAC is verified against exactly what
+  // Linear signed. Re-serializing the parsed body (JSON.stringify) does not
+  // reproduce the original key order/whitespace/escaping and breaks verification.
+  // Scoped to this encapsulated plugin, so other routes keep the default parser.
+  fastify.addContentTypeParser(
+    "application/json",
+    { parseAs: "buffer" },
+    (req, body, done) => {
+      ;(req as unknown as { rawBody?: Buffer }).rawBody = body as Buffer
+      try {
+        const buf = body as Buffer
+        done(null, buf.length ? JSON.parse(buf.toString("utf8")) : {})
+      } catch (err) {
+        ;(err as Error & { statusCode?: number }).statusCode = 400
+        done(err as Error, undefined)
+      }
+    }
+  )
+
   // ── POST /api/webhooks/linear — receive Linear webhook events ────────────
   fastify.post<{
     Body: Record<string, unknown>
@@ -21,8 +40,9 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Missing Linear-Signature header" })
       }
 
-      // Get raw body for signature verification
-      const rawBody = JSON.stringify(request.body)
+      // Raw request bytes captured by the content-type parser above — HMAC must
+      // be over exactly what Linear signed, not a re-serialization of the body.
+      const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody ?? Buffer.alloc(0)
 
       // Extract organization ID from payload to look up the signing secret
       const payload = request.body as {
@@ -68,10 +88,11 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         .update(rawBody)
         .digest("hex")
 
-      const isValid = crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-      )
+      // Length-guard before timingSafeEqual — it throws RangeError (→ 500) on
+      // buffers of differing length, which a malformed/short signature triggers.
+      const sigBuf = Buffer.from(signature)
+      const expBuf = Buffer.from(expectedSignature)
+      const isValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)
 
       if (!isValid) {
         return reply.status(400).send({ error: "Invalid signature" })
