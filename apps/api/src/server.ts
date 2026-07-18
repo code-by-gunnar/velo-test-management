@@ -50,8 +50,6 @@ await fastify.register(cors, {
     const webUrl = process.env.WEB_URL ?? "http://localhost:3000"
     if (origin === webUrl) return cb(null, true)
     if (origin === "http://localhost:3000") return cb(null, true)
-    // Allow Vercel preview deployments (e.g. velo-test-management-git-feat-*.vercel.app)
-    if (/^https:\/\/velo-test-management(-git-[a-z0-9-]+)?(-[a-z0-9]+)?\.vercel\.app$/.test(origin)) return cb(null, true)
     cb(new Error("Not allowed by CORS"), false)
   },
   credentials: true,

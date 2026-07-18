@@ -328,6 +328,18 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
 
       const planTier = (memberRows[0] as { plan_tier: string }).plan_tier
 
+      // Prevent removing the last admin — demoting the sole active admin (incl.
+      // self-demotion) would leave the workspace with no one who can manage it.
+      if (role !== "admin") {
+        const admins = await sql`
+          SELECT user_id FROM workspace_members
+          WHERE workspace_id = ${workspaceId}::uuid AND role = 'admin' AND is_active = true
+        ` as unknown as Array<{ user_id: string }>
+        if (admins.length === 1 && admins[0]?.user_id === targetUserId) {
+          return reply.status(400).send({ error: "Cannot remove the last admin. Promote another member to admin first." })
+        }
+      }
+
       // Editor seat cap — only for free tier upgrading to editor
       if (role === "editor" && planTier === "free") {
         const countRows = await sql`
@@ -393,6 +405,16 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       // Prevent self-deactivation
       if (callerId === targetUserId) {
         return reply.status(400).send({ error: "You cannot deactivate your own account" })
+      }
+
+      // Prevent deactivating the last admin (defence-in-depth alongside the
+      // self-deactivation guard above).
+      const activeAdmins = await sql`
+        SELECT user_id FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid AND role = 'admin' AND is_active = true
+      ` as unknown as Array<{ user_id: string }>
+      if (activeAdmins.length === 1 && activeAdmins[0]?.user_id === targetUserId) {
+        return reply.status(400).send({ error: "Cannot deactivate the last admin." })
       }
 
       // Set Valkey blocklist BEFORE returning 200 (atomic ordering)

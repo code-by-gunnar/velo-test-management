@@ -538,6 +538,20 @@ describe("Members routes (USR-01 through USR-06)", () => {
       expect(res.statusCode).toBe(403)
     })
 
+    it("returns 400 when demoting the last admin (VEL-54 last-admin protection)", async () => {
+      // adminUserId is the only admin in this workspace — demoting them (here,
+      // self-demotion) would leave zero admins.
+      const res = await adminApp.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/members/${adminUserId}`,
+        payload: { role: "viewer" },
+      })
+      expect(res.statusCode).toBe(400)
+      expect((JSON.parse(res.body) as { error: string }).error).toMatch(/last admin/i)
+      const [m] = await sql`SELECT role FROM workspace_members WHERE workspace_id = ${workspaceId}::uuid AND user_id = ${adminUserId}::uuid`
+      expect((m as { role: string }).role).toBe("admin")
+    })
+
     it("returns 403 TIER_LIMIT_EXCEEDED when upgrading to editor at free tier cap", async () => {
       const capWsId = uuidv7()
       const capAdminId = uuidv7()

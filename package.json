@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter=@velo/api --filter=@velo/web dev",
-    "build": "pnpm --filter='./packages/*' build && pnpm --filter='./apps/*' build",
+    "build": "pnpm --filter=@velo/api --filter=@velo/web build",
     "lint": "pnpm --recursive lint",
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
