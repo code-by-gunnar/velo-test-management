@@ -1,12 +1,7 @@
-import { migrate } from "drizzle-orm/postgres-js/migrator"
-import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
-import { fileURLToPath } from "node:url"
-import path from "node:path"
+import { runMigrations, runFixups } from "../db/bootstrap.js"
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-async function ensureAppRole(client: postgres.Sql) {
+async function ensureTestAppRole(client: postgres.Sql) {
   // Create non-superuser role for RLS tests (idempotent)
   const roles = await client`SELECT 1 FROM pg_roles WHERE rolname = 'velo_app'`
   if (roles.length === 0) {
@@ -32,14 +27,16 @@ export async function setup() {
     return
   }
 
+  // Same bootstrap as production (server.ts): migrations THEN fixups, so the test
+  // schema matches deployed reality — fixups add columns/tables that never made it
+  // into drizzle migrations (e.g. projects.deleted_at).
+  await runMigrations()
+  await runFixups()
+  console.log("[test] migrations + fixups complete")
+
   const client = postgres(url, { max: 1 })
   try {
-    await migrate(drizzle(client), {
-      migrationsFolder: path.resolve(__dirname, "../../drizzle"),
-    })
-    console.log("[test] migrations complete")
-
-    await ensureAppRole(client)
+    await ensureTestAppRole(client)
   } finally {
     await client.end()
   }
