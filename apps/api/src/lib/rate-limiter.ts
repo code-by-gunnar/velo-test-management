@@ -59,10 +59,18 @@ export function createRateLimiter(
           retry_after: Math.max(1, retryAfter),
         })
       }
-    } catch {
-      // Valkey error — fail open (allow request through)
-      // Rate limiting is non-critical; don't block requests on Valkey failure
-      request.log.warn("Rate limiter Valkey error — failing open")
+    } catch (err) {
+      // Valkey error — fail CLOSED (VEL-54). Admitting the request would let an
+      // attacker bypass all rate limits simply by disrupting Valkey, and leaves the
+      // backend unthrottled precisely when the system is already fragile. Return 503
+      // (infra unavailable, retryable) not 429 — the client didn't exceed its quota;
+      // the limiter did. A short Retry-After tells well-behaved clients to back off.
+      request.log.error({ err }, "Rate limiter Valkey error — failing closed (503)")
+      reply.header("Retry-After", "5")
+      return reply.status(503).send({
+        error: "Rate limiter temporarily unavailable",
+        retry_after: 5,
+      })
     }
   }
 }

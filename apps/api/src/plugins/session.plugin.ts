@@ -133,6 +133,16 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
             const liveRole = (rows[0] as { role: string }).role
             request.userRole = liveRole
             await valkey.set(roleKey, liveRole, "EX", 60)
+          } else {
+            // No active membership row — the row was hard-deleted (or deactivated)
+            // without a Valkey blocklist entry, so the deactivation check above
+            // couldn't catch it. Fail closed: the JWT's role claim is stale and the
+            // user no longer belongs to this workspace, so clear session context
+            // rather than trust the token (VEL-54 / audit low-priority).
+            request.userId = ""
+            request.workspaceId = null
+            request.userRole = null
+            return
           }
         }
       } catch (err) {

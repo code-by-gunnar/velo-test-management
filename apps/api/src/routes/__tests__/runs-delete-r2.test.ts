@@ -9,7 +9,7 @@ process.env.VALKEY_URL = process.env.VALKEY_URL ?? "redis://localhost:6379"
 // Mock only deleteR2Objects — path must resolve to the SAME module runs.ts imports
 // (runs.ts: `../lib/r2.js` → src/lib/r2.js; from here: `../../lib/r2.js`).
 const { deleteR2ObjectsMock } = vi.hoisted(() => ({
-  deleteR2ObjectsMock: vi.fn(async (_keys: string[]) => 0),
+  deleteR2ObjectsMock: vi.fn(async (keys: string[]) => keys.length),
 }))
 vi.mock("../../lib/r2.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/r2.js")>()
