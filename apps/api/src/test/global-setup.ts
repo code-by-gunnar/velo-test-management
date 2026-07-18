@@ -10,9 +10,13 @@ async function ensureAppRole(client: postgres.Sql) {
   // Create non-superuser role for RLS tests (idempotent)
   const roles = await client`SELECT 1 FROM pg_roles WHERE rolname = 'velo_app'`
   if (roles.length === 0) {
-    await client.unsafe(`CREATE ROLE velo_app LOGIN PASSWORD 'velo_app'`)
+    await client.unsafe(`CREATE ROLE velo_app LOGIN`)
     console.log("[test] created velo_app role")
   }
+  // Always reset the password — the compose api's ensureAppRole() provisions the
+  // same cluster-wide role with APP_DB_PASSWORD. Locally keep APP_DB_PASSWORD in
+  // .env set to 'velo_app' so the two provisioners agree (see .env.example).
+  await client.unsafe(`ALTER ROLE velo_app LOGIN PASSWORD 'velo_app'`)
 
   // Grant permissions on existing tables and set defaults for future tables
   await client.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO velo_app`)
