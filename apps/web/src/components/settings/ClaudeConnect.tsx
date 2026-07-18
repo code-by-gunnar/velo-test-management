@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
 import { useCachedState } from "@/hooks/useCachedState"
 import { Button } from "@/components/ui"
-import { Sparkles, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 
 interface AiStatus {
   configured: boolean
@@ -87,7 +88,7 @@ export function ClaudeConnect({ workspaceId }: ClaudeConnectProps) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5">
       <div className="flex items-center gap-2 mb-1">
-        <Sparkles size={18} className="text-primary" aria-hidden="true" />
+        <Image src="/claude-logo.svg" alt="" aria-hidden="true" width={20} height={20} />
         <h4 className="text-sm font-semibold text-gray-900">Claude</h4>
         {hasWorkspaceKey && (
           <span className="inline-flex items-center rounded-full bg-pass-bg px-1.5 py-0.5 text-[10px] font-medium text-pass-text">
