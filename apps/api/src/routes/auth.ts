@@ -6,7 +6,7 @@ import { uuidv7 } from "uuidv7"
 import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
-import { emailEnabled } from "../lib/mailer.js"
+import { emailEnabled, sendMail } from "../lib/mailer.js"
 import { emailQueue } from "../queues/email.queue.js"
 import { captureEvent } from "../lib/posthog.js"
 
@@ -76,13 +76,23 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           VALUES (${uuidv7()}::uuid, ${existingUser.id}::uuid, ${tokenHash}, ${expiresAt}, 0)
         `
         await sendOtpEmail(email, otp)
-      } else if (!emailEnabled()) {
-        // Console mode: the operator owns these logs — explain the silent
-        // anti-enumeration path so a self-hoster isn't left staring at an
-        // OTP screen that will never receive a code.
+      } else {
+        // Account exists and is verified — no OTP to send. Log for the
+        // operator (self-hosters otherwise stare at an OTP screen that never
+        // fires), and when email is configured, tell the account owner so the
+        // dead end becomes a path. Response below stays generic either way.
         process.stdout.write(
-          `\n[email:console] Signup attempted for ${email} — account already exists and is verified. No OTP sent; log in instead.\n\n`
+          `\n[email:console] Signup attempted for ${email} — account already exists and is verified. No OTP sent.\n\n`
         )
+        if (emailEnabled()) {
+          const webUrl = process.env.WEB_URL ?? "http://localhost:3000"
+          await sendMail({
+            to: email,
+            subject: "You already have a Velo account",
+            html: `<p>Someone (probably you) tried to sign up for Velo with this email address, but an account already exists.</p><p><a href="${webUrl}/login">Log in</a> or <a href="${webUrl}/forgot-password">reset your password</a> if you've forgotten it.</p><p>If this wasn't you, you can ignore this email.</p>`,
+            text: `Someone (probably you) tried to sign up for Velo with this email address, but an account already exists.\n\nLog in: ${webUrl}/login\nForgot your password? ${webUrl}/forgot-password\n\nIf this wasn't you, you can ignore this email.`,
+          })
+        }
       }
       // Generic response for both verified and unverified (prevents enumeration)
       return reply.send({ message: "If this email is not already registered, a verification code has been sent." })
