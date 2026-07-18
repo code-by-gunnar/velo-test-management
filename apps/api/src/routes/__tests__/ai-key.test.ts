@@ -5,10 +5,20 @@ import { uuidv7 } from "uuidv7"
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY ?? "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
 
-// Mock both SDKs so key validation (models.list) never hits the network.
-const { anthropicList, openaiList } = vi.hoisted(() => ({ anthropicList: vi.fn(), openaiList: vi.fn() }))
+// Mock both SDKs so key validation never hits the network. Anthropic/OpenAI
+// validate via models.list; custom validates via chat.completions.create.
+const { anthropicList, openaiList, openaiChat } = vi.hoisted(() => ({
+  anthropicList: vi.fn(),
+  openaiList: vi.fn(),
+  openaiChat: vi.fn(),
+}))
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { models = { list: anthropicList } } }))
-vi.mock("openai", () => ({ default: class { models = { list: openaiList } } }))
+vi.mock("openai", () => ({
+  default: class {
+    models = { list: openaiList }
+    chat = { completions: { create: openaiChat } }
+  },
+}))
 
 const sql = (await import("../../db/client.js")).sql
 const { decrypt } = await import("../../lib/encryption.js")
@@ -51,8 +61,12 @@ describe("AI provider keys (per-workspace, multi-provider)", () => {
   beforeEach(async () => {
     anthropicList.mockReset()
     openaiList.mockReset()
+    openaiChat.mockReset()
     delete process.env.ANTHROPIC_API_KEY
     delete process.env.OPENAI_API_KEY
+    delete process.env.CUSTOM_AI_API_KEY
+    delete process.env.CUSTOM_AI_BASE_URL
+    delete process.env.CUSTOM_AI_MODEL
     await sql`DELETE FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
     await sql`UPDATE workspaces SET ai_provider = 'anthropic' WHERE id = ${workspaceId}::uuid`
   })
@@ -189,6 +203,43 @@ describe("AI provider keys (per-workspace, multi-provider)", () => {
     await putKey("anthropic", "sk-ant-workspace-wins")
 
     const resolved = await resolveProviderKey(workspaceId, "anthropic")
-    expect(resolved).toEqual({ key: "sk-ant-workspace-wins", source: "workspace" })
+    expect(resolved).toMatchObject({ key: "sk-ant-workspace-wins", source: "workspace" })
+  })
+
+  it("stores a custom OpenAI-compatible provider with base_url + model", async () => {
+    openaiChat.mockResolvedValue({ choices: [{ message: { content: "ok" } }] })
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/workspaces/${workspaceId}/ai/keys/custom`,
+      payload: { api_key: "any-key", base_url: "http://host.docker.internal:11434/v1", model: "qwen2.5-coder" },
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as {
+      active: string
+      providers: Record<"anthropic" | "openai" | "custom", { configured: boolean; source: string | null; baseUrl: string | null; model: string | null }>
+    }
+    expect(body.active).toBe("custom")
+    expect(body.providers.custom).toMatchObject({
+      configured: true,
+      source: "workspace",
+      baseUrl: "http://host.docker.internal:11434/v1",
+      model: "qwen2.5-coder",
+    })
+    // Validated via a minimal chat completion, not models.list.
+    expect(openaiChat).toHaveBeenCalled()
+
+    const rows = await sql`SELECT base_url, model FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid AND provider = 'custom'`
+    expect(rows[0]).toMatchObject({ base_url: "http://host.docker.internal:11434/v1", model: "qwen2.5-coder" })
+  })
+
+  it("rejects a custom provider missing base_url or model with 400", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/workspaces/${workspaceId}/ai/keys/custom`,
+      payload: { api_key: "any-key" },
+    })
+    expect(res.statusCode).toBe(400)
+    const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
+    expect(rows).toHaveLength(0)
   })
 })

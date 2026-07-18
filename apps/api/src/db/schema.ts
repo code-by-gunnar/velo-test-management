@@ -325,6 +325,9 @@ export const workspaceIntegrationSecrets = pgTable("workspace_integration_secret
   workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   provider: varchar("provider", { length: 50 }).notNull(),
   secret_enc: text("secret_enc").notNull(),
+  // Config for OpenAI-compatible 'custom' provider (null for anthropic/openai).
+  base_url: varchar("base_url", { length: 500 }),
+  model: varchar("model", { length: 100 }),
   created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
