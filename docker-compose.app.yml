@@ -85,6 +85,9 @@ services:
       AUTH_URL: ${WEB_URL:-http://localhost:3000}
       NEXTAUTH_URL: ${WEB_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"
+      # Node's 5s default races with client/proxy keep-alive reuse (half-open
+      # sockets → multi-second TCP retransmit stalls, esp. behind port proxies)
+      KEEP_ALIVE_TIMEOUT: "65000"
       # OAuth — empty keeps providers registered but unusable until configured
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import type { Dispatch, SetStateAction } from "react"
 
 export interface TestCase {
@@ -43,18 +43,59 @@ interface UseTestCasesReturn {
   refetch: () => void
 }
 
+// Stale-while-revalidate cache (sessionStorage, same pattern as the sidebar's
+// project switcher): navigating back to the cases page — or between suites —
+// renders the last-known list instantly while a background refetch updates it.
+// Keyed per workspace/project/suite so suite switches also hit the cache.
+function readCache(key: string): TestCase[] | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = sessionStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as TestCase[]) : null
+  } catch {
+    return null
+  }
+}
+
+function writeCache(key: string, data: TestCase[]): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(data))
+  } catch {
+    // Storage full/unavailable — cache is best-effort
+  }
+}
+
 export function useTestCases(
   workspaceId: string,
   projectId: string,
   selectedSuiteId: string | null
 ): UseTestCasesReturn {
-  const [cases, setCases] = useState<TestCase[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const cacheKey = `velo:cases:${workspaceId}:${projectId}:${selectedSuiteId ?? "all"}`
+  // Latest server/local truth for a specific cache key. When the key changes
+  // (suite click) this is stale, and the display falls back to the cache.
+  const [fetched, setFetched] = useState<{ key: string; data: TestCase[] } | null>(null)
+  const [fetchingKey, setFetchingKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const cacheKeyRef = useRef(cacheKey)
+  useEffect(() => {
+    cacheKeyRef.current = cacheKey
+  }, [cacheKey])
+
+  const cases = useMemo(() => {
+    if (fetched?.key === cacheKey) return fetched.data
+    return readCache(cacheKey) ?? []
+  }, [fetched, cacheKey])
+
+  const hasData = fetched?.key === cacheKey || readCache(cacheKey) !== null
+  // Loading only when there is nothing to show — cached data displays
+  // immediately while the background refetch runs
+  const isLoading = !hasData && fetchingKey === cacheKey
 
   const fetchCases = useCallback(async () => {
     if (!workspaceId || !projectId) return
-    setIsLoading(true)
+    const key = `velo:cases:${workspaceId}:${projectId}:${selectedSuiteId ?? "all"}`
+    setFetchingKey(key)
     setError(null)
     try {
       const url = selectedSuiteId
@@ -63,17 +104,31 @@ export function useTestCases(
       const res = await fetch(url)
       if (!res.ok) throw new Error(`Failed to fetch cases: ${res.status}`)
       const data = await res.json() as TestCase[]
-      setCases(data)
+      writeCache(key, data)
+      setFetched({ key, data })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load cases")
     } finally {
-      setIsLoading(false)
+      setFetchingKey((prev) => (prev === key ? null : prev))
     }
   }, [workspaceId, projectId, selectedSuiteId])
 
   useEffect(() => {
     void fetchCases()
   }, [fetchCases])
+
+  // Drop-in replacement for a plain setState — applies the update to the
+  // currently displayed list and persists it to the cache, so optimistic
+  // updates (reorder, bulk ops) survive navigation.
+  const setCases = useCallback<Dispatch<SetStateAction<TestCase[]>>>((action) => {
+    setFetched((prev) => {
+      const key = cacheKeyRef.current
+      const current = prev?.key === key ? prev.data : readCache(key) ?? []
+      const next = typeof action === "function" ? action(current) : action
+      writeCache(key, next)
+      return { key, data: next }
+    })
+  }, [])
 
   const createCase = useCallback(async (input: CreateCaseInput): Promise<TestCase> => {
     // Optimistic insert
@@ -105,7 +160,7 @@ export function useTestCases(
       setCases((prev) => prev.filter((c) => c.id !== optimisticId))
       throw err
     }
-  }, [workspaceId, projectId, cases])
+  }, [workspaceId, projectId, cases, setCases])
 
   const updateCase = useCallback(async (input: UpdateCaseInput): Promise<TestCase> => {
     // Optimistic update
@@ -132,7 +187,7 @@ export function useTestCases(
       void fetchCases()
       throw err
     }
-  }, [workspaceId, projectId, fetchCases])
+  }, [workspaceId, projectId, fetchCases, setCases])
 
   const deleteCase = useCallback(async (id: string): Promise<void> => {
     // Optimistic delete
@@ -152,7 +207,7 @@ export function useTestCases(
       setCases(prev)
       throw err
     }
-  }, [workspaceId, projectId, cases])
+  }, [workspaceId, projectId, cases, setCases])
 
   return { cases, setCases, isLoading, error, createCase, updateCase, deleteCase, refetch: fetchCases }
 }

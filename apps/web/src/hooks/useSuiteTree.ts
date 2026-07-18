@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 
 export interface Suite {
   id: string
@@ -19,7 +19,9 @@ interface UseSuiteTreeReturn {
   refetch: () => void
 }
 
-function buildTree(suites: Omit<Suite, "children">[]): Suite[] {
+type FlatSuite = Omit<Suite, "children">
+
+function buildTree(suites: FlatSuite[]): Suite[] {
   const map = new Map<string, Suite>()
   const roots: Suite[] = []
 
@@ -51,32 +53,50 @@ function buildTree(suites: Omit<Suite, "children">[]): Suite[] {
 }
 
 export function useSuiteTree(workspaceId: string, projectId: string): UseSuiteTreeReturn {
-  const [flatList, setFlatList] = useState<Suite[]>([])
-  const [tree, setTree] = useState<Suite[]>([])
+  const cacheKey = `velo:suites:${workspaceId}:${projectId}`
+  // Stale-while-revalidate (same pattern as the sidebar project switcher):
+  // render the cached tree instantly, refresh in the background
+  const [flatData, setFlatData] = useState<FlatSuite[] | null>(() => {
+    if (typeof window === "undefined") return null
+    try {
+      const raw = sessionStorage.getItem(cacheKey)
+      return raw ? (JSON.parse(raw) as FlatSuite[]) : null
+    } catch {
+      return null
+    }
+  })
   const [selected, setSelected] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchSuites = useCallback(async () => {
     if (!workspaceId || !projectId) return
-    setIsLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites`)
       if (!res.ok) throw new Error(`Failed to fetch suites: ${res.status}`)
-      const data = await res.json() as Omit<Suite, "children">[]
-      setFlatList(data.map((s) => ({ ...s, children: [] })))
-      setTree(buildTree(data))
+      const data = await res.json() as FlatSuite[]
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(data)) } catch { /* best-effort */ }
+      setFlatData(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load suites")
     } finally {
-      setIsLoading(false)
+      setIsFetching(false)
     }
-  }, [workspaceId, projectId])
+  }, [workspaceId, projectId, cacheKey])
 
   useEffect(() => {
     void fetchSuites()
   }, [fetchSuites])
+
+  const flatList = useMemo<Suite[]>(
+    () => (flatData ?? []).map((s) => ({ ...s, children: [] })),
+    [flatData]
+  )
+  const tree = useMemo(() => buildTree(flatData ?? []), [flatData])
+  // Loading only when there is nothing cached to show
+  const isLoading = flatData === null && isFetching
 
   return { tree, flatList, selected, setSelected, isLoading, error, refetch: fetchSuites }
 }
