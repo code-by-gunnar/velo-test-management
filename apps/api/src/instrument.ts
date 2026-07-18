@@ -1,7 +1,9 @@
 import * as Sentry from "@sentry/node"
 
 Sentry.init({
-  dsn: "https://690c376c1417c8aa75636768fafd2af9@o4511058912411648.ingest.de.sentry.io/4511059656638544",
+  // Empty DSN disables Sentry — self-hosted instances must not report into
+  // the hosted production project unless explicitly configured.
+  dsn: process.env.SENTRY_DSN ?? "",
 
   sendDefaultPii: true,
 

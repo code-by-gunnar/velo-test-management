@@ -1,7 +1,12 @@
+import path from "node:path"
 import type { NextConfig } from "next"
 import { withSentryConfig } from "@sentry/nextjs"
 
 const config: NextConfig = {
+  // Self-contained server bundle for Docker (ignored by Vercel's builder)
+  output: "standalone",
+  // Monorepo root so the standalone trace includes hoisted pnpm deps
+  outputFileTracingRoot: path.join(process.cwd(), "../../"),
   reactStrictMode: true,
   // App Router is disabled — Pages Router only (CVE-2025-55182)
   experimental: {},

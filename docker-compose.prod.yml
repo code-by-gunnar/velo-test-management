@@ -1,0 +1,44 @@
+# Production overlay — Caddy reverse proxy with automatic TLS. UNTESTED STUB:
+# review before first server deploy.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d --build
+#
+# Deploy checklist (any host — EC2, Hetzner, etc.):
+#   1. DNS: A records for app.DOMAIN and api.DOMAIN → server IP
+#   2. .env: DOMAIN=yourdomain, WEB_URL=https://app.DOMAIN, PUBLIC_API_URL=https://api.DOMAIN
+#   3. REBUILD the web image (PUBLIC_API_URL is a build ARG) — --build handles it
+#   4. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
+#   5. Strong POSTGRES_PASSWORD
+#   6. Verify merged config first: docker compose -f docker-compose.yml \
+#        -f docker-compose.app.yml -f docker-compose.prod.yml config
+#      (confirm postgres/valkey/api/web publish no host ports — !override below)
+
+services:
+  postgres:
+    ports: !override []
+  valkey:
+    ports: !override []
+  api:
+    ports: !override []
+  web:
+    ports: !override []
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env for the prod overlay}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  caddy_data:
+  caddy_config:

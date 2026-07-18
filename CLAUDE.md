@@ -25,14 +25,14 @@ cd apps/api && pnpm test       # 193+ tests pass
 Never guess at root causes. Always pull logs first.
 
 ```bash
-railway logs --tail 50                    # API errors, DB errors, startup failures
-vercel logs https://runvelo.app --limit 50  # Frontend, gateway 5xx, SSR
+docker compose logs api --tail 50         # API errors, DB errors, startup failures
+docker compose logs web --tail 50         # Frontend, gateway 5xx, SSR
 gh run list --limit 5 && gh run view <id> --log-failed          # CI failures
 ```
 
-Sentry dashboard: https://velo-qa.sentry.io (frontend: velo-production, API: api-production)
+Sentry dashboard: https://velo-qa.sentry.io (frontend: velo-production, API: api-production; API reports only when SENTRY_DSN is set)
 
-Workflow: Sentry issues → Railway logs → Vercel logs → CI logs → read the error → then fix.
+Workflow: Sentry issues → docker compose logs → CI logs → read the error → then fix.
 
 ---
 
@@ -139,7 +139,7 @@ velo-test-management/
 | Analytics | PostHog (posthog-node) | Server-side, EU region (eu.i.posthog.com), 19 events |
 | Error Tracking | Sentry | `@sentry/nextjs` (web) + `@sentry/node` (api) |
 | Testing | Vitest | API integration tests against test PostgreSQL |
-| Hosting | Vercel (web) + Railway (api) | Auto-deploy from master |
+| Hosting | Self-hosted Docker Compose | Railway (api) decommissioned 2026-07 (trial expired); Vercel deployment = marketing/legacy |
 | Package manager | pnpm workspaces | Monorepo |
 
 ## Key Architectural Rules
@@ -259,17 +259,33 @@ velo-test-management/
 - **Connection pool**: 20 max connections, 30s idle timeout.
 - **Linear retry**: `withRetry()` wraps `createLinearIssue` (2 retries, exponential backoff).
 
+## Self-Hosted Deployment (Docker Compose)
+
+Railway (api) was decommissioned 2026-07 (trial expired). The stack is now self-hosted and host-agnostic.
+
+| Command | Result |
+|---------|--------|
+| `docker compose up -d` | Bare postgres + valkey (for local `pnpm dev`) — unchanged workflow |
+| `docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build` | Full stack: web :3000, api :3001 |
+| + `-f docker-compose.prod.yml` | Server deploy: adds Caddy (TLS, app./api. subdomains), unpublishes internal ports |
+
+- **Env**: copy root `.env.example` → `.env`. App overlay hard-fails without `AUTH_SECRET`, `INTERNAL_API_SECRET`, `RESEND_API_KEY`, `APP_DB_PASSWORD` (compose `:?` guards).
+- **DB roles**: runtime connects as non-superuser `velo_app` (provisioned on boot, RLS-enforced); migrations/fixups use the superuser via `MIGRATION_DATABASE_URL`. Never point runtime `DATABASE_URL` at a superuser — superusers bypass RLS even with FORCE. `workspace_members` carries a `USING (true)` exemption for `velo_app` (see audit #19 follow-up). The two compose files are split (not profiles) because compose interpolates the whole file at parse time — guards would break bare `docker compose up -d`.
+- **Images**: `apps/api/Dockerfile` (pnpm deploy --prod + explicit `dist/` + `drizzle/` copy — pnpm deploy honors .gitignore and would drop them), `apps/web/Dockerfile` (Next standalone output; `NEXT_PUBLIC_API_BASE_URL` is a build ARG — changing the public API URL requires image rebuild).
+- **SSE**: browser connects directly to the API (bypasses `/api/backend` gateway) — the `apiUrl` prop in `runs/*.tsx` getServerSideProps resolves `NEXT_PUBLIC_API_BASE_URL ?? API_URL`, so `API_URL` stays compose-internal (`http://api:3001`) while the browser uses the public URL.
+- **Migrations**: run automatically on api boot (before listen); api healthcheck has `start_period: 30s` to cover this.
+- **Sentry (api)**: DSN now env-driven (`SENTRY_DSN`, empty = disabled) so self-hosted instances don't pollute the hosted project. Web DSN still hardcoded (known deferral).
+- **Prod checklist** lives in the header of `docker-compose.prod.yml` (DNS, WEB_URL/PUBLIC_API_URL, web image rebuild, OAuth callback re-registration).
+
 ## Environments
 
-| Service | URL |
-|---------|-----|
-| Web (prod) | https://runvelo.app |
-| API (prod) | https://api.runvelo.app |
-| API health | https://api.runvelo.app/health |
-| Web (staging) | https://staging.runvelo.app |
-| API (staging) | https://api-staging.runvelo.app |
-| Web (local) | http://localhost:3000 |
-| API (local) | http://localhost:3001 |
+| Service | URL | Status |
+|---------|-----|--------|
+| Web (local compose) | http://localhost:3000 | active |
+| API (local compose) | http://localhost:3001 | active |
+| API health | http://localhost:3001/health | active |
+| Web (Vercel) | https://runvelo.app | legacy — marketing only, API backend gone |
+| API (Railway) | https://api.runvelo.app | decommissioned (serves Railway fallback) |
 
 ## Lessons Learned
 
@@ -285,6 +301,9 @@ velo-test-management/
 - **Sentry Pages Router** — Uses `sentry.client.config.ts` pattern BUT also needs `instrumentation-client.ts` with direct `Sentry.init()` call for Next.js 16. `_error.tsx` required for error capture.
 - **Sentry API (Fastify)** — `--import` flag didn't work in Railway container. Use direct `import "./instrument.js"` at top of `server.ts` instead.
 - **Railway start command** — Defined in root `railway.toml`, NOT `apps/api/railway.toml`. Root toml is what Railway uses.
+- **pnpm relative-path filters break on Windows via script wrapper** — `--filter='./apps/*'` in the root `dev` script matched zero projects when run as `pnpm dev` on the D: drive (resolves against wrong base dir in the nested pnpm context). Use name-based filters (`--filter=@velo/api --filter=@velo/web`) — immune to path resolution.
+- **Turbopack junction-point crash on Windows** — `failed to create junction point ... The file exists (os error 80)` on `pnpm dev` = stale `.next` cache. Fix: `rm -rf apps/web/.next apps/web/node_modules/.cache` and restart.
+- **Vercel function region must be pinned** — Without `"regions"` in vercel.json, Vercel functions run in iad1 (US East) by default. The gateway proxy (`/api/backend/*`) was routing every API call browser (EU) → US → Railway (EU Amsterdam) → back, adding ~250–450ms to every request. Pinned to `fra1` (closest to Railway EU). Verified via `X-Vercel-Id` header (`edge::function-region` format).
 - **Vercel API_URL env var** — After domain changes, audit ALL Vercel env vars. `API_URL` was still pointing to old Vercel URL after the runvelo.app migration, causing the gateway proxy to fail silently. Login appeared broken but the real issue was Vercel → Railway routing.
 
 ## PostHog Events (19 total)
