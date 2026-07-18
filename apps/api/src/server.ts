@@ -37,9 +37,14 @@ import * as Sentry from "@sentry/node"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 import { shutdownPostHog } from "./lib/posthog.js"
 
+// Migrations and fixups need DDL rights. When the runtime role is the restricted
+// velo_app (audit #19), MIGRATION_DATABASE_URL carries the privileged connection;
+// falls back to DATABASE_URL for single-role setups (local pnpm dev, tests).
+const migrationUrl = () => process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL!
+
 // Run pending migrations on startup (safe — idempotent, only applies new migrations)
 async function runMigrations() {
-  const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 })
+  const migrationClient = postgres(migrationUrl(), { max: 1 })
   try {
     await migrate(drizzle(migrationClient), {
       migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
@@ -53,7 +58,7 @@ async function runMigrations() {
 // Idempotent schema fixups — run after migrations to patch columns that Drizzle
 // may have skipped if the migration was registered before the SQL file was deployed.
 async function runFixups() {
-  const fixupClient = postgres(process.env.DATABASE_URL!, { max: 1 })
+  const fixupClient = postgres(migrationUrl(), { max: 1 })
   try {
     await fixupClient.unsafe(
       `ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL`
@@ -201,8 +206,55 @@ async function runFixups() {
   }
 }
 
+// Audit #19: provision the non-superuser runtime role. Superusers bypass RLS even
+// with FORCE, so DATABASE_URL must point at velo_app for row-level security to bind.
+// Runs only when APP_DB_PASSWORD is set (i.e., split-role deployments like compose);
+// single-role local dev and tests are unaffected.
+async function ensureAppRole() {
+  const password = process.env.APP_DB_PASSWORD
+  if (!password) return
+
+  const client = postgres(migrationUrl(), { max: 1 })
+  const escaped = password.replace(/'/g, "''")
+  try {
+    await client.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'velo_app') THEN
+          CREATE ROLE velo_app LOGIN;
+        END IF;
+      END $$
+    `)
+    // Keep the password in sync with the env on every boot (supports rotation)
+    await client.unsafe(`ALTER ROLE velo_app LOGIN PASSWORD '${escaped}'`)
+    await client.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO velo_app`)
+    await client.unsafe(`GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO velo_app`)
+    await client.unsafe(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO velo_app`)
+    await client.unsafe(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO velo_app`)
+    // workspace_members is queried by explicit user/workspace predicates from many
+    // pre-context paths (login JWT claims, role checks, member management) that never
+    // set app.workspace_id. Exempt it from RLS for the app role only — content tables
+    // (test_cases, runs, etc.) stay fully RLS-enforced. Follow-up: an app.user_id
+    // policy + withUser() helper to close this exemption (see audit #19 note).
+    await client.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE tablename = 'workspace_members' AND policyname = 'app_members_access'
+        ) THEN
+          CREATE POLICY app_members_access ON workspace_members
+            FOR ALL TO velo_app USING (true) WITH CHECK (true);
+        END IF;
+      END $$
+    `)
+    console.log("App role velo_app provisioned (RLS-bound runtime)")
+  } finally {
+    await client.end()
+  }
+}
+
 await runMigrations()
 await runFixups()
+await ensureAppRole()
 
 const fastify = Fastify({
   logger: {

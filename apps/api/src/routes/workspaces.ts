@@ -4,6 +4,8 @@ import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
 import { captureEvent } from "../lib/posthog.js"
+import { requireEditor } from "../plugins/require-editor.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // postgres.js TransactionSql has its call signatures omitted by TypeScript's Omit<>.
 // Cast tx through unknown to postgres.Sql to enable template tag calls inside sql.begin().
@@ -500,6 +502,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; projectId: string }
     Body: { name?: string; project_key?: string }
   }>("/api/workspaces/:workspaceId/projects/:projectId", {
+    preHandler: [requireEditor],
     schema: {
       body: {
         type: "object",
@@ -560,7 +563,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   // ── DELETE /api/workspaces/:workspaceId/projects/:projectId — soft delete ──
   fastify.delete<{
     Params: { workspaceId: string; projectId: string }
-  }>("/api/workspaces/:workspaceId/projects/:projectId", async (request, reply) => {
+  }>("/api/workspaces/:workspaceId/projects/:projectId", { preHandler: [requireAdmin] }, async (request, reply) => {
     const { workspaceId, projectId } = request.params
 
     if (request.workspaceId !== workspaceId) {
