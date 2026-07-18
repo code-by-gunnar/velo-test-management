@@ -10,6 +10,7 @@ import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 import { captureEvent } from "../lib/posthog.js"
+import { deleteR2Objects } from "../lib/r2.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -682,7 +683,14 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid runId" })
       }
 
-      await withWorkspace(workspaceId, async (tx) => {
+      const attachmentKeys = await withWorkspace(workspaceId, async (tx) => {
+        // Capture evidence R2 keys BEFORE the rows cascade-delete with run_items —
+        // the DB cascade removes the attachment rows but never the R2 objects (VEL-54).
+        const keyRows = await tx<{ r2_key: string }[]>`
+          SELECT r2_key FROM run_item_attachments WHERE run_item_id IN (
+            SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+          )
+        `
         // Delete step comments, defects, run items, then the run itself
         await tx`DELETE FROM run_item_step_comments WHERE run_item_id IN (
           SELECT id FROM run_items WHERE run_id = ${runId}::uuid
@@ -693,7 +701,16 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         await tx`DELETE FROM run_items WHERE run_id = ${runId}::uuid`
         await tx`DELETE FROM test_runs WHERE id = ${runId}::uuid
           AND workspace_id = current_setting('app.workspace_id', true)::uuid`
+        return keyRows.map((r) => r.r2_key)
       })
+
+      // Best-effort R2 cleanup AFTER the transaction commits — orphaned objects are
+      // wasteful but non-fatal, so a storage failure must not fail the delete.
+      if (attachmentKeys.length > 0) {
+        await deleteR2Objects(attachmentKeys).catch((err) => {
+          fastify.log.error({ err, runId }, "run delete: R2 evidence cleanup failed")
+        })
+      }
 
       return reply.status(204).send()
     }

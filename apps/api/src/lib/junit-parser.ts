@@ -19,6 +19,11 @@ const ALWAYS_ARRAY_PATHS = [
   "testsuite.testcase",
 ]
 
+// NOTE: processEntities stays at its default (true). fast-xml-parser does NOT
+// expand DTD <!ENTITY> declarations, so it is already immune to the billion-laughs
+// entity-expansion DoS (verified in junit-parser.test.ts). Setting it to false
+// would only stop decoding the 5 predefined XML entities (&amp; &lt; &gt; &quot;
+// &apos;), silently corrupting test names/messages that legitimately contain them.
 const junitParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",

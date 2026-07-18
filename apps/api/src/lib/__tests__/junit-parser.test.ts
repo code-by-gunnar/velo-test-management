@@ -200,6 +200,46 @@ describe("parseJUnitXml", () => {
     expect(tc.durationMs).toBe(100)
   })
 
+  it("does not expand internal XML entities (billion-laughs DoS guard)", () => {
+    // Entity-expansion bomb: with entity processing enabled, &lol5; expands to
+    // 10^5 characters from a tiny payload. A real bomb nests ~10 deep (gigabytes).
+    // The parser MUST leave entity references literal — never expand them.
+    const bomb = `<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+  <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+  <!ENTITY lol5 "&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;">
+]>
+<testsuites>
+  <testsuite name="bomb">
+    <testcase name="&lol5;" classname="c"/>
+  </testsuite>
+</testsuites>`
+    const results = parseJUnitXml(bomb)
+    expect(results).toHaveLength(1)
+    const tc = results[0] as NormalizedTestCase
+    // Entity left literal — not expanded to the 100k-char blow-up.
+    expect(tc.name).toBe("&lol5;")
+    expect(tc.name.length).toBeLessThan(100)
+  })
+
+  it("still decodes the 5 predefined XML entities (guard: do NOT set processEntities:false)", () => {
+    // fast-xml-parser already ignores DTD <!ENTITY> declarations (see billion-laughs
+    // test above), so disabling processEntities buys no security — it would only
+    // corrupt legitimate names/messages that use &amp;/&lt;/&gt; into literal text.
+    const xml = `<?xml version="1.0"?>
+<testsuites>
+  <testsuite name="s">
+    <testcase name="a &amp; b &lt; c" classname="c"/>
+  </testsuite>
+</testsuites>`
+    const results = parseJUnitXml(xml)
+    expect(results).toHaveLength(1)
+    expect((results[0] as NormalizedTestCase).name).toBe("a & b < c")
+  })
+
   it("NormalizedTestCase has all required fields", () => {
     const xml = loadFixture("single-test-junit.xml")
     const results = parseJUnitXml(xml)

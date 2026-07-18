@@ -1,6 +1,6 @@
 import { Worker } from "bullmq"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
-import { valkey } from "../lib/valkey.js"
+import { valkey, scanKeys } from "../lib/valkey.js"
 import { sql } from "../db/client.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { r2Enabled, listR2Objects, deleteR2Objects } from "../lib/r2.js"
@@ -57,8 +57,8 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         }
 
         // Valkey cleanup — remove cached role and deactivation keys
-        const roleKeys = await valkey.keys(`member_role:${workspaceId}:*`)
-        const deactivatedKeys = await valkey.keys(`deactivated:${workspaceId}:*`)
+        const roleKeys = await scanKeys(valkey, `member_role:${workspaceId}:*`)
+        const deactivatedKeys = await scanKeys(valkey, `deactivated:${workspaceId}:*`)
         const allValkeyKeys = [...roleKeys, ...deactivatedKeys]
         if (allValkeyKeys.length > 0) {
           await valkey.del(...allValkeyKeys)
@@ -171,7 +171,7 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         `
 
         // Valkey cleanup — remove deactivation keys for this user across all workspaces
-        const userDeactivatedKeys = await valkey.keys(`deactivated:*:${userId}`)
+        const userDeactivatedKeys = await scanKeys(valkey, `deactivated:*:${userId}`)
         if (userDeactivatedKeys.length > 0) {
           await valkey.del(...userDeactivatedKeys)
         }

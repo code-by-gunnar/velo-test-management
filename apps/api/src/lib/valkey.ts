@@ -32,6 +32,24 @@ valkey.on("error", (err: Error) => {
 })
 
 /**
+ * Non-blocking replacement for `KEYS pattern`. `KEYS` scans the ENTIRE keyspace
+ * in one shot and blocks Valkey's single thread until it finishes — safe at a
+ * handful of keys, a latency spike at scale. `SCAN` walks the keyspace in bounded
+ * batches (COUNT hint) and yields between iterations, so it never monopolizes the
+ * server. Use this anywhere a wildcard key lookup runs against production data.
+ */
+export async function scanKeys(client: Redis, pattern: string): Promise<string[]> {
+  const found: string[] = []
+  let cursor = "0"
+  do {
+    const [next, batch] = await client.scan(cursor, "MATCH", pattern, "COUNT", 200)
+    cursor = next
+    found.push(...batch)
+  } while (cursor !== "0")
+  return found
+}
+
+/**
  * Create a new Valkey connection suitable for BullMQ Workers.
  * Workers use a blocking connection (BRPOP) — maxRetriesPerRequest MUST be null.
  * Call this once per Worker, not shared.

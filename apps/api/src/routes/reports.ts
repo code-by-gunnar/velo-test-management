@@ -28,6 +28,14 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid projectId" })
       }
 
+      // Analytics must count every view, not just cache misses (VEL-54). Fire
+      // before the cache short-circuit below so repeat views within the 60s TTL
+      // still register.
+      captureEvent(request.userId as string, "report_viewed", {
+        workspace_id: workspaceId,
+        project_id: projectId,
+      })
+
       // Check Valkey cache first (60-second TTL — reports are stale-tolerant)
       const cacheKey = `reports:${workspaceId}:${projectId}`
       const cached = await fastify.valkey.get(cacheKey)
@@ -60,13 +68,15 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
               tc.id AS case_id, tc.title AS case_title, s.name AS suite_name,
               COUNT(ri.id) FILTER (WHERE ri.status = 'fail')::int AS fail_count,
               COUNT(ri.id)::int AS total_executions,
-              MAX(ri.executed_at) FILTER (WHERE ri.status = 'fail') AS last_failed_at
+              MAX(COALESCE(ri.executed_at, tr.completed_at, tr.created_at)) FILTER (WHERE ri.status = 'fail') AS last_failed_at
             FROM run_items ri
             JOIN test_cases tc ON tc.id = ri.test_case_id
             LEFT JOIN suites s ON s.id = tc.suite_id
             JOIN test_runs tr ON tr.id = ri.run_id
             WHERE tr.project_id = ${projectId}::uuid
-              AND ri.executed_at > NOW() - INTERVAL '30 days'
+              -- CI-ingested items have executed_at = NULL; fall back to the run's
+              -- completion time so pipeline failures still count as fragile (VEL-54).
+              AND COALESCE(ri.executed_at, tr.completed_at, tr.created_at) > NOW() - INTERVAL '30 days'
               AND tc.deleted_at IS NULL
             GROUP BY tc.id, tc.title, s.name
             HAVING COUNT(ri.id) FILTER (WHERE ri.status = 'fail') > 0
@@ -110,11 +120,6 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Cache for 60 seconds
       await fastify.valkey.set(cacheKey, JSON.stringify(payload), "EX", 60).catch(() => {})
-
-      captureEvent(request.userId as string, "report_viewed", {
-        workspace_id: workspaceId,
-        project_id: projectId,
-      })
 
       return reply.send(payload)
     }
