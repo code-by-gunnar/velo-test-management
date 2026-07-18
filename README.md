@@ -61,7 +61,7 @@ Built by a QA engineer, for QA engineers.
 - Session replay on errors
 
 **Multi-tenancy & Security**
-- Workspace isolation enforced at app layer + PostgreSQL RLS
+- Workspace isolation enforced at app layer + PostgreSQL RLS (runtime runs as a non-superuser role so RLS actually binds)
 - Free tier: 3 editors, 1 project, 500 test cases
 - Viewers always free
 - RBAC (admin/editor/viewer) with invite flow and deactivation
@@ -83,7 +83,7 @@ Built by a QA engineer, for QA engineers.
 | Analytics | PostHog (server-side, EU region) |
 | Error Tracking | Sentry (frontend + API) |
 | Email | Resend SDK |
-| Hosting | Vercel (web) + Railway (API) |
+| Hosting | Self-hosted Docker Compose (web + API + PostgreSQL + Valkey, optional Caddy TLS) |
 
 ## Project Structure
 
@@ -100,31 +100,41 @@ velo-test-management/
 
 ## Getting Started
 
-### Prerequisites
+### Self-hosted (Docker Compose) — recommended
 
-- Node.js 22+
-- pnpm 9+
-- PostgreSQL 16
-- Valkey (or Redis-compatible)
-
-### Setup
+Prerequisites: Docker with Compose v2.
 
 ```bash
-# Install dependencies
+# Configure — fill in the four required secrets (generation commands are in the file)
+cp .env.example .env
+
+# Full stack: web :3000, API :3001, PostgreSQL, Valkey
+docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+```
+
+Migrations run automatically on API start. Without a real `RESEND_API_KEY`, set
+`API_NODE_ENV=development` in `.env` and signup OTPs print to `docker compose logs api`.
+
+For a server deploy with TLS, layer `docker-compose.prod.yml` (Caddy, `app.`/`api.`
+subdomains) — the deploy checklist is in that file's header.
+
+### Local development
+
+Prerequisites: Node.js 22+, pnpm 9+, Docker (for backing services).
+
+```bash
 pnpm install
+
+# Backing services only (PostgreSQL + Valkey)
+docker compose up -d
 
 # Set up environment variables
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 
-# Run database migrations (happens automatically on API start)
-cd apps/api && pnpm dev
-
-# Start the frontend
-cd apps/web && pnpm dev
+# API (:3001) + web (:3000), migrations run on API start
+pnpm dev
 ```
-
-The API runs on `http://localhost:3001` and the web app on `http://localhost:3000`.
 
 ### Running Tests
 
@@ -137,10 +147,9 @@ pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test
 
 | Service | URL |
 |---------|-----|
-| Production (web) | https://runvelo.app |
-| Production (API) | https://api.runvelo.app |
-| Staging (web) | https://staging.runvelo.app |
-| Staging (API) | https://api-staging.runvelo.app |
+| Self-hosted (web) | http://localhost:3000 (or `https://app.<your-domain>` via prod overlay) |
+| Self-hosted (API) | http://localhost:3001 (or `https://api.<your-domain>` via prod overlay) |
+| Marketing site | https://runvelo.app |
 
 ## Roadmap
 
@@ -156,6 +165,7 @@ pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test
 - [x] **Reports Dashboard** — Trend chart, fragile cases, recent runs
 - [x] **Security & Performance** — Audit (8 findings fixed), indexes, caching
 - [x] **Observability** — Sentry error tracking, PostHog analytics (19 events)
+- [x] **Self-Hosting** — Docker Compose stack, non-superuser DB role, Caddy prod overlay
 - [ ] **Tagging & Filtering** — Custom tags on test cases
 - [ ] **Bulk Actions** — Multi-select operations
 - [ ] **Slack Integration** — Run notifications
