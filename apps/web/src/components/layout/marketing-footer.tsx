@@ -14,8 +14,6 @@ export function MarketingFooter() {
             <Link href="/why-velo" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Why Velo</Link>
             <Link href="/features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Features</Link>
             <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Pricing</Link>
-            <Link href="/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign In</Link>
-            <Link href="/signup" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign Up</Link>
             <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Privacy</Link>
             <a href="mailto:support@runvelo.app" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Contact</a>
           </nav>

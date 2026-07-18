@@ -73,15 +73,12 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Link href="/signup" className="block">
+                <Link href="/features" className="block">
                   <Button variant="primary" size="lg" className="w-full justify-center">
-                    Get Started Free
+                    Explore Features
                     <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </Link>
-                <p className="mt-3 text-center text-xs text-gray-400">
-                  No credit card required
-                </p>
               </div>
 
               <div className="mt-8 text-center">

@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
   "regions": ["fra1"],
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile"
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- src/pages/index.tsx src/pages/features.tsx src/pages/pricing.tsx src/pages/why-velo.tsx src/pages/privacy.tsx src/components/layout/marketing-nav.tsx src/components/layout/marketing-footer.tsx src/components/ui src/styles public vercel.json next.config.ts tailwind.config.ts"
 }

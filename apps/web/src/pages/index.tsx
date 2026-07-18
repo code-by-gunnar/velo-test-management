@@ -131,22 +131,18 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link href="/signup">
+                <Link href="/features">
                   <Button variant="primary" size="lg">
-                    Get Started Free
+                    Explore Features
                     <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </Link>
-                <Link href="/login">
+                <Link href="/why-velo">
                   <Button variant="secondary" size="lg">
-                    Sign In
+                    Why Velo
                   </Button>
                 </Link>
               </div>
-
-              <p className="mt-4 text-xs text-gray-400">
-                No credit card required. Free while in beta.
-              </p>
             </div>
           </section>
 
@@ -270,12 +266,12 @@ export default function Home() {
                   not crossed fingers.
                 </h2>
                 <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
-                  Join the beta. Free for now, fair pricing later.
+                  Lean test management for teams that ship fast.
                   No feature gates, no seat surprises.
                 </p>
-                <Link href="/signup">
+                <Link href="/features">
                   <Button variant="primary" size="lg">
-                    Get Started Free
+                    Explore Features
                     <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </Link>

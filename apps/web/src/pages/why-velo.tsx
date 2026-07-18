@@ -199,15 +199,12 @@ export default function WhyVeloPage() {
                   The safest testing career in 2026 is built on judgment, not throughput.
                   Velo is the tool for that career.
                 </p>
-                <Link href="/signup">
+                <Link href="/features">
                   <Button variant="primary" size="lg">
-                    Get Started Free
+                    Explore Features
                     <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </Link>
-                <p className="mt-4 text-xs text-gray-500">
-                  No credit card. Free while in beta.
-                </p>
               </div>
             </div>
           </section>

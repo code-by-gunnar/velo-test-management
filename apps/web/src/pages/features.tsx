@@ -116,11 +116,11 @@ export default function FeaturesPage() {
                   Ready to try it yourself?
                 </h2>
                 <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
-                  Free during beta. No credit card, no seat limits.
+                  See where Velo came from and where it&apos;s headed.
                 </p>
-                <Link href="/signup">
+                <Link href="/why-velo">
                   <Button variant="primary" size="lg">
-                    Get Started Free
+                    Why Velo
                     <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </Link>

@@ -2,7 +2,6 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { clsx } from "clsx"
-import { Button } from "@/components/ui"
 import { Menu, X } from "lucide-react"
 
 const NAV_LINKS = [
@@ -43,15 +42,6 @@ export function MarketingNav({ activePath }: MarketingNavProps) {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors px-2.5 py-1.5"
-            >
-              Sign In
-            </Link>
-            <Link href="/signup">
-              <Button variant="primary" size="sm">Get Started</Button>
-            </Link>
           </nav>
 
           {/* Mobile hamburger */}
@@ -85,20 +75,6 @@ export function MarketingNav({ activePath }: MarketingNavProps) {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/login"
-              onClick={() => setMobileOpen(false)}
-              className="text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md px-3 py-2 transition-colors"
-            >
-              Sign In
-            </Link>
-            <div className="pt-2">
-              <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                <Button variant="primary" size="sm" className="w-full justify-center">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
           </nav>
         </div>
       )}
