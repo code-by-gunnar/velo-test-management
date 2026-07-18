@@ -10,6 +10,7 @@ import {
   createLinearWebhook,
 } from "../lib/linear-client.js"
 import { captureEvent } from "../lib/posthog.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // Extend Fastify route config to support skipAuth flag
 declare module "fastify" {
@@ -44,6 +45,7 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string }
   }>(
     "/api/workspaces/:workspaceId/linear/auth",
+    { preHandler: [requireAdmin] },
     async (request, reply) => {
       const { workspaceId } = request.params
 
@@ -233,6 +235,7 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/linear/team",
     {
+      preHandler: [requireAdmin],
       schema: {
         body: {
           type: "object",
@@ -339,6 +342,7 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/linear/api-key",
     {
+      preHandler: [requireAdmin],
       schema: {
         body: {
           type: "object",
@@ -429,6 +433,7 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string }
   }>(
     "/api/workspaces/:workspaceId/linear/disconnect",
+    { preHandler: [requireAdmin] },
     async (request, reply) => {
       const { workspaceId } = request.params
 

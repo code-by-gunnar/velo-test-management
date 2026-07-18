@@ -18,13 +18,15 @@ const { decrypt } = await import("../../lib/encryption.js")
 const { resolveAnthropicKey } = await import("../../lib/anthropic.js")
 const aiRoutes = (await import("../ai.js")).default
 
-function buildApp(userId: string, workspaceId: string) {
+function buildApp(userId: string, workspaceId: string, role = "admin") {
   const app = Fastify({ logger: false })
   app.decorateRequest("userId", "")
   app.decorateRequest("workspaceId", "")
+  app.decorateRequest("userRole", "")
   app.addHook("preHandler", async (request) => {
     request.userId = userId
     request.workspaceId = workspaceId
+    request.userRole = role
   })
   return app
 }
@@ -132,6 +134,33 @@ describe("AI provider key (per-workspace Anthropic key)", () => {
 
     const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
     expect(rows).toHaveLength(0)
+  })
+
+  it("forbids a non-admin from setting or removing the workspace key (403)", async () => {
+    modelsListMock.mockResolvedValue({ data: [] })
+    const viewerApp = buildApp(userId, workspaceId, "viewer")
+    await viewerApp.register(aiRoutes)
+    await viewerApp.ready()
+    try {
+      const put = await viewerApp.inject({
+        method: "PUT",
+        url: `/api/workspaces/${workspaceId}/ai/api-key`,
+        payload: { api_key: "sk-ant-viewer" },
+      })
+      expect(put.statusCode).toBe(403)
+
+      const del = await viewerApp.inject({
+        method: "DELETE",
+        url: `/api/workspaces/${workspaceId}/ai/api-key`,
+      })
+      expect(del.statusCode).toBe(403)
+
+      // Nothing was written.
+      const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
+      expect(rows).toHaveLength(0)
+    } finally {
+      await viewerApp.close()
+    }
   })
 
   it("resolveAnthropicKey prefers the workspace key over the env key", async () => {

@@ -25,7 +25,7 @@ const linearRoutes = (await import("../linear.js")).default
 const mockGetOrg = vi.mocked(getLinearOrganization)
 const mockGetTeams = vi.mocked(getLinearTeams)
 
-function buildApp(userId: string, workspaceId: string) {
+function buildApp(userId: string, workspaceId: string, role = "admin") {
   const app = Fastify({ logger: false })
   app.decorate("valkey", valkey)
   app.decorateRequest("userId", "")
@@ -34,7 +34,7 @@ function buildApp(userId: string, workspaceId: string) {
   app.addHook("preHandler", async (request) => {
     request.userId = userId
     request.workspaceId = workspaceId
-    request.userRole = "admin"
+    request.userRole = role
   })
   return app
 }
@@ -135,6 +135,26 @@ describe("Linear API-key-only connect (PUT /linear/api-key upsert)", () => {
     const rows = await sql`SELECT api_key_enc FROM linear_connections WHERE workspace_id = ${workspaceId}::uuid`
     expect(rows).toHaveLength(1)
     expect(decrypt((rows[0] as { api_key_enc: string }).api_key_enc)).toBe("lin_api_second")
+  })
+
+  it("forbids a non-admin from connecting/rotating the Linear key (403)", async () => {
+    mockGetOrg.mockResolvedValue({ id: "org-1", name: "Acme" })
+    mockGetTeams.mockResolvedValue([{ id: "team-a", name: "Team A" }])
+    const viewerApp = buildApp(userId, workspaceId, "viewer")
+    await viewerApp.register(linearRoutes)
+    await viewerApp.ready()
+    try {
+      const res = await viewerApp.inject({
+        method: "PUT",
+        url: `/api/workspaces/${workspaceId}/linear/api-key`,
+        payload: { api_key: "lin_api_viewer" },
+      })
+      expect(res.statusCode).toBe(403)
+      const rows = await sql`SELECT id FROM linear_connections WHERE workspace_id = ${workspaceId}::uuid`
+      expect(rows).toHaveLength(0)
+    } finally {
+      await viewerApp.close()
+    }
   })
 
   it("selecting a team moves the connection to fully connected", async () => {

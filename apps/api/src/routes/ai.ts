@@ -7,6 +7,7 @@ import {
   invalidateAnthropicClient,
 } from "../lib/anthropic.js"
 import { captureEvent } from "../lib/posthog.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // ── AI provider key management (per-workspace BYO Anthropic key) ──────────────
 // Base path: /api/workspaces/:workspaceId/ai
@@ -42,6 +43,9 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/ai/api-key",
     {
+      // Setting a workspace-wide integration credential is admin-only, consistent
+      // with member management / lifecycle / export.
+      preHandler: [requireAdmin],
       schema: {
         body: {
           type: "object",
@@ -91,6 +95,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   // ── DELETE /ai/api-key — remove the workspace key (env fallback may remain) ─
   fastify.delete<{ Params: { workspaceId: string } }>(
     "/api/workspaces/:workspaceId/ai/api-key",
+    { preHandler: [requireAdmin] },
     async (request, reply) => {
       const { workspaceId } = request.params
       if (request.workspaceId !== workspaceId) {
