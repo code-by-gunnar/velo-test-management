@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle } from "@/components/ui"
 import { clsx } from "clsx"
@@ -59,12 +60,15 @@ export function IngestionHistory({
   slug,
   projectKey,
 }: IngestionHistoryProps) {
-  const [runs, setRuns] = useState<IngestionRun[]>([])
-  const [loading, setLoading] = useState(true)
+  // Cached history renders instantly on revisit; the mount fetch refreshes it
+  const [runs, setRuns, hadCache] = useCachedState<IngestionRun[]>(
+    `velo:ingestion:${workspaceId}:${projectId}`,
+    []
+  )
+  const [loading, setLoading] = useState(!hadCache)
   const [error, setError] = useState<string | null>(null)
 
   const fetchRuns = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const res = await fetch(
@@ -78,7 +82,7 @@ export function IngestionHistory({
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, projectId])
+  }, [workspaceId, projectId, setRuns])
 
   useEffect(() => {
     void fetchRuns()

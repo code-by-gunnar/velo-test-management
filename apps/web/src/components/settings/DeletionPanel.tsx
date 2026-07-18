@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import { Button } from "@/components/ui"
 import { Trash2, Clock, X } from "lucide-react"
 
@@ -32,14 +33,17 @@ function daysRemaining(scheduledAt: string): number {
 export function DeletionPanel({ workspaceId, userRole }: DeletionPanelProps) {
   const isAdmin = userRole === "admin"
 
-  const [status, setStatus] = useState<LifecycleStatus | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Cached status renders instantly on revisit; the mount fetch refreshes it
+  const [status, setStatus, hadCache] = useCachedState<LifecycleStatus | null>(
+    `velo:lifecycle:${workspaceId}`,
+    null
+  )
+  const [loading, setLoading] = useState(!hadCache)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const fetchStatus = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const res = await fetch(
@@ -53,7 +57,7 @@ export function DeletionPanel({ workspaceId, userRole }: DeletionPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [workspaceId])
+  }, [workspaceId, setStatus])
 
   useEffect(() => {
     void fetchStatus()

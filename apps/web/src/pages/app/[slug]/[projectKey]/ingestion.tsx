@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
+import { resolveProject } from "@/lib/project-cache"
 import { AppLayout } from "@/components/layout/app-layout"
 import { SetupGuide } from "@/components/ingestion/SetupGuide"
 import { IngestionHistory } from "@/components/ingestion/IngestionHistory"
@@ -67,26 +68,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["authjs.session-token"] ??
     null
 
-  let projectId = ""
   let hasApiKeys = false
 
-  if (workspaceId && token) {
-    const headers = { authorization: `Bearer ${token}` }
+  // Parallel: cached project lookup + API-key check
+  const [project, keysRes] = await Promise.all([
+    resolveProject(workspaceId, projectKey, token ?? undefined),
+    workspaceId && token
+      ? fetch(`${apiUrl}/api/workspaces/${workspaceId}/api-keys`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(8_000),
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ])
 
-    // Parallel: resolve project + check API keys
-    const [projectRes, keysRes] = await Promise.all([
-      fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`, { headers }).catch(() => null),
-      fetch(`${apiUrl}/api/workspaces/${workspaceId}/api-keys`, { headers }).catch(() => null),
-    ])
-
-    if (projectRes?.ok) {
-      const project = await projectRes.json() as { id: string }
-      projectId = project.id
-    }
-    if (keysRes?.ok) {
-      const keys = await keysRes.json() as Array<{ revoked_at: string | null }>
-      hasApiKeys = keys.some((k) => k.revoked_at === null)
-    }
+  if (keysRes?.ok) {
+    const keys = await keysRes.json() as Array<{ revoked_at: string | null }>
+    hasApiKeys = keys.some((k) => k.revoked_at === null)
   }
 
   return {
@@ -94,7 +91,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       slug,
       projectKey,
       workspaceId,
-      projectId,
+      projectId: project?.id ?? "",
       hasApiKeys,
     },
   }

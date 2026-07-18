@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
+import { resolveProject } from "@/lib/project-cache"
 import { AppLayout } from "@/components/layout/app-layout"
 import { WebhookSettings } from "@/components/settings/WebhookSettings"
 import { Button, Input, FormField } from "@/components/ui"
@@ -373,35 +374,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["authjs.session-token"] ??
     null
 
-  let projectId = ""
-  let projectName = ""
-  let testFormat = "steps"
   let projectCount = 0
 
-  if (workspaceId && token) {
-    try {
-      const res = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (res.ok) {
-        const project = (await res.json()) as { id: string; name: string; test_format?: string }
-        projectId = project.id
-        projectName = project.name
-        testFormat = project.test_format ?? "steps"
-      }
+  // Cached lookup + projects list in parallel (was two sequential fetches)
+  const [project, listRes] = await Promise.all([
+    resolveProject(workspaceId, projectKey, token ?? undefined),
+    workspaceId && token
+      ? fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects`, {
+          headers: { authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(8_000),
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ])
 
-      const listRes = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/projects`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (listRes.ok) {
-        const projects = (await listRes.json()) as Array<{ id: string }>
-        projectCount = projects.length
-      }
-    } catch {
-      // projectId stays empty
-    }
+  if (listRes?.ok) {
+    const projects = (await listRes.json()) as Array<{ id: string }>
+    projectCount = projects.length
   }
 
   return {
@@ -409,10 +397,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       slug,
       projectKey,
       workspaceId,
-      projectId,
-      projectName,
+      projectId: project?.id ?? "",
+      projectName: project?.name ?? "",
       projectCount,
-      testFormat,
+      testFormat: project?.test_format ?? "steps",
     },
   }
 }

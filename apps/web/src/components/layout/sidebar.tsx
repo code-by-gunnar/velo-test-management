@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react"
 import { clsx } from "clsx"
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useUserRole } from "@/hooks/useUserRole"
+import { clearVeloCache } from "@/hooks/useCachedState"
 import { CreateProjectModal } from "@/components/projects/CreateProjectModal"
 import {
   LayoutGrid,
@@ -364,7 +365,10 @@ function UserMenu({
           <div className="mx-2 my-1 border-t border-gray-100" />
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => {
+              clearVeloCache()
+              void signOut({ callbackUrl: "/login" })
+            }}
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <LogOut size={14} className="text-gray-400" />

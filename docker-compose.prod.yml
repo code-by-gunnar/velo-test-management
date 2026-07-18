@@ -22,6 +22,11 @@ services:
     ports: !override []
   web:
     ports: !override []
+    environment:
+      # Behind Caddy the classic proxy race applies: upstream keep-alive must
+      # outlast Caddy's idle timeout (90s default) so Caddy never reuses a
+      # socket the Node server just closed
+      KEEP_ALIVE_TIMEOUT: "95000"
 
   caddy:
     image: caddy:2

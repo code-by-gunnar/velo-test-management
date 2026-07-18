@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react"
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
+import { resolveProject } from "@/lib/project-cache"
+import { useCachedState } from "@/hooks/useCachedState"
 import { AppLayout } from "@/components/layout/app-layout"
 import { RunTrendChart } from "@/components/reports/RunTrendChart"
 import { FragileCasesTable } from "@/components/reports/FragileCasesTable"
@@ -49,16 +51,25 @@ interface ReportData {
 }
 
 export default function ReportsPage({ slug, projectKey, workspaceId, projectId }: ReportsPageProps) {
-  const [data, setData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Cached report renders instantly on revisit; the fetch refreshes it in the
+  // background. A failed refresh keeps showing the cached data.
+  const [data, setData, hadCache] = useCachedState<ReportData | null>(
+    `velo:reports:${workspaceId}:${projectId}`,
+    null
+  )
+  const [loading, setLoading] = useState(!hadCache)
 
   useEffect(() => {
     fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/reports`)
-      .then((res) => (res.ok ? res.json() as Promise<ReportData> : null))
-      .then((d) => setData(d))
-      .catch(() => setData(null))
+      .then((res) => (res.ok ? (res.json() as Promise<ReportData>) : null))
+      .then((d) => {
+        if (d) setData(d)
+      })
+      .catch(() => {
+        // Keep cached data on transient failure
+      })
       .finally(() => setLoading(false))
-  }, [workspaceId, projectId])
+  }, [workspaceId, projectId, setData])
 
   return (
     <AppLayout slug={slug} projectKey={projectKey}>
@@ -136,21 +147,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["__Secure-authjs.session-token"] ??
     context.req.cookies["authjs.session-token"]
 
-  let projectId = ""
-  if (workspaceId && token) {
-    try {
-      const res = await fetch(
-        `${process.env.API_URL}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (res.ok) {
-        const project = await res.json() as { id: string }
-        projectId = project.id
-      }
-    } catch {
-      // projectId stays empty
-    }
-  }
+  const project = await resolveProject(workspaceId, projectKey, token)
 
-  return { props: { slug, projectKey, workspaceId, projectId } }
+  return { props: { slug, projectKey, workspaceId, projectId: project?.id ?? "" } }
 }

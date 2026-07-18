@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import { Button, Card, CardHeader, CardTitle } from "@/components/ui"
 import { clsx } from "clsx"
 
@@ -47,12 +48,19 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
   const isAdmin = userRole === "admin"
 
   // Members state
-  const [members, setMembers] = useState<Member[]>([])
-  const [membersLoading, setMembersLoading] = useState(true)
+  // Cached lists render instantly on revisit; mount fetches refresh in the background
+  const [members, setMembers, hadMembersCache] = useCachedState<Member[]>(
+    `velo:members:${workspaceId}`,
+    []
+  )
+  const [membersLoading, setMembersLoading] = useState(!hadMembersCache)
   const [membersError, setMembersError] = useState<string | null>(null)
 
   // Invitations state
-  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [invitations, setInvitations] = useCachedState<Invitation[]>(
+    `velo:invitations:${workspaceId}`,
+    []
+  )
   const [invitesLoading, setInvitesLoading] = useState(false)
 
   // Invite form state
@@ -77,7 +85,6 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
   const [resendingId, setResendingId] = useState<string | null>(null)
 
   const fetchMembers = useCallback(async () => {
-    setMembersLoading(true)
     setMembersError(null)
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/members`)
@@ -89,7 +96,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
     } finally {
       setMembersLoading(false)
     }
-  }, [workspaceId])
+  }, [workspaceId, setMembers])
 
   const fetchInvitations = useCallback(async () => {
     if (!isAdmin) return
@@ -102,7 +109,7 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
     } finally {
       setInvitesLoading(false)
     }
-  }, [workspaceId, isAdmin])
+  }, [workspaceId, isAdmin, setInvitations])
 
   useEffect(() => {
     void fetchMembers()

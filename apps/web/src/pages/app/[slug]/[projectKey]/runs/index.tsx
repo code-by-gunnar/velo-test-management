@@ -1,7 +1,9 @@
-import { useState, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
+import { resolveProject } from "@/lib/project-cache"
+import { useCachedState } from "@/hooks/useCachedState"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui"
 import { RunCard, type RunListItem } from "@/components/runs/RunCard"
@@ -16,7 +18,6 @@ interface RunsDashboardProps {
   projectKey: string
   workspaceId: string
   projectId: string
-  initialRuns: RunListItem[]
   apiUrl: string
   sseToken: string | null
 }
@@ -26,14 +27,19 @@ export default function RunsDashboard({
   projectKey,
   workspaceId,
   projectId,
-  initialRuns,
   apiUrl,
   sseToken,
 }: RunsDashboardProps) {
   const router = useRouter()
   const { canEdit } = useUserRole()
 
-  const [runs, setRuns] = useState<RunListItem[]>(initialRuns)
+  // Stale-while-revalidate: the cached list renders instantly on revisit while
+  // the mount fetch refreshes it in the background (was SSR-fetched, which
+  // blocked every navigation to this page on the API round-trip)
+  const [runs, setRuns] = useCachedState<RunListItem[]>(
+    `velo:runs:${workspaceId}:${projectId}`,
+    []
+  )
   const [filters, setFilters] = useState<FilterState>({})
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isFiltering, setIsFiltering] = useState(false)
@@ -71,7 +77,12 @@ export default function RunsDashboard({
     } finally {
       if (!controller.signal.aborted) setIsFiltering(false)
     }
-  }, [workspaceId, projectId])
+  }, [workspaceId, projectId, setRuns])
+
+  // Background refresh on mount (cached list, if any, is already showing)
+  useEffect(() => {
+    void fetchRuns({})
+  }, [fetchRuns])
 
   const handleFilterChange = (f: FilterState) => {
     setFilters(f)
@@ -125,6 +136,12 @@ export default function RunsDashboard({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {runs.length === 0 ? (
+            isFiltering ? (
+              /* Cold load — nothing cached yet */
+              <div className="flex items-center justify-center py-24 text-sm text-gray-400">
+                Loading runs…
+              </div>
+            ) : (
             /* Empty state */
             <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
@@ -140,6 +157,7 @@ export default function RunsDashboard({
                 Create your first test run
               </Button>
             </div>
+            )
           ) : (
             <div className="flex flex-col gap-8">
               {/* Active runs */}
@@ -211,46 +229,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     context.req.cookies["authjs.session-token"] ??
     null
 
-  let projectId = ""
-  let initialRuns: RunListItem[] = []
-
-  if (workspaceId && token) {
-    try {
-      // Resolve projectKey → UUID via single-row lookup
-      const projectRes = await fetch(
-        `${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`,
-        { headers: { authorization: `Bearer ${token}` } }
-      )
-      if (projectRes.ok) {
-        const project = await projectRes.json() as { id: string }
-        projectId = project.id
-      }
-    } catch {
-      // projectId stays empty
-    }
-
-    if (projectId) {
-      try {
-        const runsRes = await fetch(
-          `${apiUrl}/api/workspaces/${workspaceId}/runs?project_id=${projectId}`,
-          { headers: { authorization: `Bearer ${token}` } }
-        )
-        if (runsRes.ok) {
-          initialRuns = await runsRes.json() as RunListItem[]
-        }
-      } catch {
-        // initialRuns stays empty — page still renders with empty state
-      }
-    }
-  }
+  // Cached lookup only — the runs list itself is fetched client-side with a
+  // stale-while-revalidate cache, so navigation no longer blocks on it
+  const project = await resolveProject(workspaceId, projectKey, token ?? undefined)
 
   return {
     props: {
       slug,
       projectKey,
       workspaceId,
-      projectId,
-      initialRuns,
+      projectId: project?.id ?? "",
       // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
       // gateway). Falls back to API_URL when both resolve to the same public host.
       apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,

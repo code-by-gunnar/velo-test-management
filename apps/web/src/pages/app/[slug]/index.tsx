@@ -27,7 +27,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     try {
       const slugRes = await fetch(
         `${process.env.API_URL}/api/workspaces/${slug}`,
-        { headers: token ? { authorization: `Bearer ${token}` } : {} }
+        { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(8_000) }
       )
       if (slugRes.ok) {
         const data = await slugRes.json() as { id: string }
@@ -45,7 +45,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   try {
     const res = await fetch(
       `${process.env.API_URL}/api/workspaces/${workspaceId}/projects`,
-      { headers: token ? { authorization: `Bearer ${token}` } : {} }
+      { headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(8_000) }
     )
     if (res.ok) {
       const projects = await res.json() as Array<{ id: string; project_key: string }>

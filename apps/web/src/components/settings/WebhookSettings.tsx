@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import { Button, Card, CardHeader, CardTitle } from "@/components/ui"
 import { clsx } from "clsx"
 import { Trash2, Pencil, Zap, Check, X, Copy, Loader2 } from "lucide-react"
@@ -22,8 +23,12 @@ const AVAILABLE_EVENTS = [
 ]
 
 export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps) {
-  const [webhooks, setWebhooks] = useState<Webhook[]>([])
-  const [loading, setLoading] = useState(true)
+  // Cached list renders instantly on revisit; the mount fetch refreshes it
+  const [webhooks, setWebhooks, hadCache] = useCachedState<Webhook[]>(
+    `velo:webhooks:${workspaceId}:${projectId}`,
+    []
+  )
+  const [loading, setLoading] = useState(!hadCache)
   const [error, setError] = useState<string | null>(null)
 
   // Create form state
@@ -54,7 +59,6 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
   const basePath = `/api/backend/workspaces/${workspaceId}/projects/${projectId}/webhooks`
 
   const fetchWebhooks = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const res = await fetch(basePath)
@@ -72,7 +76,7 @@ export function WebhookSettings({ workspaceId, projectId }: WebhookSettingsProps
     } finally {
       setLoading(false)
     }
-  }, [basePath])
+  }, [basePath, setWebhooks])
 
   useEffect(() => {
     if (projectId) void fetchWebhooks()

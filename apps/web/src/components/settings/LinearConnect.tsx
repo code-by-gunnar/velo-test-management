@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import Image from "next/image"
 import { Button } from "@/components/ui"
 import { Link, Unlink, ChevronDown, ExternalLink } from "lucide-react"
@@ -22,8 +23,18 @@ interface LinearConnectProps {
 type ConnectState = "loading" | "disconnected" | "team-selection" | "connected"
 
 export function LinearConnect({ workspaceId }: LinearConnectProps) {
-  const [state, setState] = useState<ConnectState>("loading")
-  const [status, setStatus] = useState<LinearStatus | null>(null)
+  // Cached status renders the last-known connection state instantly; the
+  // mount fetch re-derives it in the background
+  const [status, setStatus, hadStatusCache] = useCachedState<LinearStatus | null>(
+    `velo:linear:${workspaceId}`,
+    null
+  )
+  const [state, setState] = useState<ConnectState>(() => {
+    if (!hadStatusCache || !status) return "loading"
+    if (status.connected && status.team_id) return "connected"
+    if (status.connected && status.needs_team_selection) return "team-selection"
+    return "disconnected"
+  })
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
@@ -67,7 +78,7 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
       setError(err instanceof Error ? err.message : "Failed to check Linear status")
       setState("disconnected")
     }
-  }, [workspaceId])
+  }, [workspaceId, setStatus])
 
   useEffect(() => {
     void fetchStatus()

@@ -490,7 +490,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     try {
       const res = await fetch(
         `${apiUrl}/api/workspaces/${workspaceId}/runs/${runId}`,
-        { headers: { authorization: `Bearer ${token}` } }
+        { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
       )
       if (res.ok) {
         const data = await res.json() as { run: RunListItem; items: RunItem[] }

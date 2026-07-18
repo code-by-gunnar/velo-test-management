@@ -41,11 +41,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     forwardHeaders["x-token-secure"] = isSecureCookie ? "1" : "0"
   }
 
-  const fetchRes = await fetch(apiUrl, {
-    method: req.method ?? "GET",
-    headers: forwardHeaders,
-    ...(rawBody.length > 0 ? { body: new Uint8Array(rawBody) } : {}),
-  })
+  // Bounded upstream call — a hung API connection must return 504, never hold
+  // the browser's request open indefinitely
+  let fetchRes: Response
+  try {
+    fetchRes = await fetch(apiUrl, {
+      method: req.method ?? "GET",
+      headers: forwardHeaders,
+      signal: AbortSignal.timeout(30_000),
+      ...(rawBody.length > 0 ? { body: new Uint8Array(rawBody) } : {}),
+    })
+  } catch (err) {
+    const timedOut = (err as { name?: string } | null)?.name === "TimeoutError"
+    res.status(timedOut ? 504 : 502).json({ error: timedOut ? "API timeout" : "API unreachable" })
+    return
+  }
 
   // If the API returns 401, the session is invalid (deactivated user, expired token, etc.).
   // Clear the Auth.js session cookie so the next page load redirects to /login.

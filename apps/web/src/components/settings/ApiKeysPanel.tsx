@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { useCachedState } from "@/hooks/useCachedState"
 import { Button, Card, CardHeader, CardTitle, Input, FormField } from "@/components/ui"
 import { clsx } from "clsx"
 
@@ -15,8 +16,12 @@ interface ApiKeysPanelProps {
 }
 
 export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
-  const [keys, setKeys] = useState<ApiKey[]>([])
-  const [loading, setLoading] = useState(true)
+  // Cached list renders instantly on revisit; the mount fetch refreshes it
+  const [keys, setKeys, hadCache] = useCachedState<ApiKey[]>(
+    `velo:apikeys:${workspaceId}`,
+    []
+  )
+  const [loading, setLoading] = useState(!hadCache)
   const [error, setError] = useState<string | null>(null)
 
   // New key form state
@@ -33,7 +38,6 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null)
 
   const fetchKeys = useCallback(async () => {
-    setLoading(true)
     setError(null)
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/api-keys`)
@@ -45,7 +49,7 @@ export function ApiKeysPanel({ workspaceId }: ApiKeysPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [workspaceId])
+  }, [workspaceId, setKeys])
 
   useEffect(() => {
     void fetchKeys()

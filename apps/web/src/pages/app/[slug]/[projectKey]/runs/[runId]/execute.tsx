@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
+import { resolveProject } from "@/lib/project-cache"
 import { ExecutionScreen } from "@/components/runs/ExecutionScreen"
 import type { RunItem } from "@/components/runs/ExecutionScreen"
 
@@ -69,14 +70,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const apiUrl = process.env.API_URL ?? ""
 
-  // Parallel: resolve project key + fetch run detail (independent)
-  const [projectRes, runRes] = await Promise.all([
-    fetch(`${apiUrl}/api/workspaces/${workspaceId}/projects/by-key/${projectKey}`, { headers }).catch(() => null),
-    fetch(`${apiUrl}/api/workspaces/${workspaceId}/runs/${runId}`, { headers }).catch(() => null),
+  // Parallel: cached project lookup + fetch run detail (independent)
+  const [project, runRes] = await Promise.all([
+    resolveProject(workspaceId, projectKey, token),
+    fetch(`${apiUrl}/api/workspaces/${workspaceId}/runs/${runId}`, {
+      headers,
+      signal: AbortSignal.timeout(8_000),
+    }).catch(() => null),
   ])
 
-  if (projectRes?.ok) {
-    const project = await projectRes.json() as { id: string; test_format?: string }
+  if (project) {
     projectId = project.id
     testFormat = project.test_format ?? "steps"
   }

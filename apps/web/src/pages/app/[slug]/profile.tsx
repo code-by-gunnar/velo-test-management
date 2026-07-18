@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import type { GetServerSideProps } from "next"
 import { useSession } from "next-auth/react"
 import { auth } from "@/auth"
+import { useCachedState } from "@/hooks/useCachedState"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui/button"
 import { Input, FormField } from "@/components/ui/input"
@@ -26,8 +27,12 @@ export default function ProfilePage({ slug }: ProfileProps) {
   const sessionName = session?.user?.name ?? ""
   const sessionEmail = session?.user?.email ?? ""
 
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Cached profile renders instantly on revisit; the mount fetch refreshes it
+  const [profile, setProfile, hadProfileCache] = useCachedState<ProfileData | null>(
+    "velo:profile",
+    null
+  )
+  const [loading, setLoading] = useState(!hadProfileCache)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [name, setName] = useState(sessionName)
@@ -41,7 +46,10 @@ export default function ProfilePage({ slug }: ProfileProps) {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [emailSending, setEmailSending] = useState(false)
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useCachedState<string | null>(
+    "velo:avatar-url",
+    null
+  )
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -101,7 +109,7 @@ export default function ProfilePage({ slug }: ProfileProps) {
       }
     }
     void load()
-  }, [])
+  }, [setProfile, setAvatarUrl])
 
   const currentEmail = profile?.email ?? sessionEmail
 

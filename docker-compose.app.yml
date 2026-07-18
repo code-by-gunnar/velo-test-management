@@ -85,9 +85,14 @@ services:
       AUTH_URL: ${WEB_URL:-http://localhost:3000}
       NEXTAUTH_URL: ${WEB_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"
-      # Node's 5s default races with client/proxy keep-alive reuse (half-open
-      # sockets → multi-second TCP retransmit stalls, esp. behind port proxies)
-      KEEP_ALIVE_TIMEOUT: "65000"
+      # Short on purpose. Through Docker Desktop's port proxy, Chrome never
+      # returns completed-response sockets to its reuse pool — slots free only
+      # when the server's keep-alive FIN arrives, so this timeout IS the
+      # navigation stall duration (measured: 65s → 66s hangs, 5s → 6s, 1s →
+      # 1.9s, 100ms → ~100-250ms). Same-burst reuse still works; idle sockets
+      # close almost immediately. The prod overlay raises it for Caddy, whose
+      # upstream pooling has the opposite requirement.
+      KEEP_ALIVE_TIMEOUT: "100"
       # OAuth — empty keeps providers registered but unusable until configured
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
