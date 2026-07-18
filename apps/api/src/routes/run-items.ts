@@ -93,7 +93,25 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
         const runId = updated.run_id
         const caseTitle = updated.case_title
 
-        // 2. Compute stats for this run
+        // 2. Lock the parent run row FOR UPDATE (VEL-44 / audit #7). This
+        // serializes concurrent item verdicts on the same run through the
+        // completion recompute below. Without it, two testers finishing the
+        // last two items each run the COUNT under READ COMMITTED before the
+        // other commits — both see untested > 0, both write 'active', and the
+        // run is left active forever (the run.completed webhook never fires).
+        // Taking the lock here (after the item update) means the second
+        // transaction blocks until the first commits, then its COUNT below sees
+        // a fresh snapshot including the first item's verdict. Also fetches the
+        // project_id + name needed for webhook payloads in the same round trip.
+        const runRows = await tx`
+          SELECT project_id, name FROM test_runs
+          WHERE id = ${runId}::uuid
+          FOR UPDATE
+        ` as unknown as { project_id: string; name: string }[]
+        if (runRows.length === 0) return null
+        const run = runRows[0]!
+
+        // 3. Compute stats for this run (now under the run lock)
         const statsRows = await tx`
           SELECT
             COUNT(*)::int AS total,
@@ -115,7 +133,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
 
         const stats = statsRows[0]!
 
-        // 3. Recompute run status using already-computed stats (no redundant subqueries)
+        // 4. Recompute run status using already-computed stats (no redundant subqueries)
         const isComplete = stats.untested === 0
         await tx`
           UPDATE test_runs
@@ -124,12 +142,6 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
               updated_at = NOW()
           WHERE id = ${runId}::uuid
         `
-
-        // 4. Fetch project_id and run name for webhook payloads
-        const runRows = await tx`
-          SELECT project_id, name FROM test_runs WHERE id = ${runId}::uuid
-        ` as unknown as { project_id: string; name: string }[]
-        const run = runRows[0]!
 
         return { itemId, status, runId, caseTitle, stats, projectId: run.project_id, runName: run.name, isComplete }
       })

@@ -197,6 +197,50 @@ describe("Run item routes integration (TR-02, TR-04)", () => {
     expect(run.completed_at).not.toBeNull()
   })
 
+  it("VEL-44: concurrent verdicts on the last two items complete the run (no stuck-active race)", async () => {
+    // Reset both items to untested and the run to active
+    await sql`
+      UPDATE run_items SET status = 'untested', executed_at = NULL, updated_at = NOW()
+      WHERE run_id = ${runId}::uuid
+    `
+    await sql`
+      UPDATE test_runs SET status = 'active', completed_at = NULL, updated_at = NOW()
+      WHERE id = ${runId}::uuid
+    `
+
+    // Fire both final verdicts concurrently — this is the race: each handler's
+    // completion COUNT must observe the other's committed verdict. Without the
+    // FOR UPDATE lock, both could see untested > 0 and leave the run active.
+    const [res1, res2] = await Promise.all([
+      app.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/run-items/${itemId1}`,
+        payload: { status: "pass" },
+      }),
+      app.inject({
+        method: "PATCH",
+        url: `/api/workspaces/${workspaceId}/run-items/${itemId2}`,
+        payload: { status: "fail" },
+      }),
+    ])
+
+    expect(res1.statusCode).toBe(200)
+    expect(res2.statusCode).toBe(200)
+
+    // The run MUST be completed — regardless of which verdict committed last
+    const runs = await sql`SELECT status, completed_at FROM test_runs WHERE id = ${runId}::uuid`
+    const run = runs[0] as unknown as { status: string; completed_at: Date | null }
+    expect(run.status).toBe("completed")
+    expect(run.completed_at).not.toBeNull()
+
+    // And no untested items remain
+    const [counts] = await sql`
+      SELECT COUNT(*) FILTER (WHERE status = 'untested')::int AS untested
+      FROM run_items WHERE run_id = ${runId}::uuid
+    ` as unknown as { untested: number }[]
+    expect(counts!.untested).toBe(0)
+  })
+
   it("TR-02: Valkey publish is called after status update", async () => {
     // Get the mocked valkey from the app
     const valkeyMock = (app as unknown as { valkey: { publish: ReturnType<typeof vi.fn> } }).valkey
