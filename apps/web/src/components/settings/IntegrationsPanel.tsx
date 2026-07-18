@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui"
 import { LinearConnect } from "./LinearConnect"
-import { ClaudeConnect } from "./ClaudeConnect"
+import { AiProviderConnect } from "./AiProviderConnect"
 
 interface IntegrationsPanelProps {
   workspaceId: string
@@ -16,7 +16,7 @@ export function IntegrationsPanel({ workspaceId }: IntegrationsPanelProps) {
 
         <div className="flex flex-col gap-4">
           <LinearConnect workspaceId={workspaceId} />
-          <ClaudeConnect workspaceId={workspaceId} />
+          <AiProviderConnect workspaceId={workspaceId} />
         </div>
 
         <p className="mt-4 text-xs text-gray-400">

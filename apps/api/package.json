@@ -35,6 +35,7 @@
     "iovalkey": "^0.3.3",
     "jose": "^6.2.1",
     "nodemailer": "^9.0.3",
+    "openai": "^6.48.0",
     "papaparse": "^5.5.3",
     "postgres": "^3.4.8",
     "posthog-node": "^5.28.2",

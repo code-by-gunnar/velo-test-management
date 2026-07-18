@@ -2,14 +2,17 @@ import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { encrypt } from "../lib/encryption.js"
 import {
-  resolveAnthropicKey,
-  validateAnthropicKey,
-  invalidateAnthropicClient,
-} from "../lib/anthropic.js"
+  getAiStatus,
+  validateProviderKey,
+  setActiveProvider,
+  invalidateAiClient,
+  isAiProvider,
+  type AiProvider,
+} from "../lib/ai.js"
 import { captureEvent } from "../lib/posthog.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 
-// ── AI provider key management (per-workspace BYO Anthropic key) ──────────────
+// ── AI provider key management (per-workspace BYO Anthropic/OpenAI key) ───────
 // Base path: /api/workspaces/:workspaceId/ai
 
 const aiRoutes: FastifyPluginAsync = async (fastify) => {
@@ -19,7 +22,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // ── GET /ai/status — is a Claude key configured, and where from? ──────────
+  // ── GET /ai/status — active provider + per-provider configured state ──────
   fastify.get<{ Params: { workspaceId: string } }>(
     "/api/workspaces/:workspaceId/ai/status",
     async (request, reply) => {
@@ -27,24 +30,18 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
       }
-
-      const resolved = await resolveAnthropicKey(workspaceId)
-      return reply.send({
-        configured: resolved !== null,
-        source: resolved?.source ?? null,
-      })
+      return reply.send(await getAiStatus(workspaceId))
     }
   )
 
-  // ── PUT /ai/api-key — set (or rotate) the workspace's Claude key ───────────
+  // ── PUT /ai/keys/:provider — set (or rotate) a provider's key ─────────────
   fastify.put<{
-    Params: { workspaceId: string }
+    Params: { workspaceId: string; provider: string }
     Body: { api_key: string }
   }>(
-    "/api/workspaces/:workspaceId/ai/api-key",
+    "/api/workspaces/:workspaceId/ai/keys/:provider",
     {
-      // Setting a workspace-wide integration credential is admin-only, consistent
-      // with member management / lifecycle / export.
+      // Setting a workspace-wide integration credential is admin-only.
       preHandler: [requireAdmin],
       schema: {
         body: {
@@ -55,27 +52,28 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { workspaceId } = request.params
+      const { workspaceId, provider } = request.params
       const { api_key } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
       }
+      if (!isAiProvider(provider)) {
+        return reply.status(400).send({ error: "Unknown AI provider" })
+      }
 
-      // Validate with a no-token models.list() call before storing.
-      const ok = await validateAnthropicKey(api_key)
+      const ok = await validateProviderKey(provider, api_key)
       if (!ok) {
-        return reply.status(400).send({ error: "Invalid API key — could not authenticate with Anthropic" })
+        return reply.status(400).send({ error: `Invalid API key — could not authenticate with ${provider}` })
       }
 
       const enc = encrypt(api_key)
-
       await withWorkspace(workspaceId, async (tx) => {
         await tx`
           INSERT INTO workspace_integration_secrets (workspace_id, provider, secret_enc, created_by, updated_at)
           VALUES (
             current_setting('app.workspace_id', true)::uuid,
-            'anthropic',
+            ${provider},
             ${enc},
             ${request.userId}::uuid,
             NOW()
@@ -85,40 +83,68 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
         `
       })
 
-      invalidateAnthropicClient(workspaceId)
-      captureEvent(request.userId, "ai_key_configured", { workspace_id: workspaceId })
+      invalidateAiClient(workspaceId)
+      captureEvent(request.userId, "ai_key_configured", { workspace_id: workspaceId, provider })
 
-      return reply.send({ saved: true, configured: true, source: "workspace" })
+      return reply.send(await getAiStatus(workspaceId))
     }
   )
 
-  // ── DELETE /ai/api-key — remove the workspace key (env fallback may remain) ─
-  fastify.delete<{ Params: { workspaceId: string } }>(
-    "/api/workspaces/:workspaceId/ai/api-key",
+  // ── DELETE /ai/keys/:provider — remove a provider's key ───────────────────
+  fastify.delete<{ Params: { workspaceId: string; provider: string } }>(
+    "/api/workspaces/:workspaceId/ai/keys/:provider",
     { preHandler: [requireAdmin] },
     async (request, reply) => {
-      const { workspaceId } = request.params
+      const { workspaceId, provider } = request.params
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
+      }
+      if (!isAiProvider(provider)) {
+        return reply.status(400).send({ error: "Unknown AI provider" })
       }
 
       await withWorkspace(workspaceId, async (tx) => {
         await tx`
           DELETE FROM workspace_integration_secrets
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-            AND provider = 'anthropic'
+            AND provider = ${provider}
         `
       })
 
-      invalidateAnthropicClient(workspaceId)
+      invalidateAiClient(workspaceId)
+      return reply.send(await getAiStatus(workspaceId))
+    }
+  )
 
-      // Report whether the instance env key still provides coverage.
-      const resolved = await resolveAnthropicKey(workspaceId)
-      return reply.send({
-        removed: true,
-        configured: resolved !== null,
-        source: resolved?.source ?? null,
-      })
+  // ── PUT /ai/provider — set the active provider ────────────────────────────
+  fastify.put<{
+    Params: { workspaceId: string }
+    Body: { provider: string }
+  }>(
+    "/api/workspaces/:workspaceId/ai/provider",
+    {
+      preHandler: [requireAdmin],
+      schema: {
+        body: {
+          type: "object",
+          required: ["provider"],
+          properties: { provider: { type: "string" } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { workspaceId } = request.params
+      const provider = request.body.provider as AiProvider
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+      if (!isAiProvider(provider)) {
+        return reply.status(400).send({ error: "Unknown AI provider" })
+      }
+
+      await setActiveProvider(workspaceId, provider)
+      return reply.send(await getAiStatus(workspaceId))
     }
   )
 }

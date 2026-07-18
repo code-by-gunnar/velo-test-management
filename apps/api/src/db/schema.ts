@@ -110,6 +110,9 @@ export const workspaces = pgTable("workspaces", {
   plan_tier: planTierEnum("plan_tier").notNull().default("free"),
   // Tracks whether the user has edited the slug (enforced at app layer)
   slug_edited: boolean("slug_edited").notNull().default(false),
+  // Active AI provider for test generation ('anthropic' | 'openai'). Keys live in
+  // workspace_integration_secrets keyed by provider.
+  ai_provider: varchar("ai_provider", { length: 20 }).notNull().default("anthropic"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })

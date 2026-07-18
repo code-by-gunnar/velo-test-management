@@ -5,17 +5,14 @@ import { uuidv7 } from "uuidv7"
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY ?? "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
 
-// Mock the Anthropic SDK so key validation (models.list) never hits the network.
-const { modelsListMock } = vi.hoisted(() => ({ modelsListMock: vi.fn() }))
-vi.mock("@anthropic-ai/sdk", () => ({
-  default: class {
-    models = { list: modelsListMock }
-  },
-}))
+// Mock both SDKs so key validation (models.list) never hits the network.
+const { anthropicList, openaiList } = vi.hoisted(() => ({ anthropicList: vi.fn(), openaiList: vi.fn() }))
+vi.mock("@anthropic-ai/sdk", () => ({ default: class { models = { list: anthropicList } } }))
+vi.mock("openai", () => ({ default: class { models = { list: openaiList } } }))
 
 const sql = (await import("../../db/client.js")).sql
 const { decrypt } = await import("../../lib/encryption.js")
-const { resolveAnthropicKey } = await import("../../lib/anthropic.js")
+const { resolveProviderKey } = await import("../../lib/ai.js")
 const aiRoutes = (await import("../ai.js")).default
 
 function buildApp(userId: string, workspaceId: string, role = "admin") {
@@ -31,11 +28,12 @@ function buildApp(userId: string, workspaceId: string, role = "admin") {
   return app
 }
 
-describe("AI provider key (per-workspace Anthropic key)", () => {
+describe("AI provider keys (per-workspace, multi-provider)", () => {
   let app: ReturnType<typeof Fastify>
   let workspaceId: string
   let userId: string
-  const savedEnvKey = process.env.ANTHROPIC_API_KEY
+  const savedAnthropic = process.env.ANTHROPIC_API_KEY
+  const savedOpenai = process.env.OPENAI_API_KEY
 
   beforeAll(async () => {
     workspaceId = uuidv7()
@@ -51,14 +49,19 @@ describe("AI provider key (per-workspace Anthropic key)", () => {
   })
 
   beforeEach(async () => {
-    modelsListMock.mockReset()
+    anthropicList.mockReset()
+    openaiList.mockReset()
     delete process.env.ANTHROPIC_API_KEY
+    delete process.env.OPENAI_API_KEY
     await sql`DELETE FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
+    await sql`UPDATE workspaces SET ai_provider = 'anthropic' WHERE id = ${workspaceId}::uuid`
   })
 
   afterEach(() => {
-    if (savedEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY
-    else process.env.ANTHROPIC_API_KEY = savedEnvKey
+    if (savedAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY
+    else process.env.ANTHROPIC_API_KEY = savedAnthropic
+    if (savedOpenai === undefined) delete process.env.OPENAI_API_KEY
+    else process.env.OPENAI_API_KEY = savedOpenai
   })
 
   afterAll(async () => {
@@ -67,95 +70,110 @@ describe("AI provider key (per-workspace Anthropic key)", () => {
     await sql`DELETE FROM users WHERE id = ${userId}::uuid`
   })
 
-  async function putKey(apiKey: string) {
-    return app.inject({ method: "PUT", url: `/api/workspaces/${workspaceId}/ai/api-key`, payload: { api_key: apiKey } })
+  function putKey(provider: string, apiKey: string) {
+    return app.inject({ method: "PUT", url: `/api/workspaces/${workspaceId}/ai/keys/${provider}`, payload: { api_key: apiKey } })
   }
-  async function getStatus() {
+  function getStatus() {
     return app.inject({ method: "GET", url: `/api/workspaces/${workspaceId}/ai/status` })
   }
 
-  it("stores a validated workspace key (encrypted) and reports source=workspace", async () => {
-    modelsListMock.mockResolvedValue({ data: [{ id: "claude-sonnet-4-5" }] })
-
-    const res = await putKey("sk-ant-valid")
+  it("stores a validated Anthropic key (encrypted) and reports it configured", async () => {
+    anthropicList.mockResolvedValue({ data: [] })
+    const res = await putKey("anthropic", "sk-ant-valid")
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toMatchObject({ saved: true, configured: true, source: "workspace" })
-    expect(modelsListMock).toHaveBeenCalled()
+    const body = res.json() as { active: string; providers: Record<"anthropic" | "openai", { configured: boolean; source: string | null }> }
+    expect(body.active).toBe("anthropic")
+    expect(body.providers.anthropic).toMatchObject({ configured: true, source: "workspace" })
+    expect(anthropicList).toHaveBeenCalled()
 
-    const rows = await sql`SELECT secret_enc, provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
-    expect(rows).toHaveLength(1)
-    expect((rows[0] as { provider: string }).provider).toBe("anthropic")
+    const rows = await sql`SELECT secret_enc FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid AND provider = 'anthropic'`
     expect(decrypt((rows[0] as { secret_enc: string }).secret_enc)).toBe("sk-ant-valid")
+  })
 
-    const status = await getStatus()
-    expect(status.json()).toMatchObject({ configured: true, source: "workspace" })
+  it("stores an OpenAI key independently of the Anthropic key", async () => {
+    openaiList.mockResolvedValue({ data: [] })
+    const res = await putKey("openai", "sk-openai-valid")
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { providers: Record<"anthropic" | "openai", { configured: boolean }> }
+    expect(body.providers.openai.configured).toBe(true)
+    expect(body.providers.anthropic.configured).toBe(false)
+    expect(openaiList).toHaveBeenCalled()
   })
 
   it("rejects an invalid key with 400 and stores nothing", async () => {
-    modelsListMock.mockRejectedValue(new Error("401 authentication_error"))
-
-    const res = await putKey("sk-ant-bad")
+    anthropicList.mockRejectedValue(new Error("401 authentication_error"))
+    const res = await putKey("anthropic", "sk-ant-bad")
     expect(res.statusCode).toBe(400)
-
     const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
     expect(rows).toHaveLength(0)
   })
 
-  it("rotates the key on a second save without creating a duplicate row", async () => {
-    modelsListMock.mockResolvedValue({ data: [] })
-    await putKey("sk-ant-first")
-    await putKey("sk-ant-second")
-
-    const rows = await sql`SELECT secret_enc FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
-    expect(rows).toHaveLength(1)
-    expect(decrypt((rows[0] as { secret_enc: string }).secret_enc)).toBe("sk-ant-second")
+  it("rejects an unknown provider with 400", async () => {
+    const res = await putKey("gemini", "key")
+    expect(res.statusCode).toBe(400)
   })
 
-  it("falls back to the instance env key when no workspace key is set", async () => {
-    process.env.ANTHROPIC_API_KEY = "sk-ant-env-default"
-    const status = await getStatus()
-    expect(status.json()).toMatchObject({ configured: true, source: "env" })
-  })
+  it("switches the active provider", async () => {
+    openaiList.mockResolvedValue({ data: [] })
+    await putKey("openai", "sk-openai-valid")
 
-  it("reports not configured when neither workspace nor env key exists", async () => {
-    const status = await getStatus()
-    expect(status.json()).toMatchObject({ configured: false, source: null })
-  })
-
-  it("DELETE removes the workspace key and reports the remaining coverage", async () => {
-    modelsListMock.mockResolvedValue({ data: [] })
-    await putKey("sk-ant-workspace")
-
-    // env key present → after delete, coverage falls back to env
-    process.env.ANTHROPIC_API_KEY = "sk-ant-env-default"
-    const res = await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/ai/api-key` })
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/workspaces/${workspaceId}/ai/provider`,
+      payload: { provider: "openai" },
+    })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toMatchObject({ removed: true, configured: true, source: "env" })
+    expect((res.json() as { active: string }).active).toBe("openai")
 
+    const status = await getStatus()
+    expect((status.json() as { active: string }).active).toBe("openai")
+  })
+
+  it("falls back to the instance env key per provider", async () => {
+    process.env.OPENAI_API_KEY = "sk-openai-env"
+    const status = await getStatus()
+    const body = status.json() as { providers: Record<"anthropic" | "openai", { configured: boolean; source: string | null }> }
+    expect(body.providers.openai).toMatchObject({ configured: true, source: "env" })
+    expect(body.providers.anthropic.configured).toBe(false)
+  })
+
+  it("reports nothing configured when no keys exist", async () => {
+    const status = await getStatus()
+    const body = status.json() as { active: string; providers: Record<"anthropic" | "openai", { configured: boolean }> }
+    expect(body.active).toBe("anthropic")
+    expect(body.providers.anthropic.configured).toBe(false)
+    expect(body.providers.openai.configured).toBe(false)
+  })
+
+  it("DELETE removes a provider key", async () => {
+    anthropicList.mockResolvedValue({ data: [] })
+    await putKey("anthropic", "sk-ant-valid")
+    const res = await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/ai/keys/anthropic` })
+    expect(res.statusCode).toBe(200)
     const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
     expect(rows).toHaveLength(0)
   })
 
-  it("forbids a non-admin from setting or removing the workspace key (403)", async () => {
-    modelsListMock.mockResolvedValue({ data: [] })
+  it("forbids a non-admin from setting a key or switching provider (403)", async () => {
+    anthropicList.mockResolvedValue({ data: [] })
     const viewerApp = buildApp(userId, workspaceId, "viewer")
     await viewerApp.register(aiRoutes)
     await viewerApp.ready()
     try {
       const put = await viewerApp.inject({
         method: "PUT",
-        url: `/api/workspaces/${workspaceId}/ai/api-key`,
+        url: `/api/workspaces/${workspaceId}/ai/keys/anthropic`,
         payload: { api_key: "sk-ant-viewer" },
       })
       expect(put.statusCode).toBe(403)
 
-      const del = await viewerApp.inject({
-        method: "DELETE",
-        url: `/api/workspaces/${workspaceId}/ai/api-key`,
+      const prov = await viewerApp.inject({
+        method: "PUT",
+        url: `/api/workspaces/${workspaceId}/ai/provider`,
+        payload: { provider: "openai" },
       })
-      expect(del.statusCode).toBe(403)
+      expect(prov.statusCode).toBe(403)
 
-      // Nothing was written.
       const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
       expect(rows).toHaveLength(0)
     } finally {
@@ -163,12 +181,12 @@ describe("AI provider key (per-workspace Anthropic key)", () => {
     }
   })
 
-  it("resolveAnthropicKey prefers the workspace key over the env key", async () => {
-    modelsListMock.mockResolvedValue({ data: [] })
-    process.env.ANTHROPIC_API_KEY = "sk-ant-env-default"
-    await putKey("sk-ant-workspace-wins")
+  it("resolveProviderKey prefers the workspace key over the env key", async () => {
+    anthropicList.mockResolvedValue({ data: [] })
+    process.env.ANTHROPIC_API_KEY = "sk-ant-env"
+    await putKey("anthropic", "sk-ant-workspace-wins")
 
-    const resolved = await resolveAnthropicKey(workspaceId)
+    const resolved = await resolveProviderKey(workspaceId, "anthropic")
     expect(resolved).toEqual({ key: "sk-ant-workspace-wins", source: "workspace" })
   })
 })
