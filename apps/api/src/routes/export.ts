@@ -170,12 +170,21 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
   })
 }
 
-// Simple CSV serializer -- handles any array of flat objects
-function toCsv(rows: Record<string, unknown>[]): string {
+// Simple CSV serializer -- handles any array of flat objects.
+// Exported for unit testing (formula-injection neutralization).
+// Characters that make a spreadsheet treat a cell as a formula (CSV/DDE
+// injection). A leading one of these lets a crafted title like =HYPERLINK(...)
+// or =cmd|'/c calc'!A1 execute when the export is opened in Excel/Sheets.
+const FORMULA_TRIGGERS = new Set(["=", "+", "-", "@", "\t", "\r"])
+
+export function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return ""
   const headers = Object.keys(rows[0]!)
   const escape = (val: unknown): string => {
-    const str = val === null || val === undefined ? "" : String(val)
+    const raw = val === null || val === undefined ? "" : String(val)
+    // Neutralize formula injection: prefix an apostrophe so the spreadsheet
+    // renders the cell as literal text instead of evaluating it (VEL-47 / #11).
+    const str = raw.length > 0 && FORMULA_TRIGGERS.has(raw[0]!) ? `'${raw}` : raw
     return str.includes(",") || str.includes('"') || str.includes("\n")
       ? `"${str.replace(/"/g, '""')}"`
       : str
