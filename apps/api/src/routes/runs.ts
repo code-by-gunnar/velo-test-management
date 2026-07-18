@@ -493,9 +493,29 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid runId" })
       }
 
+      // Verify the run belongs to this workspace (RLS-scoped) BEFORE writing SSE
+      // headers or subscribing — the pub/sub channel run:{id} is global, so without
+      // this check a member of workspace A could stream workspace B's run events
+      // (audit 2026-07-18 #1). Must happen while a normal reply is still possible.
+      const initialItems = await withWorkspace(workspaceId, async (tx) => {
+        const runRows = await tx`
+          SELECT 1 AS ok FROM test_runs
+          WHERE id = ${runId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+        if (runRows.length === 0) return null
+        return tx`
+          SELECT status, executed_at FROM run_items WHERE run_id = ${runId}::uuid
+        ` as unknown as Array<{ status: string; executed_at: string | null }>
+      })
+
+      if (initialItems === null) {
+        return reply.status(404).send({ error: "Run not found" })
+      }
+
       const res = reply.raw
 
-      // SSE headers — X-Accel-Buffering: no prevents Railway/nginx from buffering
+      // SSE headers — X-Accel-Buffering: no prevents the reverse proxy from buffering
       // CORS headers must be set manually because reply.hijack() bypasses Fastify plugins
       const origin = request.headers.origin
       const allowedOrigins = [process.env.WEB_URL ?? "http://localhost:3000", "http://localhost:3000"]
@@ -507,13 +527,6 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         "X-Accel-Buffering": "no",
         "Access-Control-Allow-Origin": corsOrigin,
         "Access-Control-Allow-Credentials": "true",
-      })
-
-      // Fetch current run items and send initial stats event
-      const initialItems = await withWorkspace(workspaceId, async (tx) => {
-        return tx`
-          SELECT status, executed_at FROM run_items WHERE run_id = ${runId}::uuid
-        ` as unknown as Array<{ status: string; executed_at: string | null }>
       })
       const stats = computeRunStats(initialItems)
       const eta = estimateTimeRemaining(initialItems, initialItems.length)
