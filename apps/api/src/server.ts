@@ -25,6 +25,7 @@ import linearWebhookRoutes from "./routes/linear-webhook.js"
 import webhookRoutes from "./routes/webhooks.js"
 import v1Routes from "./routes/v1.js"
 import profileRoutes from "./routes/profile.js"
+import aiRoutes from "./routes/ai.js"
 import lifecycleRoutes from "./routes/lifecycle.js"
 import erasureRoutes from "./routes/erasure.js"
 import exportRoutes from "./routes/export.js"
@@ -81,6 +82,7 @@ await fastify.register(linearRoutes)
 await fastify.register(webhookRoutes)
 await fastify.register(v1Routes)
 await fastify.register(profileRoutes)
+await fastify.register(aiRoutes)
 await fastify.register(lifecycleRoutes)
 await fastify.register(erasureRoutes)
 await fastify.register(exportRoutes)

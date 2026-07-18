@@ -10,6 +10,7 @@ import {
   jsonb,
   unique,
   check,
+  primaryKey,
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 import { uuidv7 } from "uuidv7"
@@ -314,6 +315,19 @@ export const apiKeys = pgTable("api_keys", {
 })
 
 // ─── Linear Connections (tenant-scoped, Phase 5) ────────────────────────────────
+
+// Generic per-workspace secret store for simple single-key BYO providers
+// (Anthropic today). Keyed by (workspace_id, provider).
+export const workspaceIntegrationSecrets = pgTable("workspace_integration_secrets", {
+  workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  provider: varchar("provider", { length: 50 }).notNull(),
+  secret_enc: text("secret_enc").notNull(),
+  created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.workspace_id, t.provider] }),
+}))
 
 export const linearConnections = pgTable("linear_connections", {
   id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),

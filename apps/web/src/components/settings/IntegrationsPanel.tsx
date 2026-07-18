@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui"
 import { LinearConnect } from "./LinearConnect"
+import { ClaudeConnect } from "./ClaudeConnect"
 
 interface IntegrationsPanelProps {
   workspaceId: string
@@ -13,7 +14,10 @@ export function IntegrationsPanel({ workspaceId }: IntegrationsPanelProps) {
           <CardTitle>Integrations</CardTitle>
         </CardHeader>
 
-        <LinearConnect workspaceId={workspaceId} />
+        <div className="flex flex-col gap-4">
+          <LinearConnect workspaceId={workspaceId} />
+          <ClaudeConnect workspaceId={workspaceId} />
+        </div>
 
         <p className="mt-4 text-xs text-gray-400">
           Error tracking (Sentry) and product analytics (PostHog) are optional and

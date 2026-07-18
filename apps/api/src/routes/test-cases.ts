@@ -1,9 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
-import Anthropic from "@anthropic-ai/sdk"
-
-// Module-level singleton — 60s timeout for complex specs that generate many test cases
-const anthropicClient = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 60_000 }) : null
+import { getAnthropicClientForWorkspace } from "../lib/anthropic.js"
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
@@ -889,8 +886,11 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "Forbidden" })
       }
 
-      if (!process.env.ANTHROPIC_API_KEY) {
-        return reply.status(503).send({ error: "AI service not configured" })
+      // Resolve the Claude client for this workspace (workspace key → env fallback).
+      // Held nowhere during the later long AI call — just a quick key lookup here.
+      const anthropic = await getAnthropicClientForWorkspace(workspaceId)
+      if (!anthropic) {
+        return reply.status(503).send({ error: "No Claude API key configured. Add one in Settings → Integrations." })
       }
 
       // 1. Get Linear connection + project format in one transaction
@@ -969,10 +969,7 @@ ${testFormat === "gwt"
 }`
 
       try {
-        if (!anthropicClient) {
-          return reply.status(503).send({ error: "AI service not configured" })
-        }
-        const message = await anthropicClient.messages.create({
+        const message = await anthropic.messages.create({
           model: "claude-sonnet-4-5",
           max_tokens: 4096,
           messages: [{ role: "user", content: prompt }],
