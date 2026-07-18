@@ -14,4 +14,7 @@ Sentry.init({
   includeLocalVariables: true,
 
   environment: process.env.NODE_ENV ?? "production",
+
+  // Tag so web + api can share one Sentry project yet stay filterable
+  initialScope: { tags: { component: "api" } },
 })

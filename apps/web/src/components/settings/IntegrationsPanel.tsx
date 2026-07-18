@@ -16,7 +16,9 @@ export function IntegrationsPanel({ workspaceId }: IntegrationsPanelProps) {
         <LinearConnect workspaceId={workspaceId} />
 
         <p className="mt-4 text-xs text-gray-400">
-          More integrations coming soon
+          Error tracking (Sentry) and product analytics (PostHog) are optional and
+          off by default. Enable them for this instance via environment variables —
+          see <code className="font-mono text-[11px]">.env.example</code>.
         </p>
       </Card>
     </div>

@@ -1,11 +1,18 @@
 import * as Sentry from "@sentry/nextjs"
 
-Sentry.init({
-  dsn: "https://8b39dc689ed8ed7498347c63bc85b73b@o4511058912411648.ingest.de.sentry.io/4511058913722448",
+// Off by default — see instrumentation-client.ts. Empty DSN = no init.
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
-  // 10% of transactions in production, 100% locally
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+if (dsn) {
+  Sentry.init({
+    dsn,
 
-  // Send PII for debugging
-  sendDefaultPii: true,
-})
+    // 10% of transactions in production, 100% locally
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+
+    // Send PII for debugging
+    sendDefaultPii: true,
+
+    initialScope: { tags: { component: "web-server" } },
+  })
+}

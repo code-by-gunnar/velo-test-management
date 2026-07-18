@@ -17,6 +17,10 @@ COPY apps/web apps/web
 # runtime server-side, so the runtime env var matters too)
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+# Sentry DSN baked into the client bundle at build. Empty = Sentry disabled
+# (off by default for self-hosted). Set to your own project DSN to opt in.
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 # SENTRY_AUTH_TOKEN intentionally absent — source-map upload is skipped
 RUN pnpm --filter @velo/web build
 
