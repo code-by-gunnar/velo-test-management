@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   integer,
+  jsonb,
   unique,
   check,
 } from "drizzle-orm/pg-core"
@@ -247,6 +248,14 @@ export const runItems = pgTable("run_items", {
   run_id: uuid("run_id").notNull().references(() => testRuns.id, { onDelete: "cascade" }),
   // Nullable — CI-ingested run items may not map to an existing test case
   test_case_id: uuid("test_case_id").references(() => testCases.id, { onDelete: "cascade" }),
+  // Title snapshot taken at run creation (migration 0003) — kept immutable so
+  // renaming a case doesn't rewrite in-progress/historic runs.
+  case_title: varchar("case_title", { length: 500 }),
+  // Full case-definition snapshot (preconditions + steps) taken at run creation
+  // (migration 0015 / VEL-46). Nullable: pre-0015 runs and CI items have none and
+  // fall back to the live case. Shape: { preconditions, steps: [{ step_order,
+  // action, expected_result, step_type }] }.
+  case_snapshot: jsonb("case_snapshot"),
   status: testStatusEnum("status").notNull().default("untested"),
   comment: text("comment"),
   executed_by: uuid("executed_by").references(() => users.id, { onDelete: "set null" }),

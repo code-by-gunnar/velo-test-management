@@ -18,6 +18,13 @@ function isUuid(value: string): boolean {
   return UUID_ANY_RE.test(value)
 }
 
+// Immutable snapshot of a case's definition, captured on run_items at run creation
+// (VEL-46 / audit #9) so historic runs render what was actually tested.
+type CaseSnapshot = {
+  preconditions: string | null
+  steps: Array<{ step_order: number; action: string; expected_result: string | null; step_type: string }>
+}
+
 // ── Runs routes ───────────────────────────────────────────────────────────────
 // Base path: /api/workspaces/:workspaceId/runs
 // All handlers:
@@ -84,27 +91,51 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       const result = await withWorkspace(workspaceId, async (tx) => {
         const hasSuiteFilter = suite_ids !== undefined && suite_ids.length > 0
 
-        let cases: Array<{ id: string; title: string }>
+        let cases: Array<{ id: string; title: string; preconditions: string | null }>
 
         if (hasSuiteFilter) {
           cases = await tx`
-            SELECT id, title FROM test_cases
+            SELECT id, title, preconditions FROM test_cases
             WHERE project_id = ${project_id}::uuid
               AND suite_id = ANY(${suite_ids!}::uuid[])
               AND deleted_at IS NULL
             ORDER BY suite_id, position
-          ` as unknown as Array<{ id: string; title: string }>
+          ` as unknown as Array<{ id: string; title: string; preconditions: string | null }>
         } else {
           cases = await tx`
-            SELECT id, title FROM test_cases
+            SELECT id, title, preconditions FROM test_cases
             WHERE project_id = ${project_id}::uuid
               AND deleted_at IS NULL
             ORDER BY suite_id NULLS LAST, position
-          ` as unknown as Array<{ id: string; title: string }>
+          ` as unknown as Array<{ id: string; title: string; preconditions: string | null }>
         }
 
         if (cases.length === 0) {
           return null
+        }
+
+        // Snapshot each case's steps at run creation (VEL-46 / audit #9) so the
+        // run records exactly what was tested even if the case is edited later.
+        // One grouped query (not per-case) to avoid an extra N+1 on top of the
+        // insert loop.
+        const caseIds = cases.map((c) => c.id)
+        const stepRows = await tx`
+          SELECT test_case_id, step_order, action, expected_result, step_type
+          FROM test_case_steps
+          WHERE test_case_id = ANY(${caseIds}::uuid[])
+          ORDER BY test_case_id, step_order
+        ` as unknown as Array<{
+          test_case_id: string
+          step_order: number
+          action: string
+          expected_result: string | null
+          step_type: string
+        }>
+        const stepsByCase = new Map<string, Array<{ step_order: number; action: string; expected_result: string | null; step_type: string }>>()
+        for (const s of stepRows) {
+          const list = stepsByCase.get(s.test_case_id) ?? []
+          list.push({ step_order: s.step_order, action: s.action, expected_result: s.expected_result, step_type: s.step_type })
+          stepsByCase.set(s.test_case_id, list)
         }
 
         const runId = uuidv7()
@@ -125,14 +156,16 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
         for (const tc of cases) {
           const itemId = uuidv7()
+          const snapshot: CaseSnapshot = { preconditions: tc.preconditions ?? null, steps: stepsByCase.get(tc.id) ?? [] }
           await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
+            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, case_snapshot, status)
             VALUES (
               ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
               ${runId}::uuid,
               ${tc.id}::uuid,
               ${tc.title},
+              ${tx.json(snapshot)},
               'untested'
             )
           `
@@ -252,7 +285,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
         const items = await tx`
           SELECT
-            ri.id, ri.test_case_id, ri.case_title, ri.status,
+            ri.id, ri.test_case_id, ri.case_title, ri.case_snapshot, ri.status,
             ri.comment, ri.executed_by, ri.executed_at, ri.created_at,
             d.id AS defect_id, d.title AS defect_title,
             d.external_id AS defect_external_id, d.external_url AS defect_external_url,
@@ -372,12 +405,15 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
       const result = await withWorkspace(workspaceId, async (tx) => {
         const failedItems = await tx`
-          SELECT ri.test_case_id, tc.title AS case_title
+          SELECT
+            ri.test_case_id,
+            COALESCE(ri.case_title, tc.title) AS case_title,
+            ri.case_snapshot
           FROM run_items ri
           LEFT JOIN test_cases tc ON tc.id = ri.test_case_id
           WHERE ri.run_id = ${runId}::uuid
             AND ri.status = 'fail'
-        ` as unknown as Array<{ test_case_id: string; case_title: string | null }>
+        ` as unknown as Array<{ test_case_id: string; case_title: string | null; case_snapshot: CaseSnapshot | null }>
 
         if (failedItems.length === 0) return null
 
@@ -408,14 +444,19 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
         for (const fi of failedItems) {
           const itemId = uuidv7()
+          // Carry over the ORIGINAL snapshot — a rerun re-tests what actually
+          // failed, not the case's current (possibly edited) definition (VEL-46).
+          // fi.case_snapshot is already a parsed object (or null) from the jsonb
+          // column; wrap with tx.json so postgres.js serializes it exactly once.
           await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
+            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, case_snapshot, status)
             VALUES (
               ${itemId}::uuid,
               current_setting('app.workspace_id', true)::uuid,
               ${newRunId}::uuid,
               ${fi.test_case_id}::uuid,
               ${fi.case_title ?? null},
+              ${fi.case_snapshot == null ? null : tx.json(fi.case_snapshot)},
               'untested'
             )
           `

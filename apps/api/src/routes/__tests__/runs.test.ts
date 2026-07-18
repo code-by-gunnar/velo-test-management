@@ -30,6 +30,7 @@ function buildApp(userId: string, workspaceId: string) {
 describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
   let workspaceId: string
   let projectId: string
+  let snapshotProjectId: string
   let suiteAId: string
   let suiteBId: string
   let caseAId: string
@@ -41,6 +42,7 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
   beforeAll(async () => {
     workspaceId = uuidv7()
     projectId = uuidv7()
+    snapshotProjectId = uuidv7()
     suiteAId = uuidv7()
     suiteBId = uuidv7()
     caseAId = uuidv7()
@@ -64,6 +66,13 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     await sql`
       INSERT INTO projects (id, workspace_id, name, project_key)
       VALUES (${projectId}::uuid, ${workspaceId}::uuid, 'Runs Project', 'rp')
+    `
+
+    // Dedicated project for snapshot tests — keeps the main project's case count
+    // stable so the "all cases" assertions above stay valid.
+    await sql`
+      INSERT INTO projects (id, workspace_id, name, project_key)
+      VALUES (${snapshotProjectId}::uuid, ${workspaceId}::uuid, 'Snapshot Project', 'sp')
     `
 
     // Insert two suites
@@ -96,6 +105,7 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     await sql`DELETE FROM test_cases WHERE workspace_id = ${workspaceId}::uuid`
     await sql`DELETE FROM suites WHERE workspace_id = ${workspaceId}::uuid`
     await sql`DELETE FROM projects WHERE id = ${projectId}::uuid`
+    await sql`DELETE FROM projects WHERE id = ${snapshotProjectId}::uuid`
     await sql`DELETE FROM workspaces WHERE id = ${workspaceId}::uuid`
     await sql`DELETE FROM users WHERE id = ${userId}::uuid`
     await app.close()
@@ -157,6 +167,130 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     expect(titles).toContain("Case A1")
     expect(titles).toContain("Case A2")
     expect(titles).toContain("Case B1")
+  })
+
+  // ── VEL-46 / audit #9: case definition snapshot ─────────────────────────────
+
+  it("POST /runs snapshots case steps + preconditions into run_items.case_snapshot", async () => {
+    const suiteId = uuidv7()
+    const caseId = uuidv7()
+    await sql`
+      INSERT INTO suites (id, workspace_id, project_id, name, position)
+      VALUES (${suiteId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, 'Snapshot Suite', 5000)
+    `
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
+      VALUES (${caseId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, ${suiteId}::uuid, 'Snapshot Case', 'Be logged in', 'high', 1000)
+    `
+    await sql`
+      INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+      VALUES
+        (${uuidv7()}::uuid, ${caseId}::uuid, 1000, 'Open the app', 'App loads', 'action'),
+        (${uuidv7()}::uuid, ${caseId}::uuid, 2000, 'Tap Sign In', 'Login screen shows', 'action')
+    `
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs`,
+      payload: { name: "Snapshot Steps Run", project_id: snapshotProjectId, suite_ids: [suiteId] },
+    })
+    expect(createRes.statusCode).toBe(201)
+    const { id: runId } = createRes.json() as { id: string }
+
+    const rows = (await sql`
+      SELECT case_snapshot FROM run_items WHERE run_id = ${runId}::uuid
+    `) as unknown as Array<{
+      case_snapshot: {
+        preconditions: string | null
+        steps: Array<{ step_order: number; action: string; expected_result: string | null; step_type: string }>
+      } | null
+    }>
+    expect(rows.length).toBe(1)
+    const snap = rows[0]!.case_snapshot
+    expect(snap).toBeTruthy()
+    expect(snap!.preconditions).toBe("Be logged in")
+    expect(snap!.steps).toHaveLength(2)
+    expect(snap!.steps[0]!.action).toBe("Open the app")
+    expect(snap!.steps[0]!.expected_result).toBe("App loads")
+    expect(snap!.steps[1]!.action).toBe("Tap Sign In")
+  })
+
+  it("editing a case's steps after run creation does NOT change the run's snapshot (audit #9)", async () => {
+    const suiteId = uuidv7()
+    const caseId = uuidv7()
+    await sql`
+      INSERT INTO suites (id, workspace_id, project_id, name, position)
+      VALUES (${suiteId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, 'Immutable Suite', 6000)
+    `
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
+      VALUES (${caseId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, ${suiteId}::uuid, 'Immutable Case', 'Original precondition', 'high', 1000)
+    `
+    await sql`
+      INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+      VALUES (${uuidv7()}::uuid, ${caseId}::uuid, 1000, 'Original step', 'Original result', 'action')
+    `
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs`,
+      payload: { name: "Immutable Run", project_id: snapshotProjectId, suite_ids: [suiteId] },
+    })
+    const { id: runId } = createRes.json() as { id: string }
+
+    // Edit the case AFTER the run was created: replace its steps + preconditions
+    await sql`DELETE FROM test_case_steps WHERE test_case_id = ${caseId}::uuid`
+    await sql`
+      INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+      VALUES (${uuidv7()}::uuid, ${caseId}::uuid, 1000, 'EDITED step', 'EDITED result', 'action')
+    `
+    await sql`UPDATE test_cases SET preconditions = 'EDITED precondition' WHERE id = ${caseId}::uuid`
+
+    // The run's snapshot must still reflect the ORIGINAL definition
+    const rows = (await sql`
+      SELECT case_snapshot FROM run_items WHERE run_id = ${runId}::uuid
+    `) as unknown as Array<{
+      case_snapshot: { preconditions: string | null; steps: Array<{ action: string; expected_result: string | null }> } | null
+    }>
+    const snap = rows[0]!.case_snapshot
+    expect(snap!.preconditions).toBe("Original precondition")
+    expect(snap!.steps).toHaveLength(1)
+    expect(snap!.steps[0]!.action).toBe("Original step")
+    expect(snap!.steps[0]!.expected_result).toBe("Original result")
+  })
+
+  it("GET /runs/:id includes case_snapshot on each item", async () => {
+    const suiteId = uuidv7()
+    const caseId = uuidv7()
+    await sql`
+      INSERT INTO suites (id, workspace_id, project_id, name, position)
+      VALUES (${suiteId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, 'Detail Snapshot Suite', 7000)
+    `
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position)
+      VALUES (${caseId}::uuid, ${workspaceId}::uuid, ${snapshotProjectId}::uuid, ${suiteId}::uuid, 'Detail Snapshot Case', NULL, 'high', 1000)
+    `
+    await sql`
+      INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+      VALUES (${uuidv7()}::uuid, ${caseId}::uuid, 1000, 'A step', 'A result', 'action')
+    `
+    const createRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs`,
+      payload: { name: "Detail Snapshot Run", project_id: snapshotProjectId, suite_ids: [suiteId] },
+    })
+    const { id: runId } = createRes.json() as { id: string }
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceId}/runs/${runId}`,
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as {
+      items: Array<{ case_snapshot: { steps: Array<{ action: string }> } | null }>
+    }
+    expect(body.items.length).toBe(1)
+    expect(body.items[0]!.case_snapshot!.steps[0]!.action).toBe("A step")
   })
 
   it("POST /runs returns 400 when no cases match scope", async () => {

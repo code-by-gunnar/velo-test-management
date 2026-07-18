@@ -21,6 +21,12 @@ export interface RunItem {
   status: string
   comment: string | null
   position: number
+  // Immutable snapshot of the case definition taken at run creation (VEL-46).
+  // Null for runs created before the snapshot migration and for CI-ingested items.
+  case_snapshot?: {
+    preconditions: string | null
+    steps: CaseStep[]
+  } | null
 }
 
 interface CaseStep {
@@ -112,16 +118,31 @@ export function ExecutionScreen({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const currentItem = items[currentIndex]
-  const currentDetail = currentItem ? caseDetailCache[currentItem.test_case_id] : undefined
+  // Prefer the immutable snapshot captured at run creation — it reflects exactly
+  // what was tested even if the case was edited afterward (VEL-46 / audit #9).
+  // Fall back to the live-fetched detail only when there's no snapshot.
+  const snapshotDetail: CaseDetail | undefined = currentItem?.case_snapshot
+    ? {
+        id: currentItem.test_case_id,
+        title: currentItem.case_title,
+        preconditions: currentItem.case_snapshot.preconditions,
+        steps: currentItem.case_snapshot.steps,
+      }
+    : undefined
+  const currentDetail = currentItem
+    ? (caseDetailCache[currentItem.test_case_id] ?? snapshotDetail)
+    : undefined
 
   // Keyboard shortcuts disabled when defect prompt open or comment textarea focused
   const keyboardEnabled = !showDefectPrompt && !commentFocused && !done
 
-  // Fetch case detail on index change
+  // Fetch case detail on index change — only when there's no snapshot to render.
   useEffect(() => {
     if (!currentItem) return
     const caseId = currentItem.test_case_id
     if (caseDetailCache[caseId]) return
+    // Snapshot present → rendered directly via snapshotDetail, no fetch needed.
+    if (currentItem.case_snapshot) return
 
     setLoadingCase(true)
     fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`)
