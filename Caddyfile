@@ -1,0 +1,11 @@
+# Caddy config for the prod overlay (docker-compose.prod.yml).
+# Automatic HTTPS via Let's Encrypt — requires DNS A records pointing here.
+
+app.{$DOMAIN} {
+	reverse_proxy web:3000
+}
+
+# SSE streams natively through Caddy's reverse_proxy (no buffering config needed).
+api.{$DOMAIN} {
+	reverse_proxy api:3001
+}

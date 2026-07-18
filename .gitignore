@@ -16,3 +16,4 @@ claude.nd
 
 # Sentry Config File
 .env.sentry-build-plugin
+.playwright-mcp/

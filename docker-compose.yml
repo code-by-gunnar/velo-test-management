@@ -1,19 +1,43 @@
+# Velo backing services (postgres + valkey).
+#
+#   docker compose up -d       → bare infra for local `pnpm dev`
+#   Full self-hosted stack     → add the app overlay:
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+#
+# The app overlay requires secrets — copy .env.example → .env first.
+# Prod (Caddy + TLS) additionally layers docker-compose.prod.yml.
+
 services:
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: velo
-      POSTGRES_PASSWORD: velo
-      POSTGRES_DB: velo_dev
+      POSTGRES_USER: ${POSTGRES_USER:-velo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-velo}
+      POSTGRES_DB: ${POSTGRES_DB:-velo_dev}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-velo} -d ${POSTGRES_DB:-velo_dev}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   valkey:
     image: valkey/valkey:7
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   postgres_data:
+  valkey_data:

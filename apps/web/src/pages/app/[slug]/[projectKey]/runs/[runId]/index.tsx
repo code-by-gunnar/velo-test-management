@@ -508,7 +508,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId,
       runId,
       run,
-      apiUrl,
+      // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
+      // gateway). Falls back to API_URL when both resolve to the same public host.
+      apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,
       sseToken: token,
     },
   }
