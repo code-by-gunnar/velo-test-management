@@ -61,6 +61,10 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+  // Set when the server didn't email the invite (no SMTP configured) —
+  // the admin shares the link manually instead
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   // Role change state
   const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null)
@@ -117,6 +121,8 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
     setInviting(true)
     setInviteError(null)
     setInviteSuccess(null)
+    setInviteLink(null)
+    setLinkCopied(false)
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/invitations`, {
         method: "POST",
@@ -132,7 +138,13 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
         }
         return
       }
-      setInviteSuccess(`Invitation sent to ${email}`)
+      const body = await res.json() as { invite_url?: string; email_sent?: boolean }
+      if (body.email_sent) {
+        setInviteSuccess(`Invitation sent to ${email}`)
+      } else {
+        setInviteSuccess(`Invitation created for ${email} — email is not configured, share the link below.`)
+        setInviteLink(body.invite_url ?? null)
+      }
       setInviteEmail("")
       setInviteRole("viewer")
       void fetchInvitations()
@@ -146,14 +158,33 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
   const handleResend = async (invitation: Invitation) => {
     setResendingId(invitation.id)
     try {
-      await fetch(`/api/backend/workspaces/${workspaceId}/invitations`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/invitations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: invitation.email, role: invitation.role }),
       })
+      if (res.ok) {
+        const body = await res.json() as { invite_url?: string; email_sent?: boolean }
+        if (!body.email_sent && body.invite_url) {
+          // Re-inviting invalidates the old token — surface the fresh link
+          setInviteSuccess(`New invite link created for ${invitation.email} — share it below.`)
+          setInviteLink(body.invite_url)
+          setLinkCopied(false)
+        }
+      }
       void fetchInvitations()
     } finally {
       setResendingId(null)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (!inviteLink) return
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setLinkCopied(true)
+    } catch {
+      // Clipboard unavailable (non-HTTPS context) — the input is selectable
     }
   }
 
@@ -261,6 +292,20 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
           )}
           {inviteSuccess && (
             <p className="mt-2 text-sm text-pass-text">{inviteSuccess}</p>
+          )}
+          {inviteLink && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                readOnly
+                value={inviteLink}
+                aria-label="Invite link"
+                onFocus={(e) => e.target.select()}
+                className="h-9 flex-1 rounded-md border border-gray-200 bg-gray-50 px-3 font-mono text-xs text-gray-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <Button variant="secondary" size="sm" onClick={() => void handleCopyLink()} className="h-9 shrink-0">
+                {linkCopied ? "Copied" : "Copy link"}
+              </Button>
+            </div>
           )}
         </Card>
       )}

@@ -5,6 +5,7 @@ import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
 import { emailQueue } from "../queues/email.queue.js"
+import { emailEnabled } from "../lib/mailer.js"
 import { valkey } from "../lib/valkey.js"
 import { captureEvent } from "../lib/posthog.js"
 
@@ -105,23 +106,23 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       const inviterRows = await sql`SELECT name FROM users WHERE id = ${userId}::uuid`
       const inviterName = (inviterRows[0] as { name: string | null } | undefined)?.name ?? "A team member"
 
-      // Invalidate prior pending invites for this email
-      await sql`
-        UPDATE workspace_invitations
-        SET accepted_at = NOW()
-        WHERE workspace_id = ${workspaceId}::uuid
-          AND email = ${email}
-          AND accepted_at IS NULL
-      `
-
       // Generate and hash invite token
       const token = generateInviteToken()
       const tokenHash = await bcrypt.hash(token, 10)
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
-      // Insert invitation (tenant-scoped)
+      // Invalidate prior pending invites + insert the new one (tenant-scoped —
+      // workspace_invitations is RLS-forced, so both statements need the
+      // workspace context; bare sql here 500s under the velo_app role)
       const inviteId = uuidv7()
       await withWorkspace(workspaceId, async (tx) => {
+        await tx`
+          UPDATE workspace_invitations
+          SET accepted_at = NOW()
+          WHERE workspace_id = ${workspaceId}::uuid
+            AND email = ${email}
+            AND accepted_at IS NULL
+        `
         await tx`
           INSERT INTO workspace_invitations (id, workspace_id, email, role, token_hash, invited_by, expires_at)
           VALUES (
@@ -156,6 +157,11 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
         email,
         role,
         expires_at: expiresAt.toISOString(),
+        // Always returned so the admin can copy the link (this is an
+        // admin-only route). email_sent tells the UI whether the invitee
+        // will also receive it by email or the link must be shared manually.
+        invite_url: inviteUrl,
+        email_sent: emailEnabled(),
       })
     }
   )

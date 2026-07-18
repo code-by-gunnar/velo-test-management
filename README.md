@@ -82,7 +82,7 @@ Built by a QA engineer, for QA engineers.
 | AI | Anthropic Claude API (spec-to-test conversion) |
 | Analytics | PostHog (server-side, EU region) |
 | Error Tracking | Sentry (frontend + API) |
-| Email | Resend SDK |
+| Email | nodemailer over SMTP (optional — console mode without it) |
 | Hosting | Self-hosted Docker Compose (web + API + PostgreSQL + Valkey, optional Caddy TLS) |
 
 ## Project Structure
@@ -105,15 +105,18 @@ velo-test-management/
 Prerequisites: Docker with Compose v2.
 
 ```bash
-# Configure — fill in the four required secrets (generation commands are in the file)
+# Configure — fill in the three required secrets (generation commands are in the file)
 cp .env.example .env
 
 # Full stack: web :3000, API :3001, PostgreSQL, Valkey
 docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
 ```
 
-Migrations run automatically on API start. Without a real `RESEND_API_KEY`, set
-`API_NODE_ENV=development` in `.env` and signup OTPs print to `docker compose logs api`.
+Migrations run automatically on API start. **No email account required**: without
+SMTP configured, signup OTPs and reset links print to `docker compose logs api`,
+and team-invite links appear in the UI for copy-paste. To send real email, set the
+`SMTP_*` variables in `.env` — any provider works (Gmail app password, SES,
+Mailgun, smtp.resend.com).
 
 For a server deploy with TLS, layer `docker-compose.prod.yml` (Caddy, `app.`/`api.`
 subdomains) — the deploy checklist is in that file's header.

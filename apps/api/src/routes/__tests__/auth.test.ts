@@ -5,22 +5,14 @@ import authRoutes from "../auth.js"
 // Integration test — requires DATABASE_URL to point to a test database
 // The CI workflow provides PostgreSQL 16 as a service
 //
-// Mock the email module to avoid real Resend API calls during tests
+// Mock the email module to avoid real SMTP sends during tests
 vi.mock("../../lib/email.js", () => ({
   sendOtpEmail: vi.fn().mockResolvedValue(undefined),
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Also mock the Resend constructor so the RESEND_API_KEY guard doesn't throw
-vi.mock("resend", () => ({
-  Resend: vi.fn().mockImplementation(() => ({
-    emails: { send: vi.fn().mockResolvedValue({ id: "mock-id" }) },
-  })),
-}))
-
 // Set required env vars for testing
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
-process.env.RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_test_mock"
 process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
 process.env.INTERNAL_API_SECRET = process.env.INTERNAL_API_SECRET ?? "test-internal-secret"
 

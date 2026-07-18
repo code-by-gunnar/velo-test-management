@@ -116,10 +116,17 @@ describe("Members routes (USR-01 through USR-06)", () => {
       })
 
       expect(res.statusCode).toBe(201)
-      const body = res.json() as { id: string; email: string; role: string; expires_at: string }
+      const body = res.json() as {
+        id: string; email: string; role: string; expires_at: string
+        invite_url: string; email_sent: boolean
+      }
       expect(body.id).toBeTruthy()
       expect(body.role).toBe("editor")
       expect(body.expires_at).toBeTruthy()
+      // Self-host console mode (no SMTP in tests): the invite link is returned
+      // so the admin can share it directly — the invitee can't read server logs.
+      expect(body.invite_url).toContain("/accept-invite?token=")
+      expect(body.email_sent).toBe(false)
       expect(mockAdd).toHaveBeenCalledWith(
         "workspace-invite",
         expect.objectContaining({

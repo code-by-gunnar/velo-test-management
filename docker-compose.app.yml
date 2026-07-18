@@ -33,8 +33,15 @@ services:
       VALKEY_URL: redis://valkey:6379
       AUTH_SECRET: ${AUTH_SECRET:?set in .env — openssl rand -base64 32 (must match web)}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set in .env — openssl rand -hex 32}
-      RESEND_API_KEY: ${RESEND_API_KEY:?set in .env — api throws at boot without it}
-      FROM_EMAIL: ${FROM_EMAIL:-Velo <noreply@localhost>}
+      # Email is optional — without SMTP_HOST the api runs in console mode
+      # (OTPs/reset links print to logs, invite links surface in the UI)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      FROM_EMAIL: ${FROM_EMAIL:-Velo <velo@localhost>}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
       WEB_URL: ${WEB_URL:-http://localhost:3000}
       # Optional integrations — empty disables each
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}

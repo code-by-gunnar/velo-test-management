@@ -1,6 +1,6 @@
 import { Worker } from "bullmq"
-import { Resend } from "resend"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
+import { sendMail } from "../lib/mailer.js"
 import {
   welcomeEmail,
   workspaceInviteEmail,
@@ -12,15 +12,6 @@ import {
   userErasureCompletedEmail,
 } from "../lib/email-templates.js"
 import type { EmailJobData } from "./email.queue.js"
-
-const FROM = process.env.FROM_EMAIL ?? "Velo <noreply@runvelo.app>"
-
-function getResend(): Resend {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured")
-  }
-  return new Resend(process.env.RESEND_API_KEY)
-}
 
 export const emailWorker = new Worker<EmailJobData>(
   "email",
@@ -38,14 +29,13 @@ export const emailWorker = new Worker<EmailJobData>(
       }
       case "welcome": {
         const { userName } = job.data.payload as { userName: string }
-        const resend = getResend()
-        await resend.emails.send({
-          from: "Gunnar from Velo <support@runvelo.app>",
-          replyTo: "support@runvelo.app",
+        const webUrl = process.env.WEB_URL ?? "http://localhost:3000"
+        await sendMail({
           to,
           subject,
           html: welcomeEmail(userName),
-          text: `Hey ${userName.split(" ")[0]},\n\nThanks for joining the Velo beta. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools.\n\nThree things to try first:\n\n1. Create a test case — our keyboard-first editor lets you write a complete case in under 30 seconds.\n2. Import from CSV — drag and drop a CSV file and Velo maps your columns automatically.\n3. Import from Linear — paste a Linear issue ID and our AI converts the spec into structured test cases.\n\nOpen Velo: https://runvelo.app\n\nIf you have questions or feedback, just hit reply — I read every email.\n\nGunnar\nFounder, Velo`,
+          text: `Hey ${userName.split(" ")[0]},\n\nThanks for joining Velo. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools.\n\nThree things to try first:\n\n1. Create a test case — our keyboard-first editor lets you write a complete case in under 30 seconds.\n2. Import from CSV — drag and drop a CSV file and Velo maps your columns automatically.\n3. Import from Linear — paste a Linear issue ID and our AI converts the spec into structured test cases.\n\nOpen Velo: ${webUrl}\n\nIf you have questions or feedback, just hit reply — I read every email.\n\nGunnar\nFounder, Velo`,
+          ...(process.env.SUPPORT_EMAIL ? { replyTo: process.env.SUPPORT_EMAIL } : {}),
         })
         break
       }
@@ -55,9 +45,7 @@ export const emailWorker = new Worker<EmailJobData>(
           workspaceName: string
           inviterName: string
         }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: workspaceInviteEmail(inviterName, workspaceName, inviteUrl),
@@ -71,9 +59,7 @@ export const emailWorker = new Worker<EmailJobData>(
           scheduledDate: string
           exportUrl: string
         }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: workspaceDeletionRequestedEmail(workspaceName, scheduledDate, exportUrl),
@@ -88,9 +74,7 @@ export const emailWorker = new Worker<EmailJobData>(
           timeRemaining: string
           cancelUrl: string
         }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: workspaceDeletionWarningEmail(workspaceName, scheduledDate, timeRemaining, cancelUrl),
@@ -100,9 +84,7 @@ export const emailWorker = new Worker<EmailJobData>(
       }
       case "workspace-deletion-completed": {
         const { workspaceName } = job.data.payload as { workspaceName: string }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: workspaceDeletionCompletedEmail(workspaceName),
@@ -115,9 +97,7 @@ export const emailWorker = new Worker<EmailJobData>(
           scheduledDate: string
           cancelUrl: string
         }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: userErasureRequestedEmail(scheduledDate, cancelUrl),
@@ -130,9 +110,7 @@ export const emailWorker = new Worker<EmailJobData>(
           scheduledDate: string
           timeRemaining: string
         }
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: userErasureWarningEmail(scheduledDate, timeRemaining),
@@ -141,9 +119,7 @@ export const emailWorker = new Worker<EmailJobData>(
         break
       }
       case "user-erasure-completed": {
-        const resend = getResend()
-        await resend.emails.send({
-          from: FROM,
+        await sendMail({
           to,
           subject,
           html: userErasureCompletedEmail(),
