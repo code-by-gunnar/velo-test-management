@@ -1,9 +1,0 @@
-[build]
-builder = "nixpacks"
-buildCommand = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @velo/api build"
-
-[deploy]
-startCommand = "node --import ./dist/instrument.js dist/server.js"
-healthcheckPath = "/health"
-healthcheckTimeout = 30
-restartPolicyType = "on_failure"

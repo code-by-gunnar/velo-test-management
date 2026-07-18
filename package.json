@@ -7,8 +7,8 @@
     "lint": "pnpm --recursive lint",
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
-    "deploy:staging": "git checkout staging && git merge master --no-edit && git push origin staging && git checkout master && echo '✓ Deployed to staging.runvelo.app'",
-    "deploy:production": "git checkout master && git merge staging --no-edit && git push origin master && echo '✓ Deployed to runvelo.app'"
+    "stack:up": "docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build",
+    "stack:down": "docker compose -f docker-compose.yml -f docker-compose.app.yml down"
   },
   "devDependencies": {
     "playwright": "^1.58.2",
