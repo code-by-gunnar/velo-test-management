@@ -139,20 +139,36 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
             ...(bugLabelId ? { labelIds: [bugLabelId] } : {}),
           }))
 
-          // Update defect with Linear issue data
-          const updated = await withWorkspace(workspaceId, async (tx) => {
-            const rows = await tx`
-              UPDATE defects
-              SET external_id = ${issue.identifier},
-                  external_url = ${issue.url},
-                  external_status = 'Todo',
-                  updated_at = NOW()
-              WHERE id = ${defectId}::uuid
-                AND workspace_id = current_setting('app.workspace_id', true)::uuid
-              RETURNING id, workspace_id, run_item_id, external_id, external_url, external_status, title, created_by, created_at, updated_at
-            `
-            return rows.length > 0 ? rows[0] as Record<string, unknown> : null
-          })
+          // Persist the Linear link, retried — a failure here would orphan the
+          // issue (created in Linear but never recorded, so status sync can't
+          // find it). Separate try/catch so a persist failure does NOT fall into
+          // the outer "Linear create failed" handler — the two are distinct.
+          let updated: Record<string, unknown> | null = null
+          let linkPersisted = false
+          try {
+            updated = await withRetry(async () => {
+              const rows = await withWorkspace(workspaceId, async (tx) => {
+                return tx`
+                  UPDATE defects
+                  SET external_id = ${issue.identifier},
+                      external_url = ${issue.url},
+                      external_status = 'Todo',
+                      updated_at = NOW()
+                  WHERE id = ${defectId}::uuid
+                    AND workspace_id = current_setting('app.workspace_id', true)::uuid
+                  RETURNING id, workspace_id, run_item_id, external_id, external_url, external_status, title, created_by, created_at, updated_at
+                ` as unknown as Record<string, unknown>[]
+              })
+              if (rows.length === 0) throw new Error(`defect ${defectId} not found while persisting Linear link`)
+              return rows[0] as Record<string, unknown>
+            }, 2, 250)
+            linkPersisted = true
+          } catch (persistErr) {
+            fastify.log.error(
+              { persistErr, defectId, workspaceId, linearIdentifier: issue.identifier, linearUrl: issue.url },
+              "Linear issue created but link-persist failed — orphaned issue needs reconciliation"
+            )
+          }
 
           // Sync evidence attachments to Linear issue (best-effort)
           if (r2Enabled()) {
@@ -178,9 +194,20 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
             }
           }
 
-          if (updated) {
+          if (linkPersisted && updated) {
             return reply.status(201).send(updated)
           }
+          // The Linear issue exists but its link couldn't be persisted. Surface
+          // the issue identity (with a flag) so the client shows the real Linear
+          // link instead of "failed to create in Linear", and the orphan is
+          // visible for reconciliation rather than silent (audit #16).
+          return reply.status(201).send({
+            ...defect,
+            external_id: issue.identifier,
+            external_url: issue.url,
+            external_status: "Todo",
+            link_persist_failed: true,
+          })
         }
       } catch (err) {
         // Linear failure is non-fatal — log and return local defect
