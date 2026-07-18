@@ -180,21 +180,38 @@ export function ExecutionScreen({
     async (verdict: Verdict) => {
       if (!currentItem) return
 
+      const itemId = currentItem.id
+      const prevStatus = currentItem.status
+
+      // Optimistic update — reconciled against res.ok below
       setItems((prev) =>
-        prev.map((it) => (it.id === currentItem.id ? { ...it, status: verdict } : it))
+        prev.map((it) => (it.id === itemId ? { ...it, status: verdict } : it))
       )
 
+      let ok = false
       try {
-        await fetch(
-          `/api/backend/workspaces/${workspaceId}/run-items/${currentItem.id}`,
+        const res = await fetch(
+          `/api/backend/workspaces/${workspaceId}/run-items/${itemId}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: verdict }),
           }
         )
+        ok = res.ok
       } catch {
-        // Optimistic state retained
+        ok = false
+      }
+
+      if (!ok) {
+        // Save didn't persist (e.g. 403 after a mid-run role downgrade, or a
+        // network error) — revert the optimistic verdict so the UI reflects the
+        // real server state, and don't open the defect prompt on a failed fail.
+        setItems((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, status: prevStatus } : it))
+        )
+        toast("error", "Couldn't save verdict — please try again")
+        return
       }
 
       if (verdict === "fail") {
@@ -203,7 +220,7 @@ export function ExecutionScreen({
         setShowDefectPrompt(false)
       }
     },
-    [currentItem, workspaceId]
+    [currentItem, workspaceId, toast]
   )
 
   const handleFileDefect = useCallback(
@@ -250,26 +267,39 @@ export function ExecutionScreen({
 
   const saveComment = useCallback(() => {
     if (!currentItem) return
+    const itemId = currentItem.id
     const trimmed = commentValue.trim()
+    const prevComment = currentItem.comment ?? null
 
     if (commentSaveTimeout.current) clearTimeout(commentSaveTimeout.current)
 
     // Update local items array so navigating back shows the saved note
     setItems((prev) =>
-      prev.map((it) => (it.id === currentItem.id ? { ...it, comment: trimmed || null } : it))
+      prev.map((it) => (it.id === itemId ? { ...it, comment: trimmed || null } : it))
     )
 
     void fetch(
-      `/api/backend/workspaces/${workspaceId}/run-items/${currentItem.id}/comment`,
+      `/api/backend/workspaces/${workspaceId}/run-items/${itemId}/comment`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comment: trimmed }),
       }
-    ).then(() => {
-      setCommentSaved(true)
-      if (trimmed) toast("success", "Note saved")
-    })
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to save note: ${res.status}`)
+        setCommentSaved(true)
+        if (trimmed) toast("success", "Note saved")
+      })
+      .catch(() => {
+        // Revert the cached note and flag it unsaved so the user can retry.
+        // The textarea keeps their typed text (commentValue is untouched).
+        setItems((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, comment: prevComment } : it))
+        )
+        setCommentSaved(false)
+        toast("error", "Couldn't save note — please try again")
+      })
   }, [currentItem, commentValue, workspaceId, toast])
 
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
