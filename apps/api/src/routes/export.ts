@@ -103,18 +103,17 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
     reply.raw.setHeader("Content-Disposition", `attachment; filename="velo-export-${workspaceId.slice(0, 8)}.zip"`)
     archive.pipe(reply.raw)
 
+    // Group children by parent once (O(n)) — shared by both branches so the CSV
+    // path no longer re-scans steps/items per row (VEL-53 / audit #17).
+    const stepsMap = groupByKey(data.steps, "test_case_id")
+    const itemsMap = groupByKey(data.runItems, "run_id")
+
     if (format === "json") {
       // JSON: each entity type as a separate file, nested where appropriate
       archive.append(JSON.stringify(data.workspace, null, 2), { name: `workspace.${ext}` })
       archive.append(JSON.stringify(data.suites, null, 2), { name: `suites.${ext}` })
 
       // Nest steps into cases
-      const stepsMap = new Map<string, Record<string, unknown>[]>()
-      for (const step of data.steps) {
-        const caseId = step.test_case_id as string
-        if (!stepsMap.has(caseId)) stepsMap.set(caseId, [])
-        stepsMap.get(caseId)!.push(step)
-      }
       const casesWithSteps = data.cases.map((c: Record<string, unknown>) => ({
         ...c,
         steps: stepsMap.get(c.id as string) ?? [],
@@ -122,12 +121,6 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       archive.append(JSON.stringify(casesWithSteps, null, 2), { name: `test_cases.${ext}` })
 
       // Nest items into runs
-      const itemsMap = new Map<string, Record<string, unknown>[]>()
-      for (const item of data.runItems) {
-        const runId = item.run_id as string
-        if (!itemsMap.has(runId)) itemsMap.set(runId, [])
-        itemsMap.get(runId)!.push(item)
-      }
       const runsWithItems = data.runs.map((r: Record<string, unknown>) => ({
         ...r,
         items: itemsMap.get(r.id as string) ?? [],
@@ -141,7 +134,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Flatten cases with steps inline
       const flatCases = data.cases.map((c: Record<string, unknown>) => {
-        const caseSteps = data.steps.filter((s: Record<string, unknown>) => s.test_case_id === c.id)
+        const caseSteps = stepsMap.get(c.id as string) ?? []
         return {
           ...c,
           step_count: caseSteps.length,
@@ -154,7 +147,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Flatten runs with item counts
       const flatRuns = data.runs.map((r: Record<string, unknown>) => {
-        const items = data.runItems.filter((i: Record<string, unknown>) => i.run_id === r.id)
+        const items = itemsMap.get(r.id as string) ?? []
         return {
           ...r,
           total_items: items.length,
@@ -168,6 +161,23 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
     await archive.finalize()
     // Don't call reply.send() -- archive already piped to reply.raw
   })
+}
+
+// Group rows by a string key in a single O(n) pass. Shared by both export
+// branches so the CSV branch doesn't re-scan the child arrays per parent row
+// (was O(cases × steps) / O(runs × items); VEL-53 / audit #17).
+export function groupByKey<T extends Record<string, unknown>>(
+  rows: T[],
+  key: string
+): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const row of rows) {
+    const k = row[key] as string
+    const list = map.get(k)
+    if (list) list.push(row)
+    else map.set(k, [row])
+  }
+  return map
 }
 
 // Simple CSV serializer -- handles any array of flat objects.
