@@ -744,6 +744,8 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         // Track max position per suite to avoid repeated MAX queries
         const positionCache = new Map<string, number>()
 
+        const caseRows: Array<Record<string, unknown>> = []
+        const stepRows: Array<Record<string, unknown>> = []
         for (const tc of parsed) {
           if (currentCount >= FREE_TIER_MAX_TEST_CASES) break
 
@@ -811,41 +813,43 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           const newCaseId = uuidv7()
           const priority = tc.priority ?? "medium"
 
-          await tx`
-            INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
-            VALUES (
-              ${newCaseId}::uuid,
-              current_setting('app.workspace_id', true)::uuid,
-              ${projectId}::uuid,
-              ${suiteId},
-              ${tc.title},
-              ${tc.preconditions ?? null},
-              ${priority},
-              ${position},
-              ${request.userId ?? null}::uuid
-            )
-          `
+          // Accumulate rows and bulk-insert after the loop instead of a round trip
+          // per case + per step (VEL-52 / audit #5). The suite find-or-create and
+          // position lookups above are already cached and stay per-iteration.
+          caseRows.push({
+            id: newCaseId,
+            workspace_id: workspaceId,
+            project_id: projectId,
+            suite_id: suiteId,
+            title: tc.title,
+            preconditions: tc.preconditions ?? null,
+            priority,
+            position,
+            created_by: request.userId ?? null,
+          })
 
           for (let i = 0; i < tc.steps.length; i++) {
             const step = tc.steps[i]!
-            const stepId = uuidv7()
-            const stepOrder = (i + 1) * 1000
-
-            await tx`
-              INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
-              VALUES (
-                ${stepId}::uuid,
-                ${newCaseId}::uuid,
-                ${stepOrder},
-                ${step.action},
-                ${step.expected_result ?? null},
-                ${step.step_type ?? defaultStepType}
-              )
-            `
+            stepRows.push({
+              id: uuidv7(),
+              test_case_id: newCaseId,
+              step_order: (i + 1) * 1000,
+              action: step.action,
+              expected_result: step.expected_result ?? null,
+              step_type: step.step_type ?? defaultStepType,
+            })
           }
 
           importedCount++
           currentCount++
+        }
+
+        // Cases first (steps FK-reference them), then steps — two inserts total.
+        if (caseRows.length > 0) {
+          await tx`INSERT INTO test_cases ${tx(caseRows, "id", "workspace_id", "project_id", "suite_id", "title", "preconditions", "priority", "position", "created_by")}`
+        }
+        if (stepRows.length > 0) {
+          await tx`INSERT INTO test_case_steps ${tx(stepRows, "id", "test_case_id", "step_order", "action", "expected_result", "step_type")}`
         }
       })
 

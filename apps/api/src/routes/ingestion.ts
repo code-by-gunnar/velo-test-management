@@ -163,32 +163,24 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
           )
         `
 
-        let matched = 0
-        for (const tc of parsed) {
-          const itemId = uuidv7()
-          // Try fullName first, then name (case-insensitive)
-          const caseId =
+        // Match each result to a case (fullName then name, case-insensitive) and
+        // bulk-insert all run_items in one round trip (VEL-52 / audit #5).
+        const itemRows = parsed.map((tc) => ({
+          id: uuidv7(),
+          workspace_id: workspaceId,
+          run_id: newRunId,
+          test_case_id:
             caseNameMap.get(tc.fullName.toLowerCase()) ??
             caseNameMap.get(tc.name.toLowerCase()) ??
-            null
-
-          if (caseId) matched++
-
-          const statusVal = mapStatus(tc.status)
-
-          await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status, source, comment)
-            VALUES (
-              ${itemId}::uuid,
-              current_setting('app.workspace_id', true)::uuid,
-              ${newRunId}::uuid,
-              ${caseId}::uuid,
-              ${tc.name},
-              ${statusVal},
-              'ci',
-              ${tc.failureMessage ?? null}
-            )
-          `
+            null,
+          case_title: tc.name,
+          status: mapStatus(tc.status),
+          source: "ci",
+          comment: tc.failureMessage ?? null,
+        }))
+        const matched = itemRows.filter((r) => r.test_case_id !== null).length
+        if (itemRows.length > 0) {
+          await tx`INSERT INTO run_items ${tx(itemRows, "id", "workspace_id", "run_id", "test_case_id", "case_title", "status", "source", "comment")}`
         }
 
         const total = parsed.length
@@ -367,31 +359,23 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
           )
         `
 
-        let matched = 0
-        for (const tc of parsed) {
-          const itemId = uuidv7()
-          const caseId =
+        // Bulk-insert all run_items in one round trip (VEL-52 / audit #5).
+        const itemRows = parsed.map((tc) => ({
+          id: uuidv7(),
+          workspace_id: workspaceId,
+          run_id: newRunId,
+          test_case_id:
             caseNameMap.get(tc.fullName.toLowerCase()) ??
             caseNameMap.get(tc.name.toLowerCase()) ??
-            null
-
-          if (caseId) matched++
-
-          const statusVal = mapStatus(tc.status)
-
-          await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status, source, comment)
-            VALUES (
-              ${itemId}::uuid,
-              current_setting('app.workspace_id', true)::uuid,
-              ${newRunId}::uuid,
-              ${caseId}::uuid,
-              ${tc.name},
-              ${statusVal},
-              'ci',
-              ${tc.failureMessage ?? null}
-            )
-          `
+            null,
+          case_title: tc.name,
+          status: mapStatus(tc.status),
+          source: "ci",
+          comment: tc.failureMessage ?? null,
+        }))
+        const matched = itemRows.filter((r) => r.test_case_id !== null).length
+        if (itemRows.length > 0) {
+          await tx`INSERT INTO run_items ${tx(itemRows, "id", "workspace_id", "run_id", "test_case_id", "case_title", "status", "source", "comment")}`
         }
 
         const total = parsed.length

@@ -154,22 +154,20 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           )
         `
 
-        for (const tc of cases) {
-          const itemId = uuidv7()
-          const snapshot: CaseSnapshot = { preconditions: tc.preconditions ?? null, steps: stepsByCase.get(tc.id) ?? [] }
-          await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, case_snapshot, status)
-            VALUES (
-              ${itemId}::uuid,
-              current_setting('app.workspace_id', true)::uuid,
-              ${runId}::uuid,
-              ${tc.id}::uuid,
-              ${tc.title},
-              ${tx.json(snapshot)},
-              'untested'
-            )
-          `
-        }
+        // One bulk insert instead of a round trip per case (VEL-52 / audit #5).
+        // workspace_id is set to workspaceId (== current_setting('app.workspace_id'))
+        // so the RLS policy still matches. case_snapshot is a raw object —
+        // postgres.js serializes it to jsonb once (see the sql.json note in VEL-46).
+        const runItemRows = cases.map((tc) => ({
+          id: uuidv7(),
+          workspace_id: workspaceId,
+          run_id: runId,
+          test_case_id: tc.id,
+          case_title: tc.title,
+          case_snapshot: { preconditions: tc.preconditions ?? null, steps: stepsByCase.get(tc.id) ?? [] } as CaseSnapshot,
+          status: "untested",
+        }))
+        await tx`INSERT INTO run_items ${tx(runItemRows, "id", "workspace_id", "run_id", "test_case_id", "case_title", "case_snapshot", "status")}`
 
         return { runId, item_count: cases.length }
       })
@@ -442,25 +440,20 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           )
         `
 
-        for (const fi of failedItems) {
-          const itemId = uuidv7()
-          // Carry over the ORIGINAL snapshot — a rerun re-tests what actually
-          // failed, not the case's current (possibly edited) definition (VEL-46).
-          // fi.case_snapshot is already a parsed object (or null) from the jsonb
-          // column; wrap with tx.json so postgres.js serializes it exactly once.
-          await tx`
-            INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, case_snapshot, status)
-            VALUES (
-              ${itemId}::uuid,
-              current_setting('app.workspace_id', true)::uuid,
-              ${newRunId}::uuid,
-              ${fi.test_case_id}::uuid,
-              ${fi.case_title ?? null},
-              ${fi.case_snapshot == null ? null : tx.json(fi.case_snapshot)},
-              'untested'
-            )
-          `
-        }
+        // Bulk insert (VEL-52 / audit #5). Carry over each failed item's ORIGINAL
+        // snapshot — a rerun re-tests what actually failed, not the case's current
+        // (possibly edited) definition (VEL-46). fi.case_snapshot is already a
+        // parsed object (or null); postgres.js serializes it to jsonb once.
+        const rerunRows = failedItems.map((fi) => ({
+          id: uuidv7(),
+          workspace_id: workspaceId,
+          run_id: newRunId,
+          test_case_id: fi.test_case_id,
+          case_title: fi.case_title ?? null,
+          case_snapshot: fi.case_snapshot ?? null,
+          status: "untested",
+        }))
+        await tx`INSERT INTO run_items ${tx(rerunRows, "id", "workspace_id", "run_id", "test_case_id", "case_title", "case_snapshot", "status")}`
 
         return { newRunId, item_count: failedItems.length }
       })
