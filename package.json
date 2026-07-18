@@ -8,7 +8,8 @@
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
     "stack:up": "docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build",
-    "stack:down": "docker compose -f docker-compose.yml -f docker-compose.app.yml down"
+    "stack:down": "docker compose -f docker-compose.yml -f docker-compose.app.yml down",
+    "stack:logs": "docker compose -f docker-compose.yml -f docker-compose.app.yml logs -f api"
   },
   "devDependencies": {
     "playwright": "^1.58.2",

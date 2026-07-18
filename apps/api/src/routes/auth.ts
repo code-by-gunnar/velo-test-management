@@ -6,6 +6,7 @@ import { uuidv7 } from "uuidv7"
 import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
+import { emailEnabled } from "../lib/mailer.js"
 import { emailQueue } from "../queues/email.queue.js"
 import { captureEvent } from "../lib/posthog.js"
 
@@ -75,6 +76,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           VALUES (${uuidv7()}::uuid, ${existingUser.id}::uuid, ${tokenHash}, ${expiresAt}, 0)
         `
         await sendOtpEmail(email, otp)
+      } else if (!emailEnabled()) {
+        // Console mode: the operator owns these logs — explain the silent
+        // anti-enumeration path so a self-hoster isn't left staring at an
+        // OTP screen that will never receive a code.
+        process.stdout.write(
+          `\n[email:console] Signup attempted for ${email} — account already exists and is verified. No OTP sent; log in instead.\n\n`
+        )
       }
       // Generic response for both verified and unverified (prevents enumeration)
       return reply.send({ message: "If this email is not already registered, a verification code has been sent." })
@@ -268,6 +276,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       SELECT id FROM users WHERE email = ${email.toLowerCase()} AND email_verified = false
     `
     if (!user) {
+      if (!emailEnabled()) {
+        // Console mode operator notice (see signup handler) — response stays generic
+        process.stdout.write(
+          `\n[email:console] Resend-OTP for ${email} — no unverified account with this email (already verified or not registered). No OTP sent.\n\n`
+        )
+      }
       // Return 200 to avoid email enumeration — don't confirm whether user exists
       return reply.send({ message: "If an account with that email exists, a new code has been sent." })
     }
