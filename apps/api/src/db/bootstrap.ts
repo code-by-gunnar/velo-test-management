@@ -170,6 +170,30 @@ export async function runFixups() {
     await fixupClient.unsafe(`
       CREATE INDEX IF NOT EXISTS idx_workspaces_deletion_status ON workspaces (deletion_status, deletion_scheduled_at) WHERE deletion_status IS NOT NULL
     `)
+    // RLS policy hardening: on a pooled connection where app.workspace_id was
+    // previously SET LOCAL, current_setting(..., true) returns '' (not NULL)
+    // after the transaction ends — and ''::uuid THROWS. Under a superuser the
+    // policies never evaluated so this was invisible; with the velo_app runtime
+    // role (audit #19) any bare-sql statement on an RLS table could 500.
+    // NULLIF makes a stale/absent GUC mean "no rows" instead of an error.
+    for (const table of [
+      "workspace_members", "projects", "suites", "test_cases", "test_runs",
+      "run_items", "defects", "run_item_step_comments", "workspace_invitations",
+    ]) {
+      await fixupClient.unsafe(`
+        ALTER POLICY workspace_isolation ON ${table}
+          USING (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid)
+      `)
+    }
+    await fixupClient.unsafe(`
+      ALTER POLICY workspace_isolation ON test_case_steps
+        USING (
+          test_case_id IN (
+            SELECT id FROM test_cases
+            WHERE workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid
+          )
+        )
+    `)
     console.log("Schema fixups complete")
   } finally {
     await fixupClient.end()
