@@ -5,6 +5,7 @@ import { Button } from "@/components/ui"
 import { ChevronDown, Trash2 } from "lucide-react"
 
 type Provider = "anthropic" | "openai"
+const PROVIDERS: Provider[] = ["anthropic", "openai"]
 
 interface ProviderState {
   configured: boolean
@@ -16,18 +17,20 @@ interface AiStatus {
   providers: Record<Provider, ProviderState>
 }
 
-const PROVIDER_META: Record<Provider, { label: string; logo: string; placeholder: string; keyHint: string }> = {
+const PROVIDER_META: Record<Provider, { label: string; logo: string; placeholder: string; keyHint: string; envVar: string }> = {
   anthropic: {
     label: "Claude",
     logo: "/claude-logo.svg",
     placeholder: "sk-ant-...",
     keyHint: "console.anthropic.com > Settings > API Keys",
+    envVar: "ANTHROPIC_API_KEY",
   },
   openai: {
     label: "OpenAI",
     logo: "/openai-logo.svg",
     placeholder: "sk-...",
     keyHint: "platform.openai.com > API keys",
+    envVar: "OPENAI_API_KEY",
   },
 }
 
@@ -46,31 +49,35 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const applyStatus = useCallback((s: AiStatus) => {
-    setStatus(s)
-    setSelected(s.active)
-  }, [setStatus])
-
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/status`)
-      if (res.ok) applyStatus((await res.json()) as AiStatus)
+      if (res.ok) {
+        const s = (await res.json()) as AiStatus
+        setStatus(s)
+        setSelected(s.active)
+      }
     } catch {
       /* keep cached value */
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, applyStatus])
+  }, [workspaceId, setStatus])
 
   useEffect(() => {
     void fetchStatus()
   }, [fetchStatus])
 
+  // The provider holding a workspace key (at most one — configuring locks it in).
+  // While locked, the other providers are disabled; remove the key to switch.
+  const lockedProvider = PROVIDERS.find((p) => status?.providers?.[p]?.source === "workspace") ?? null
+  const effective: Provider = lockedProvider ?? selected
+
   const handleSelectProvider = async (provider: Provider) => {
+    if (lockedProvider) return
     setSelected(provider)
     setError(null)
     setApiKeyInput("")
-    // Selecting a provider makes it the active one used for generation.
     setSwitching(true)
     try {
       const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/provider`, {
@@ -80,7 +87,7 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
       })
       if (res.ok) setStatus((await res.json()) as AiStatus)
     } catch {
-      /* leave selection; status refetches on next mount */
+      /* status refetches on next mount */
     } finally {
       setSwitching(false)
     }
@@ -92,7 +99,7 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
     setError(null)
     setSuccess(false)
     try {
-      const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/keys/${selected}`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/keys/${effective}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ api_key: apiKeyInput.trim() }),
@@ -101,7 +108,9 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(data.error ?? `Failed to save key (${res.status})`)
       }
-      applyStatus((await res.json()) as AiStatus)
+      const s = (await res.json()) as AiStatus
+      setStatus(s)
+      setSelected(s.active)
       setApiKeyInput("")
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
@@ -116,11 +125,13 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
     setRemoving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/keys/${selected}`, {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/ai/keys/${effective}`, {
         method: "DELETE",
       })
       if (!res.ok) throw new Error(`Failed to remove key (${res.status})`)
-      applyStatus((await res.json()) as AiStatus)
+      const s = (await res.json()) as AiStatus
+      setStatus(s)
+      setSelected(s.active)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove API key")
     } finally {
@@ -128,8 +139,8 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
     }
   }
 
-  const meta = PROVIDER_META[selected]
-  const state = status?.providers?.[selected]
+  const meta = PROVIDER_META[effective]
+  const state = status?.providers?.[effective]
   const hasWorkspaceKey = state?.configured && state.source === "workspace"
   const usingEnvDefault = state?.configured && state.source === "env"
 
@@ -165,30 +176,38 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
             Choose the AI provider used to generate test cases from specs, then add its API key.
           </p>
 
-          {/* Provider selector — the chosen provider is the active one. */}
+          {/* Provider selector — the chosen provider is the active one. Locks to the
+              configured provider until its key is removed. */}
           <div className="mb-3">
             <label className="mb-1 block text-xs font-medium text-gray-500">Provider</label>
             <div className="relative w-full max-w-[220px]">
               <select
-                value={selected}
-                disabled={switching}
+                value={effective}
+                disabled={switching || Boolean(lockedProvider)}
                 onChange={(e) => void handleSelectProvider(e.target.value as Provider)}
-                className="w-full appearance-none rounded-md border border-gray-200 bg-white px-3 py-1.5 pr-8 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
+                className="w-full appearance-none rounded-md border border-gray-200 bg-white px-3 py-1.5 pr-8 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-500"
               >
-                <option value="anthropic">Claude (Anthropic)</option>
-                <option value="openai">OpenAI</option>
+                {PROVIDERS.map((p) => (
+                  <option key={p} value={p} disabled={Boolean(lockedProvider) && p !== lockedProvider}>
+                    {p === "anthropic" ? "Claude (Anthropic)" : "OpenAI"}
+                  </option>
+                ))}
               </select>
               <ChevronDown
                 size={14}
                 className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"
               />
             </div>
+            {lockedProvider && (
+              <p className="mt-1 text-[11px] text-gray-400">
+                Remove the {meta.label} key below to switch providers.
+              </p>
+            )}
           </div>
 
           {usingEnvDefault && (
             <p className="mb-2 text-xs text-gray-500">
-              Falling back to this instance&apos;s {selected === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"}. Add a
-              workspace key below to override it.
+              Falling back to this instance&apos;s {meta.envVar}. Add a workspace key below to override it.
             </p>
           )}
 

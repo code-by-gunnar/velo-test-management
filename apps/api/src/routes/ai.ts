@@ -83,6 +83,9 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
         `
       })
 
+      // Configuring a key activates that provider — one active provider at a time,
+      // so the (choiceless) Linear import path is never ambiguous about which runs.
+      await setActiveProvider(workspaceId, provider)
       invalidateAiClient(workspaceId)
       captureEvent(request.userId, "ai_key_configured", { workspace_id: workspaceId, provider })
 

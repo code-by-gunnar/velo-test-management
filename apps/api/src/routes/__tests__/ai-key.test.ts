@@ -94,9 +94,11 @@ describe("AI provider keys (per-workspace, multi-provider)", () => {
     openaiList.mockResolvedValue({ data: [] })
     const res = await putKey("openai", "sk-openai-valid")
     expect(res.statusCode).toBe(200)
-    const body = res.json() as { providers: Record<"anthropic" | "openai", { configured: boolean }> }
+    const body = res.json() as { active: string; providers: Record<"anthropic" | "openai", { configured: boolean }> }
     expect(body.providers.openai.configured).toBe(true)
     expect(body.providers.anthropic.configured).toBe(false)
+    // Configuring a key activates that provider.
+    expect(body.active).toBe("openai")
     expect(openaiList).toHaveBeenCalled()
   })
 
