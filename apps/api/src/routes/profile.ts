@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import type { TransactionSql, Sql } from "postgres"
+import rateLimit from "@fastify/rate-limit"
 import bcrypt from "bcrypt"
 import crypto from "node:crypto"
 import { uuidv7 } from "uuidv7"
@@ -25,12 +26,26 @@ function extFromMime(mime: string): string {
 
 const profileRoutes: FastifyPluginAsync = async (fastify) => {
 
+  // Rate limiter, opt-in per route (global: false). Only outbound-email routes
+  // opt in — GET /api/me etc. are polled and must not be throttled (VEL-49).
+  await fastify.register(rateLimit, { global: false })
+
   // ── Auth guard ────────────────────────────────────────────────────────────
   fastify.addHook("preHandler", async (request, reply) => {
     if (!request.userId) {
       return reply.status(401).send({ error: "Unauthorized" })
     }
   })
+
+  // Throttle OTP sends per user (falling back to IP) so an authenticated user
+  // can't email-bomb arbitrary addresses or burn the email provider's quota.
+  const otpRateLimit = {
+    rateLimit: {
+      max: 3,
+      timeWindow: "10 minutes",
+      keyGenerator: (request: { userId?: string; ip: string }) => request.userId || request.ip,
+    },
+  }
 
   // ── GET /api/me ───────────────────────────────────────────────────────────
   // Returns the current user's profile. No workspace scoping.
@@ -81,6 +96,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: { email: string }
   }>("/api/me/change-email", {
+    config: otpRateLimit,
     schema: {
       body: {
         type: "object",
