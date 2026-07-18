@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { captureEvent } from "../lib/posthog.js"
+import { safeFetch, SsrfError } from "../lib/ssrf.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -314,25 +315,25 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
         .update(payloadStr)
         .digest("hex")
 
-      // POST with 10s timeout
+      // POST with 10s timeout, SSRF-guarded (resolves + validates the target IPs
+      // and refuses redirects — the stored URL passed isPrivateUrl() at creation
+      // but could resolve to a private address by now)
       const startTime = Date.now()
       try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 10_000)
-
-        const response = await fetch(webhook.endpoint_url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Velo-Signature": `sha256=${hmac}`,
-            "X-Velo-Event": "test.ping",
-            "X-Velo-Delivery": `test-${webhookId}`,
+        const response = await safeFetch(
+          webhook.endpoint_url,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Velo-Signature": `sha256=${hmac}`,
+              "X-Velo-Event": "test.ping",
+              "X-Velo-Delivery": `test-${webhookId}`,
+            },
+            body: payloadStr,
           },
-          body: payloadStr,
-          signal: controller.signal,
-        })
-
-        clearTimeout(timeout)
+          10_000
+        )
 
         const responseTimeMs = Date.now() - startTime
         const success = response.status >= 200 && response.status < 300
@@ -345,11 +346,17 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (err) {
         const responseTimeMs = Date.now() - startTime
         const message = err instanceof Error ? err.message : "Unknown error"
+        const friendly =
+          err instanceof SsrfError
+            ? message
+            : message.includes("abort") || message.includes("timeout")
+              ? "Timeout (10s)"
+              : message
         return reply.send({
           success: false,
           status_code: null,
           response_time_ms: responseTimeMs,
-          error: message.includes("abort") ? "Timeout (10s)" : message,
+          error: friendly,
         })
       }
     }

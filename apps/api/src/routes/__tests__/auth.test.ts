@@ -145,6 +145,7 @@ describe("OAuth signin (INF-08)", () => {
         provider: "google",
         providerAccountId: `test-${ts}-new`,
         email,
+        email_verified: true,
         name: "New OAuth User",
       },
     })
@@ -164,6 +165,7 @@ describe("OAuth signin (INF-08)", () => {
       provider: "github",
       providerAccountId: `test-${ts}-returning`,
       email,
+      email_verified: true,
       name: "Returning OAuth User",
     }
 
@@ -198,12 +200,75 @@ describe("OAuth signin (INF-08)", () => {
         provider: "google",
         providerAccountId: `test-${ts}-autolink`,
         email,
+        email_verified: true,
         name: "Creds User",
       },
     })
     expect(res.statusCode).toBe(200)
     const body = res.json() as Record<string, unknown>
     expect(body.id).toBe(existingUserId)
+  })
+
+  it("VEL-41: unverified provider email against a verified account — returns 403 'unverified_provider_email'", async () => {
+    const { sql } = await import("../../db/client.js")
+    const { uuidv7 } = await import("uuidv7")
+    const email = `oauth-takeover-${ts}@test.com`
+
+    // Victim: a verified credentials account
+    const victimId = uuidv7()
+    await sql`
+      INSERT INTO users (id, email, password_hash, name, email_verified)
+      VALUES (${victimId}::uuid, ${email}, ${"$2b$12$fakehash"}, ${"Victim"}, true)
+    `
+
+    // Attacker signs in via GitHub with the victim's email but the provider did
+    // NOT verify it — must be blocked before auto-linking to the victim's account.
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
+      payload: {
+        provider: "github",
+        providerAccountId: `test-${ts}-takeover`,
+        email,
+        email_verified: false,
+        name: "Attacker",
+      },
+    })
+    expect(res.statusCode).toBe(403)
+    const body = res.json() as Record<string, unknown>
+    expect(body.error).toBe("unverified_provider_email")
+
+    // The victim account must NOT have been linked
+    const [linked] = await sql`
+      SELECT 1 FROM user_oauth_accounts WHERE user_id = ${victimId}::uuid
+    `
+    expect(linked).toBeUndefined()
+  })
+
+  it("VEL-41: unverified provider email for a new user — blocks JIT provisioning (403)", async () => {
+    const { sql } = await import("../../db/client.js")
+    const email = `oauth-jit-unverified-${ts}@test.com`
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/oauth-signin",
+      headers: INTERNAL_HEADERS,
+      payload: {
+        provider: "github",
+        providerAccountId: `test-${ts}-jit-unverified`,
+        email,
+        email_verified: false,
+        name: "New Unverified",
+      },
+    })
+    expect(res.statusCode).toBe(403)
+    const body = res.json() as Record<string, unknown>
+    expect(body.error).toBe("unverified_provider_email")
+
+    // No user should have been created
+    const [created] = await sql`SELECT 1 FROM users WHERE email = ${email}`
+    expect(created).toBeUndefined()
   })
 
   it("Path 4: unverified email — returns 409 with error code 'unverified_email' (INF-08)", async () => {

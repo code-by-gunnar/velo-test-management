@@ -40,7 +40,6 @@ interface RunDetailPageProps {
   runId: string
   run: RunDetail | null
   apiUrl: string
-  sseToken: string | null
 }
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -73,7 +72,6 @@ export default function RunDetailPage({
   runId,
   run: initialRun,
   apiUrl,
-  sseToken,
 }: RunDetailPageProps) {
   const router = useRouter()
   const { isAdmin } = useUserRole()
@@ -99,7 +97,6 @@ export default function RunDetailPage({
   const liveStatsMap = useRunSSE(
     run ? [runId] : [],
     apiUrl,
-    sseToken,
     workspaceId,
     { onDefectStatusUpdate: handleDefectStatusUpdate }
   )
@@ -511,7 +508,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
       // gateway). Falls back to API_URL when both resolve to the same public host.
       apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,
-      sseToken: token,
     },
   }
 }

@@ -19,7 +19,6 @@ interface RunsDashboardProps {
   workspaceId: string
   projectId: string
   apiUrl: string
-  sseToken: string | null
 }
 
 export default function RunsDashboard({
@@ -28,7 +27,6 @@ export default function RunsDashboard({
   workspaceId,
   projectId,
   apiUrl,
-  sseToken,
 }: RunsDashboardProps) {
   const router = useRouter()
   const { canEdit } = useUserRole()
@@ -49,7 +47,7 @@ export default function RunsDashboard({
     .filter((r) => r.status === "active")
     .map((r) => r.id)
 
-  const liveStatsMap = useRunSSE(activeRunIds, apiUrl, sseToken, workspaceId)
+  const liveStatsMap = useRunSSE(activeRunIds, apiUrl, workspaceId)
 
   const abortRef = useRef<AbortController | null>(null)
 
@@ -242,7 +240,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
       // gateway). Falls back to API_URL when both resolve to the same public host.
       apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,
-      sseToken: token,
     },
   }
 }

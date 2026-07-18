@@ -1,6 +1,8 @@
+import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { Redis as Valkey } from "iovalkey"
+import { valkey } from "../lib/valkey.js"
 import { withWorkspace } from "../db/tenant.js"
 import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
@@ -28,6 +30,10 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── Auth guard ─────────────────────────────────────────────────────────────
   fastify.addHook("preHandler", async (request, reply) => {
+    // The SSE stream authenticates via a single-use ticket inside its own
+    // handler (EventSource cannot send an Authorization header), so it is
+    // exempt from the bearer/cookie userId check here (VEL-42).
+    if (request.routeOptions.url?.endsWith("/stream")) return
     if (!request.userId) {
       return reply.status(401).send({ error: "Unauthorized" })
     }
@@ -473,6 +479,51 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send(history)
     }
   )
+  // ── POST /runs/:runId/stream-ticket — issue a short-lived SSE ticket ──────
+  // EventSource can't send an Authorization header, so instead of putting the
+  // long-lived session JWE in the stream URL (VEL-42 — it leaked into request
+  // logs, browser history and Referer on every connect), the browser first
+  // calls this authenticated endpoint to mint a single-use, 60s, run-scoped
+  // ticket, then passes the ticket to the stream.
+  fastify.post<{
+    Params: { workspaceId: string; runId: string }
+  }>(
+    "/api/workspaces/:workspaceId/runs/:runId/stream-ticket",
+    async (request, reply) => {
+      const { workspaceId, runId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+      if (!isUuid(runId)) {
+        return reply.status(400).send({ error: "Invalid runId" })
+      }
+
+      // Confirm the run belongs to this workspace before minting a ticket
+      const runExists = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT 1 AS ok FROM test_runs
+          WHERE id = ${runId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+        return rows.length > 0
+      })
+      if (!runExists) {
+        return reply.status(404).send({ error: "Run not found" })
+      }
+
+      const ticket = crypto.randomBytes(32).toString("hex")
+      await valkey.set(
+        `sse:ticket:${ticket}`,
+        JSON.stringify({ userId: request.userId, workspaceId, runId }),
+        "EX",
+        60
+      )
+
+      return reply.send({ ticket, expires_in: 60 })
+    }
+  )
+
   // ── GET /runs/:runId/stream — SSE real-time updates (DA-01, DA-02) ─────────
   fastify.get<{
     Params: { workspaceId: string; runId: string }
@@ -480,6 +531,26 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
     "/api/workspaces/:workspaceId/runs/:runId/stream",
     async (request, reply) => {
       const { workspaceId, runId } = request.params
+
+      // Authenticate via the single-use stream ticket (VEL-42). A bearer/cookie
+      // may already have populated request.userId for non-EventSource callers;
+      // otherwise consume a ticket. GETDEL makes it single-use, and it only
+      // succeeds if the ticket was minted for this exact run + workspace.
+      const ticketId = (request.query as Record<string, string | undefined>)?.ticket
+      if (!request.userId && ticketId) {
+        try {
+          const raw = await valkey.getdel(`sse:ticket:${ticketId}`)
+          if (raw) {
+            const t = JSON.parse(raw) as { userId: string; workspaceId: string; runId: string }
+            if (t.runId === runId && t.workspaceId === workspaceId) {
+              request.userId = t.userId
+              request.workspaceId = t.workspaceId
+            }
+          }
+        } catch {
+          // Malformed/expired ticket — falls through to the 401 below
+        }
+      }
 
       if (!request.userId) {
         return reply.status(401).send({ error: "Unauthorized" })

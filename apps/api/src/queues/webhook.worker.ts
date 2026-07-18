@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
-import { Worker } from "bullmq"
+import { Worker, UnrecoverableError } from "bullmq"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
+import { safeFetch, SsrfError } from "../lib/ssrf.js"
 import type { WebhookJobData } from "./webhook.queue.js"
 
 export const webhookWorker = new Worker<WebhookJobData>(
@@ -16,33 +17,37 @@ export const webhookWorker = new Worker<WebhookJobData>(
       .update(payloadStr)
       .digest("hex")
 
-    // 10s timeout per attempt
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 10_000)
-
     try {
-      const response = await fetch(endpointUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Velo-Signature": `sha256=${hmac}`,
-          "X-Velo-Event": event,
-          "X-Velo-Delivery": job.id ?? "unknown",
+      // safeFetch re-validates the resolved IPs at delivery time (SSRF: a
+      // hostname can re-point to a private address after creation) and refuses
+      // to follow redirects (a public endpoint could 302 to the metadata IP).
+      const response = await safeFetch(
+        endpointUrl,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Velo-Signature": `sha256=${hmac}`,
+            "X-Velo-Event": event,
+            "X-Velo-Delivery": job.id ?? "unknown",
+          },
+          body: payloadStr,
         },
-        body: payloadStr,
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeout)
+        10_000
+      )
 
       if (response.status >= 400) {
         throw new Error(`Webhook delivery failed: HTTP ${response.status}`)
       }
 
-      // 2xx or 3xx = success
+      // 2xx = success
     } catch (err) {
-      clearTimeout(timeout)
-      throw err // BullMQ will retry
+      if (err instanceof SsrfError) {
+        // Blocked target — retrying won't help; fail permanently so BullMQ
+        // stops retrying this delivery.
+        throw new UnrecoverableError(`Webhook delivery blocked: ${err.message}`)
+      }
+      throw err // transient — BullMQ will retry
     }
   },
   {

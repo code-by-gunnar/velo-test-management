@@ -370,6 +370,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       email: string
       name?: string | null
       image?: string | null
+      email_verified?: boolean
     }
   }>("/api/auth/oauth-signin", {
     schema: {
@@ -382,6 +383,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           email: { type: "string", format: "email" },
           name: { type: "string", maxLength: 255, nullable: true },
           image: { type: "string", maxLength: 2048, nullable: true },
+          // Whether the OAuth provider asserts it verified this email (VEL-41).
+          // The web signIn callback derives it: Google's email_verified claim,
+          // GitHub's /user/emails. Absent/false blocks auto-link + JIT provision.
+          email_verified: { type: "boolean" },
         },
       },
     },
@@ -390,6 +395,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: "Forbidden" })
     }
     const { provider, providerAccountId, email, name, image } = request.body
+    const providerEmailVerified = request.body.email_verified === true
 
     let resolvedUser: {
       id: string
@@ -399,7 +405,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       workspace_slug: string | null
       role: string | null
     } | null = null
-    let errorCode: "unverified_email" | "provider_conflict" | null = null
+    let errorCode: "unverified_email" | "provider_conflict" | "unverified_provider_email" | null = null
     let isNewUser = false
 
     await sql.begin(async (tx: TransactionSql) => {
@@ -455,6 +461,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           errorCode = "provider_conflict"
           return
         }
+      }
+
+      // Step 4.5: The provider must assert it verified this email before we
+      // auto-link it to an existing account or JIT-provision a new one (VEL-41).
+      // Without this, an attacker who adds a victim's email (unverified) to their
+      // GitHub account could sign in and get linked to the victim's account.
+      // Returning users (existingOAuth, handled in Step 1) already returned above,
+      // so this only gates the link/provision paths.
+      if (!providerEmailVerified) {
+        errorCode = "unverified_provider_email"
+        return
       }
 
       // Step 5: Auto-link or JIT provision
@@ -539,6 +556,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({
         error: "provider_conflict",
         message: "This account is already linked to a different sign-in method.",
+      })
+    }
+    if (errorCode === "unverified_provider_email") {
+      return reply.status(403).send({
+        error: "unverified_provider_email",
+        message: "Your sign-in provider hasn't verified this email address. Verify it with the provider and try again.",
       })
     }
 

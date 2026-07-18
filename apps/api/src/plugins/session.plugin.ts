@@ -59,11 +59,10 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
       request.cookies?.["__Secure-authjs.session-token"] ??
       request.cookies?.["authjs.session-token"]
 
-    // SSE routes: EventSource cannot set custom headers, so also accept token from
-    // query parameter (?token=...). Only used by the /stream endpoint.
-    const queryToken = (request.query as Record<string, string | undefined>)?.token
-
-    const token = bearerToken ?? cookieToken ?? queryToken ?? null
+    // Note: the SSE /stream endpoint does NOT accept the session token in the
+    // URL anymore (VEL-42 — it leaked into logs/history). It authenticates with
+    // a single-use stream ticket resolved inside its own handler instead.
+    const token = bearerToken ?? cookieToken ?? null
     if (!token) return
 
     // Select key based on gateway hint (avoids trial-and-error decryption).

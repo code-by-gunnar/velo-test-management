@@ -35,6 +35,44 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
 })
 
+// ─── OAuth email verification (VEL-41) ────────────────────────────────────────
+// Determine whether the provider asserts it verified the email being linked.
+// Google (OIDC) exposes an email_verified claim. GitHub does not include it in
+// the profile — its OAuth profile can surface unverified emails — so we call
+// /user/emails and require the matching address to be verified.
+async function providerEmailVerified(
+  account: { provider?: string; access_token?: string | null } | null,
+  profile: Record<string, unknown> | null | undefined,
+  email: string
+): Promise<boolean> {
+  if (account?.provider === "google") {
+    return profile?.email_verified === true
+  }
+
+  if (account?.provider === "github") {
+    const token = account.access_token
+    if (!token) return false
+    try {
+      const res = await fetch("https://api.github.com/user/emails", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "User-Agent": "velo",
+        },
+      })
+      if (!res.ok) return false
+      const emails = (await res.json()) as Array<{ email: string; verified: boolean }>
+      const match = emails.find((e) => e.email.toLowerCase() === email.toLowerCase())
+      return match?.verified === true
+    } catch {
+      return false
+    }
+  }
+
+  // Unknown provider — fail closed
+  return false
+}
+
 // ─── Auth.js v5 configuration ─────────────────────────────────────────────────
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -95,6 +133,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = profile?.email ?? user.email
       if (!email) return '/login?error=no_email'
 
+      // Whether the provider asserts it verified this email (VEL-41). The backend
+      // refuses to auto-link/provision on an unverified email, since a provider
+      // that surfaces unverified emails (GitHub) would otherwise enable takeover.
+      const emailVerified = await providerEmailVerified(
+        account,
+        profile as Record<string, unknown> | undefined,
+        email
+      )
+
       const res = await fetch(`${process.env.API_URL}/api/auth/oauth-signin`, {
         method: 'POST',
         headers: {
@@ -105,6 +152,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           provider: account.provider,
           providerAccountId: account.providerAccountId,
           email,
+          email_verified: emailVerified,
           name: profile?.name ?? user.name ?? null,
           image: (profile as Record<string, unknown>)?.picture as string
             ?? (profile as Record<string, unknown>)?.avatar_url as string
