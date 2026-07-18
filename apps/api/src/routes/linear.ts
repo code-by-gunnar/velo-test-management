@@ -327,7 +327,12 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── PUT /linear/api-key — Store a persistent Linear API key ──────────────
+  // ── PUT /linear/api-key — Connect (or rotate) via a Linear API key ────────
+  // This is the primary connect path for self-hosted instances: no OAuth app,
+  // no browser callback. Upserts the connection — creates it from the key alone
+  // if none exists (access_token_enc stays NULL; api_key_enc carries the
+  // credential, which is what every consumer prefers anyway), or rotates the key
+  // on an existing connection. After this, the user picks a default team.
   fastify.put<{
     Params: { workspaceId: string }
     Body: { api_key: string }
@@ -352,10 +357,15 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "Forbidden" })
       }
 
-      // Validate the key works by making a test API call
+      // Validate the key AND fetch org + teams in one go — a valid key authenticates
+      // and gives us everything the connection row + team-selection step need.
+      let org: { id: string; name: string }
+      let teams: Array<{ id: string; name: string }>
       try {
-        const { getLinearOrganization } = await import("../lib/linear-client.js")
-        await getLinearOrganization(api_key)
+        [org, teams] = await Promise.all([
+          getLinearOrganization(api_key),
+          getLinearTeams(api_key),
+        ])
       } catch {
         return reply.status(400).send({ error: "Invalid API key — could not authenticate with Linear" })
       }
@@ -363,20 +373,54 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
       const encApiKey = encrypt(api_key)
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const rows = await tx`
-          UPDATE linear_connections
-          SET api_key_enc = ${encApiKey}
+        const existing = await tx`
+          SELECT team_id FROM linear_connections
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-          RETURNING id
         `
-        return rows.length > 0 ? "updated" as const : "not_found" as const
+
+        if (existing.length > 0) {
+          // Rotate the key + refresh org info; keep the chosen team.
+          await tx`
+            UPDATE linear_connections
+            SET api_key_enc = ${encApiKey}, linear_org_id = ${org.id}, linear_org_name = ${org.name}
+            WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
+          `
+          return { created: false, teamId: (existing[0] as { team_id: string }).team_id }
+        }
+
+        // New API-key-only connection: no OAuth token, team pending.
+        await tx`
+          INSERT INTO linear_connections (
+            id, workspace_id, access_token_enc, api_key_enc, linear_org_id, linear_org_name,
+            team_id, team_name, connected_by
+          ) VALUES (
+            gen_random_uuid(),
+            current_setting('app.workspace_id', true)::uuid,
+            ${null},
+            ${encApiKey},
+            ${org.id},
+            ${org.name},
+            'pending',
+            ${null},
+            ${request.userId}::uuid
+          )
+        `
+        return { created: true, teamId: "pending" }
       })
 
-      if (result === "not_found") {
-        return reply.status(404).send({ error: "No Linear connection found. Connect Linear first via OAuth." })
+      // Cache teams for the selection step (5 min TTL), mirroring the OAuth flow.
+      await fastify.valkey.set(`linear:teams:${workspaceId}`, JSON.stringify(teams), "EX", 300)
+
+      if (result.created) {
+        captureEvent(request.userId, "linear_connected", { workspace_id: workspaceId })
       }
 
-      return reply.send({ saved: true })
+      return reply.send({
+        saved: true,
+        connected: true,
+        needs_team_selection: result.teamId === "pending",
+        teams,
+      })
     }
   )
 

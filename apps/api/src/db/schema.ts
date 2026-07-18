@@ -318,8 +318,9 @@ export const apiKeys = pgTable("api_keys", {
 export const linearConnections = pgTable("linear_connections", {
   id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
   workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  // OAuth tokens encrypted via AES-256-GCM before storage
-  access_token_enc: text("access_token_enc").notNull(),
+  // OAuth token encrypted via AES-256-GCM before storage. Nullable since 0017 —
+  // API-key-only connections have no OAuth token (api_key_enc carries the credential).
+  access_token_enc: text("access_token_enc"),
   refresh_token_enc: text("refresh_token_enc"),
   linear_org_id: varchar("linear_org_id", { length: 255 }).notNull(),
   linear_org_name: varchar("linear_org_name", { length: 255 }),

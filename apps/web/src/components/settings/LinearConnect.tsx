@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useCachedState } from "@/hooks/useCachedState"
 import Image from "next/image"
 import { Button } from "@/components/ui"
-import { Link, Unlink, ChevronDown, ExternalLink } from "lucide-react"
+import { Link, Unlink, ChevronDown } from "lucide-react"
 
 interface LinearStatus {
   connected: boolean
@@ -36,7 +36,6 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
     return "disconnected"
   })
   const [error, setError] = useState<string | null>(null)
-  const [connecting, setConnecting] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState("")
@@ -83,34 +82,6 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
   useEffect(() => {
     void fetchStatus()
   }, [fetchStatus])
-
-  // Check for OAuth callback redirect
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get("linear_callback") === "success") {
-      // Remove query param from URL
-      const url = new URL(window.location.href)
-      url.searchParams.delete("linear_callback")
-      window.history.replaceState({}, "", url.toString())
-      // Re-fetch status to get team selection
-      void fetchStatus()
-    }
-  }, [fetchStatus])
-
-  const handleConnect = async () => {
-    setConnecting(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/backend/workspaces/${workspaceId}/linear/auth`)
-      if (!res.ok) throw new Error(`Failed to start Linear connection (${res.status})`)
-      const data = await res.json() as { url: string }
-      if (!/^https:\/\/linear\.app\b/i.test(data.url)) throw new Error("Unexpected redirect URL")
-      window.location.href = data.url
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect to Linear")
-      setConnecting(false)
-    }
-  }
 
   const handleSelectTeam = async () => {
     if (!selectedTeamId) return
@@ -201,21 +172,36 @@ export function LinearConnect({ workspaceId }: LinearConnectProps) {
         <p className="mb-3 text-xs text-fail-text">{error}</p>
       )}
 
-      {/* Disconnected state */}
+      {/* Disconnected state — connect with a Linear personal API key */}
       {state === "disconnected" && (
         <div className="mt-3">
-          <p className="text-sm text-gray-500 mb-4">
-            Connect your Linear workspace to file defects directly from failed test runs.
+          <p className="text-sm text-gray-500 mb-3">
+            Connect Linear with a personal API key to file defects directly from failed test runs.
           </p>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => void handleConnect()}
-            disabled={connecting}
-          >
-            <Link size={14} className="mr-1.5" />
-            {connecting ? "Connecting..." : "Connect Linear"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="lin_api_..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && apiKeyInput.trim() && !savingApiKey) void handleSaveApiKey()
+              }}
+              className="flex-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void handleSaveApiKey()}
+              disabled={!apiKeyInput.trim() || savingApiKey}
+            >
+              <Link size={14} className="mr-1.5" />
+              {savingApiKey ? "Connecting..." : "Connect"}
+            </Button>
+          </div>
+          <p className="mt-2 text-[10px] text-gray-400">
+            Generate a key in Linear: Settings &gt; Account &gt; Security &amp; Access &gt; API Keys
+          </p>
         </div>
       )}
 
