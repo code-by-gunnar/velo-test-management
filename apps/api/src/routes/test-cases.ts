@@ -530,7 +530,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           type: "object",
           required: ["action", "case_ids"],
           properties: {
-            action: { type: "string", enum: ["move", "copy", "delete", "restore"] },
+            action: { type: "string", enum: ["move", "copy", "delete", "restore", "purge"] },
             case_ids: { type: "array", items: { type: "string" }, minItems: 1 },
             target_suite_id: { type: ["string", "null"] },
           },
@@ -663,6 +663,32 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             SET deleted_at = NULL
             WHERE id = ANY(${case_ids}::uuid[])
               AND project_id = ${projectId}::uuid
+          `
+        })
+        return reply.status(204).send()
+      }
+
+      // purge: permanently delete soft-deleted cases (VEL-31 recycle bin). Run
+      // history is preserved — run_items that referenced a purged case are
+      // detached (test_case_id → NULL) so their case_snapshot keeps the run
+      // intact, rather than cascade-deleting the run item. Only affects rows
+      // already soft-deleted in this project.
+      if (action === "purge") {
+        await withWorkspace(workspaceId, async (tx) => {
+          await tx`
+            UPDATE run_items SET test_case_id = NULL
+            WHERE test_case_id IN (
+              SELECT id FROM test_cases
+              WHERE id = ANY(${case_ids}::uuid[])
+                AND project_id = ${projectId}::uuid
+                AND deleted_at IS NOT NULL
+            )
+          `
+          await tx`
+            DELETE FROM test_cases
+            WHERE id = ANY(${case_ids}::uuid[])
+              AND project_id = ${projectId}::uuid
+              AND deleted_at IS NOT NULL
           `
         })
         return reply.status(204).send()
