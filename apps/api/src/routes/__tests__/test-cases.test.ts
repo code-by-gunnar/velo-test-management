@@ -598,6 +598,120 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(steps.every((s) => s.test_case_id === copied!.id)).toBe(true)
   })
 
+  it("action=duplicate: copies a case into its OWN suite titled 'Copy of {title}' with steps (VEL-18)", async () => {
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "Regression login",
+        priority: "high",
+        suite_id: suiteA,
+        steps: [
+          { action: "Open login", expected_result: "Form shown" },
+          { action: "Submit" },
+        ],
+      },
+    })
+    const { id: srcId } = srcRes.json() as { id: string }
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "duplicate", case_ids: [srcId] },
+    })
+    expect(res.statusCode).toBe(201)
+    expect((res.json() as { created: number }).created).toBe(1)
+
+    // The duplicate lands in the SAME suite as its source, titled "Copy of …".
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases?suite_id=${suiteA}`,
+    })
+    const inSuite = listRes.json() as Array<{ id: string; title: string; step_count: number; suite_id: string | null }>
+    const dupe = inSuite.find((c) => c.title === "Copy of Regression login")
+    expect(dupe).toBeDefined()
+    expect(dupe!.id).not.toBe(srcId)
+    expect(dupe!.suite_id).toBe(suiteA)
+    expect(dupe!.step_count).toBe(2)
+  })
+
+  it("action=duplicate: preserves GWT step_type keywords on the copied steps", async () => {
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "GWT checkout",
+        priority: "medium",
+        suite_id: suiteA,
+        steps: [
+          { step_type: "given", action: "a logged-in user" },
+          { step_type: "when", action: "they check out" },
+          { step_type: "then", action: "the order is placed" },
+        ],
+      },
+    })
+    const { id: srcId } = srcRes.json() as { id: string }
+
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "duplicate", case_ids: [srcId] },
+    })
+
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases?suite_id=${suiteA}`,
+    })
+    const dupe = (listRes.json() as Array<{ id: string; title: string }>).find(
+      (c) => c.title === "Copy of GWT checkout"
+    )
+    expect(dupe).toBeDefined()
+
+    // Regression guard: the copy path used to drop step_type, silently losing
+    // Given/When/Then keywords on GWT projects.
+    const steps = await sql`
+      SELECT step_type FROM test_case_steps WHERE test_case_id = ${dupe!.id}::uuid ORDER BY step_order
+    `
+    expect(steps.map((s) => s.step_type)).toEqual(["given", "when", "then"])
+  })
+
+  it("action=copy: preserves GWT step_type keywords on the copied steps", async () => {
+    const srcRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: {
+        title: "GWT copy source",
+        priority: "medium",
+        suite_id: suiteA,
+        steps: [
+          { step_type: "given", action: "a precondition" },
+          { step_type: "then", action: "an outcome" },
+        ],
+      },
+    })
+    const { id: srcId } = srcRes.json() as { id: string }
+
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "copy", case_ids: [srcId], target_suite_id: null },
+    })
+
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+    })
+    const copied = (listRes.json() as Array<{ id: string; title: string; suite_id: string | null }>).find(
+      (c) => c.id !== srcId && c.title === "GWT copy source" && c.suite_id === null
+    )
+    expect(copied).toBeDefined()
+
+    const steps = await sql`
+      SELECT step_type FROM test_case_steps WHERE test_case_id = ${copied!.id}::uuid ORDER BY step_order
+    `
+    expect(steps.map((s) => s.step_type)).toEqual(["given", "then"])
+  })
+
   it("action=delete: sets deleted_at for selected cases, leaves others untouched (TC-05)", async () => {
     const d1Res = await appA.inject({
       method: "POST",

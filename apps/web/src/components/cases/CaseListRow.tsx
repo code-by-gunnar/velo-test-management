@@ -6,6 +6,7 @@ import type { Suite } from "@/hooks/useSuiteTree"
 import { useUserRole } from "@/hooks/useUserRole"
 import { GripVertical } from "lucide-react"
 import { PriorityBadge, type Priority } from "@/components/ui"
+import { CaseRowMenu } from "./CaseRowMenu"
 
 interface CaseListRowProps {
   testCase: TestCase
@@ -15,6 +16,9 @@ interface CaseListRowProps {
   suites: Suite[]
   onToggleSelect: (index: number, shiftKey: boolean) => void
   onOpen: (id: string) => void
+  onMove: (targetSuiteId: string | null) => void
+  onCopy: (targetSuiteId: string | null) => void
+  onDuplicate: () => void
 }
 
 function findSuiteName(suites: Suite[], suiteId: string): string | null {
@@ -26,7 +30,7 @@ function findSuiteName(suites: Suite[], suiteId: string): string | null {
   return null
 }
 
-export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suites, onToggleSelect, onOpen }: CaseListRowProps) {
+export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suites, onToggleSelect, onOpen, onMove, onCopy, onDuplicate }: CaseListRowProps) {
   const { canEdit } = useUserRole()
   const priority = testCase.priority as Priority
 
@@ -106,6 +110,20 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
       {/* Steps count */}
       <td className="py-2.5 pr-4 text-sm text-gray-500">
         {testCase.step_count === 1 ? "1 step" : `${testCase.step_count} steps`}
+      </td>
+
+      {/* Row-actions kebab — editors only. stopPropagation so opening the menu
+          (or picking a suite) never also opens the case panel via the tr click. */}
+      <td className="w-8 pr-2" onClick={(e) => e.stopPropagation()}>
+        {canEdit && (
+          <CaseRowMenu
+            caseTitle={testCase.title}
+            suites={suites}
+            onMove={onMove}
+            onCopy={onCopy}
+            onDuplicate={onDuplicate}
+          />
+        )}
       </td>
     </tr>
   )

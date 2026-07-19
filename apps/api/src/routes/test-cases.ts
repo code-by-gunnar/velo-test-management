@@ -530,7 +530,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           type: "object",
           required: ["action", "case_ids"],
           properties: {
-            action: { type: "string", enum: ["move", "copy", "delete", "restore", "purge"] },
+            action: { type: "string", enum: ["move", "copy", "duplicate", "delete", "restore", "purge"] },
             case_ids: { type: "array", items: { type: "string" }, minItems: 1 },
             target_suite_id: { type: ["string", "null"] },
           },
@@ -593,7 +593,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             const steps = await tx`
-              SELECT step_order, action, expected_result
+              SELECT step_order, action, expected_result, step_type
               FROM test_case_steps
               WHERE test_case_id = ${caseId}::uuid
               ORDER BY step_order
@@ -622,16 +622,94 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
                 step_order: number
                 action: string
                 expected_result: string | null
+                step_type: string
               }
 
               await tx`
-                INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result)
+                INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
                 VALUES (
                   ${uuidv7()}::uuid,
                   ${newCaseId}::uuid,
                   ${s.step_order},
                   ${s.action},
-                  ${s.expected_result ?? null}
+                  ${s.expected_result ?? null},
+                  ${s.step_type}
+                )
+              `
+            }
+
+            created++
+          }
+        })
+        return reply.status(201).send({ created })
+      }
+
+      // duplicate: copy each case into its OWN suite, titled "Copy of {title}".
+      // Distinct from copy (which targets one suite) — this is in-place cloning
+      // so the two rows are distinguishable in the same suite. Preserves steps
+      // + step_type (GWT keywords).
+      if (action === "duplicate") {
+        let created = 0
+        await withWorkspace(workspaceId, async (tx) => {
+          for (const caseId of case_ids) {
+            const srcRows = await tx`
+              SELECT id, title, preconditions, priority, position, suite_id
+              FROM test_cases
+              WHERE id = ${caseId}::uuid
+                AND deleted_at IS NULL
+                AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            `
+            if (srcRows.length === 0) continue
+            const src = srcRows[0] as unknown as {
+              id: string
+              title: string
+              preconditions: string | null
+              priority: string
+              position: number
+              suite_id: string | null
+            }
+
+            const steps = await tx`
+              SELECT step_order, action, expected_result, step_type
+              FROM test_case_steps
+              WHERE test_case_id = ${caseId}::uuid
+              ORDER BY step_order
+            `
+
+            const newCaseId = uuidv7()
+
+            await tx`
+              INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, preconditions, priority, position, created_by)
+              VALUES (
+                ${newCaseId}::uuid,
+                current_setting('app.workspace_id', true)::uuid,
+                ${projectId}::uuid,
+                ${src.suite_id}::uuid,
+                ${`Copy of ${src.title}`},
+                ${src.preconditions ?? null},
+                ${src.priority},
+                ${src.position},
+                ${request.userId ?? null}::uuid
+              )
+            `
+
+            for (const step of steps) {
+              const s = step as unknown as {
+                step_order: number
+                action: string
+                expected_result: string | null
+                step_type: string
+              }
+
+              await tx`
+                INSERT INTO test_case_steps (id, test_case_id, step_order, action, expected_result, step_type)
+                VALUES (
+                  ${uuidv7()}::uuid,
+                  ${newCaseId}::uuid,
+                  ${s.step_order},
+                  ${s.action},
+                  ${s.expected_result ?? null},
+                  ${s.step_type}
                 )
               `
             }
