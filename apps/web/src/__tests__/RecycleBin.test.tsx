@@ -17,6 +17,7 @@ import { RecycleBin } from "@/components/recycle-bin/RecycleBin"
 const DATA = {
   suites: [{ id: "s1", name: "Login suite", deleted_at: "2026-07-18T10:00:00Z" }],
   cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z" }],
+  runs: [{ id: "r1", name: "Smoke run", deleted_at: "2026-07-18T12:00:00Z" }],
 }
 
 /** fetch stub: GET recycle-bin returns DATA, every mutation returns ok. */
@@ -153,6 +154,41 @@ describe("RecycleBin", () => {
       fetchMock.mock.calls.some((c) => typeof c[0] === "string" && (c[0] as string).endsWith("/cases/bulk"))
     ).toBe(false)
     expect(screen.getByText("Password reset")).toBeDefined()
+  })
+
+  it("restores a run via the workspace-scoped /runs/bulk-restore", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    const restoreRun = await screen.findByRole("button", { name: /restore smoke run/i })
+    await act(async () => {
+      await user.click(restoreRun)
+    })
+
+    const call = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).endsWith("/runs/bulk-restore")
+    ) as unknown as [string, RequestInit]
+    expect(call[0]).toContain("/workspaces/ws1/runs/bulk-restore")
+    expect(JSON.parse(call[1].body as string).ids).toEqual(["r1"])
+  })
+
+  it("purges a run via /runs/bulk-purge after confirming", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    const purgeRun = await screen.findByRole("button", { name: /delete smoke run permanently/i })
+    await act(async () => {
+      await user.click(purgeRun)
+    })
+    const confirm = await screen.findByRole("button", { name: /^delete permanently$/i })
+    await act(async () => {
+      await user.click(confirm)
+    })
+
+    const call = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).endsWith("/runs/bulk-purge")
+    ) as unknown as [string, RequestInit]
+    expect(JSON.parse(call[1].body as string).ids).toEqual(["r1"])
   })
 
   it("keeps the row and shows an error toast when restore fails", async () => {

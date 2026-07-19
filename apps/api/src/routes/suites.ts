@@ -529,7 +529,21 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
           ORDER BY deleted_at DESC
         ` as unknown as { id: string; title: string; deleted_at: string }[]
 
-        return { suites, cases }
+        // Runs are an admin-only concern end-to-end (delete/restore/purge all
+        // require admin), so only admins see them in the bin. Editors get none.
+        const runs =
+          request.userRole === "admin"
+            ? ((await tx`
+                SELECT id, name, deleted_at
+                FROM test_runs
+                WHERE project_id = ${projectId}::uuid
+                  AND deleted_at IS NOT NULL
+                  AND workspace_id = current_setting('app.workspace_id', true)::uuid
+                ORDER BY deleted_at DESC
+              `) as unknown as { id: string; name: string; deleted_at: string }[])
+            : []
+
+        return { suites, cases, runs }
       })
 
       return reply.send(data)

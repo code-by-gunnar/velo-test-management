@@ -58,6 +58,7 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
             FROM test_runs tr
             JOIN run_items ri ON ri.run_id = tr.id
             WHERE tr.project_id = ${projectId}::uuid
+              AND tr.deleted_at IS NULL
               AND tr.status IN ('completed', 'aborted')
             GROUP BY tr.id
             ORDER BY COALESCE(tr.completed_at, tr.created_at) DESC
@@ -74,6 +75,7 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
             LEFT JOIN suites s ON s.id = tc.suite_id
             JOIN test_runs tr ON tr.id = ri.run_id
             WHERE tr.project_id = ${projectId}::uuid
+              AND tr.deleted_at IS NULL
               -- CI-ingested items have executed_at = NULL; fall back to the run's
               -- completion time so pipeline failures still count as fragile (VEL-54).
               AND COALESCE(ri.executed_at, tr.completed_at, tr.created_at) > NOW() - INTERVAL '30 days'
@@ -94,6 +96,7 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
             FROM test_runs tr
             JOIN run_items ri ON ri.run_id = tr.id
             WHERE tr.project_id = ${projectId}::uuid
+              AND tr.deleted_at IS NULL
             GROUP BY tr.id
             ORDER BY tr.created_at DESC
             LIMIT 10

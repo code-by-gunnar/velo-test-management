@@ -590,6 +590,94 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     expect(res.statusCode).toBe(403)
   })
 
+  // ── VEL-31: run soft delete / restore / purge ──────────────────────────────
+
+  const createRun = async (name: string) => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs`,
+      payload: { project_id: projectId, name },
+    })
+    return (res.json() as { id: string }).id
+  }
+  const runDeletedAt = async (id: string) =>
+    (await sql`SELECT deleted_at FROM test_runs WHERE id = ${id}::uuid`)[0]?.deleted_at ?? null
+
+  it("DELETE /runs/:id soft-deletes (row remains, deleted_at set, excluded from list + detail)", async () => {
+    const runId = await createRun("Run to recycle")
+
+    const delRes = await app.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceId}/runs/${runId}`,
+    })
+    expect(delRes.statusCode).toBe(204)
+    expect(await runDeletedAt(runId)).not.toBeNull()
+
+    // Excluded from the list…
+    const listRes = await app.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceId}/runs?project_id=${projectId}`,
+    })
+    expect((listRes.json() as Array<{ id: string }>).find((r) => r.id === runId)).toBeUndefined()
+
+    // …and the detail 404s.
+    const detailRes = await app.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceId}/runs/${runId}`,
+    })
+    expect(detailRes.statusCode).toBe(404)
+  })
+
+  it("POST /runs/bulk-restore brings a recycled run back into the list", async () => {
+    const runId = await createRun("Run to restore")
+    await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/runs/${runId}` })
+    expect(await runDeletedAt(runId)).not.toBeNull()
+
+    const restoreRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs/bulk-restore`,
+      payload: { ids: [runId] },
+    })
+    expect(restoreRes.statusCode).toBe(204)
+    expect(await runDeletedAt(runId)).toBeNull()
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceId}/runs?project_id=${projectId}`,
+    })
+    expect((listRes.json() as Array<{ id: string }>).find((r) => r.id === runId)).toBeDefined()
+  })
+
+  it("POST /runs/bulk-purge permanently removes a recycled run + its items", async () => {
+    const runId = await createRun("Run to purge")
+    const itemCount = (await sql`SELECT id FROM run_items WHERE run_id = ${runId}::uuid`).length
+    expect(itemCount).toBeGreaterThan(0)
+
+    await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/runs/${runId}` })
+
+    const purgeRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs/bulk-purge`,
+      payload: { ids: [runId] },
+    })
+    expect(purgeRes.statusCode).toBe(204)
+
+    expect((await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`).length).toBe(0)
+    expect((await sql`SELECT id FROM run_items WHERE run_id = ${runId}::uuid`).length).toBe(0)
+  })
+
+  it("bulk-purge does NOT remove a run that is still live (not recycled)", async () => {
+    const runId = await createRun("Live run, purge attempt")
+
+    const purgeRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs/bulk-purge`,
+      payload: { ids: [runId] },
+    })
+    expect(purgeRes.statusCode).toBe(204)
+    expect((await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`).length).toBe(1)
+  })
+
   // ── DA-01: SSE (deferred to plan 03-04) ────────────────────────────────────
 
   it.todo("DA-01: GET /runs/:runId/stream returns Content-Type: text/event-stream (03-04)")

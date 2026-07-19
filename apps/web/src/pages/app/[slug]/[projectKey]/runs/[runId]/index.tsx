@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { useUserRole } from "@/hooks/useUserRole"
 import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
+import { useToast } from "@/components/ui/toast"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
 import { useRunSSE } from "@/hooks/useRunSSE"
 import { DefectBadge } from "@/components/runs/DefectBadge"
@@ -74,6 +75,7 @@ export default function RunDetailPage({
   apiUrl,
 }: RunDetailPageProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const { isAdmin } = useUserRole()
   const [run, setRun] = useState<RunDetail | null>(initialRun)
   const [items, setItems] = useState<RunItem[]>(initialRun?.items ?? [])
@@ -169,6 +171,23 @@ export default function RunDetailPage({
     }
   }
 
+  // Deleting a run recycles it (VEL-31 soft delete) — recoverable from the
+  // recycle bin, or immediately via the Undo snackbar which restores it.
+  const undoDeleteRun = async () => {
+    try {
+      const res = await fetch(`/api/backend/workspaces/${workspaceId}/runs/bulk-restore`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [runId] }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      toast("success", "Run restored")
+      void router.push(`/app/${slug}/${projectKey}/runs/${runId}`)
+    } catch {
+      toast("error", "Couldn't restore the run. Find it in the recycle bin.")
+    }
+  }
+
   const handleDeleteRun = async () => {
     setIsDeleteRunning(true)
     try {
@@ -177,10 +196,13 @@ export default function RunDetailPage({
         { method: "DELETE" }
       )
       if (res.ok) {
+        toast("success", "Run moved to the recycle bin", { action: { label: "Undo", onClick: () => void undoDeleteRun() } })
         void router.push(`/app/${slug}/${projectKey}/runs`)
+      } else {
+        toast("error", "Couldn't delete the run. Please try again.")
       }
     } catch {
-      // Ignore
+      toast("error", "Couldn't delete the run. Please try again.")
     } finally {
       setIsDeleteRunning(false)
       setConfirmDelete(false)

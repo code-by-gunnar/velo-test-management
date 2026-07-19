@@ -60,7 +60,7 @@ describe("Run delete R2 cleanup (VEL-54 batch 2)", () => {
     await sql`DELETE FROM workspaces WHERE id = ${workspaceId}::uuid`
   })
 
-  it("best-effort deletes evidence R2 objects for the run's attachments on hard delete", async () => {
+  it("soft delete does NOT touch R2; purge is what reclaims evidence objects (VEL-31)", async () => {
     deleteR2ObjectsMock.mockClear()
 
     const runId = uuidv7()
@@ -73,17 +73,25 @@ describe("Run delete R2 cleanup (VEL-54 batch 2)", () => {
     await sql`INSERT INTO run_item_attachments (id, workspace_id, run_item_id, filename, r2_key, content_type, size_bytes)
       VALUES (${uuidv7()}::uuid, ${workspaceId}::uuid, ${itemId}::uuid, 'screenshot.png', ${r2Key}, 'image/png', 1234)`
 
-    const res = await app.inject({
+    // Step 1: DELETE recycles the run — no R2 call, evidence + rows preserved.
+    const delRes = await app.inject({
       method: "DELETE",
       url: `/api/workspaces/${workspaceId}/runs/${runId}`,
     })
+    expect(delRes.statusCode).toBe(204)
+    expect(deleteR2ObjectsMock).not.toHaveBeenCalled()
+    expect((await sql`SELECT deleted_at FROM test_runs WHERE id = ${runId}::uuid`)[0]?.deleted_at).not.toBeNull()
+    expect((await sql`SELECT id FROM run_item_attachments WHERE run_item_id = ${itemId}::uuid`)).toHaveLength(1)
 
-    expect(res.statusCode).toBe(204)
+    // Step 2: purge is the point at which R2 evidence is reclaimed and rows drop.
+    const purgeRes = await app.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/runs/bulk-purge`,
+      payload: { ids: [runId] },
+    })
+    expect(purgeRes.statusCode).toBe(204)
     expect(deleteR2ObjectsMock).toHaveBeenCalledTimes(1)
     expect(deleteR2ObjectsMock.mock.calls[0]?.[0]).toEqual([r2Key])
-
-    // Run row is gone.
-    const rows = await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`
-    expect(rows).toHaveLength(0)
+    expect(await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`).toHaveLength(0)
   })
 })

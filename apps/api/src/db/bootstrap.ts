@@ -52,6 +52,14 @@ export async function runFixups() {
          ON suites (project_id, parent_id, position)
          WHERE deleted_at IS NULL`
     )
+    await fixupClient.unsafe(
+      `ALTER TABLE test_runs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL`
+    )
+    await fixupClient.unsafe(
+      `CREATE INDEX IF NOT EXISTS idx_runs_not_deleted
+         ON test_runs (project_id, created_at)
+         WHERE deleted_at IS NULL`
+    )
     // Phase 3: run_item_step_comments table (migration 0003 skipped in prior deploy)
     await fixupClient.unsafe(`
       CREATE TABLE IF NOT EXISTS run_item_step_comments (

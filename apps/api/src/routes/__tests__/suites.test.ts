@@ -434,6 +434,21 @@ describe("Suite routes integration (TC-01)", () => {
     expect(body.cases.map((c) => c.id)).not.toContain(childCase)
   })
 
+  it("GET /recycle-bin includes soft-deleted runs for an admin", async () => {
+    const runId = uuidv7()
+    await sql`
+      INSERT INTO test_runs (id, workspace_id, project_id, name, status, deleted_at)
+      VALUES (${runId}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, 'Deleted run', 'active', NOW())
+    `
+    const res = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/recycle-bin`,
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { runs: Array<{ id: string; name: string }> }
+    expect(body.runs.map((r) => r.id)).toContain(runId)
+  })
+
   it("POST /suites/bulk-purge permanently removes a deleted suite subtree + its cases", async () => {
     const parent = await mkSuite("Purge parent")
     const child = await mkSuite("Purge child", parent)
