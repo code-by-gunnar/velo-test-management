@@ -107,13 +107,13 @@ export function BulkActionBar({
           )}
         </div>
 
-        {/* Delete — gated behind an explicit confirm (irreversible, no undo) */}
+        {/* Delete — soft-delete to the recycle bin, so it's recoverable */}
         {confirmingDelete ? (
           <ConfirmInline
             confirmLabel={`Delete ${selectedCount}`}
             busyLabel="Deleting…"
             busy={isSubmitting}
-            message="Can't be undone"
+            message="You can undo this right after"
             onConfirm={() => { void handleDelete() }}
             onCancel={() => setConfirmingDelete(false)}
           />
