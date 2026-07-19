@@ -19,6 +19,7 @@ import {
 import { Trash2 } from "lucide-react"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { SuiteTreeItem } from "./SuiteTreeItem"
+import { SuiteFormModal } from "./SuiteFormModal"
 
 // Compute mid-gap position for drag reorder.
 // Returns -1 if gap has collapsed (positions equal), signaling server renumber.
@@ -68,10 +69,8 @@ export function SuiteTree({
   onSuiteReordered,
 }: SuiteTreeProps) {
   const { canEdit } = useUserRole()
-  const [creating, setCreating] = useState(false)
-  const [newSuiteName, setNewSuiteName] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
   const [rootSuites, setRootSuites] = useState<Suite[]>(tree)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   // Select mode state
   const [selectMode, setSelectMode] = useState(false)
@@ -172,45 +171,7 @@ export function SuiteTree({
     onSuiteReordered?.()
   }
 
-  const startCreate = () => {
-    setCreating(true)
-    setNewSuiteName("")
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
-
-  const cancelCreate = () => {
-    setCreating(false)
-    setNewSuiteName("")
-  }
-
-  const confirmCreate = async () => {
-    const name = newSuiteName.trim()
-    if (!name) {
-      cancelCreate()
-      return
-    }
-    try {
-      const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      })
-      if (res.ok) {
-        onSuiteCreated?.()
-      }
-    } finally {
-      cancelCreate()
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      void confirmCreate()
-    } else if (e.key === "Escape") {
-      cancelCreate()
-    }
-  }
+  const startCreate = () => setCreateOpen(true)
 
   const allIds = collectAllIds(rootSuites)
   const allChecked = allIds.length > 0 && checkedIds.size === allIds.length
@@ -224,7 +185,7 @@ export function SuiteTree({
           return
         }
         // N key when tree is focused (not in input) starts create
-        if (e.key === "n" && !creating && !selectMode && (e.target as HTMLElement).tagName !== "INPUT") {
+        if (e.key === "n" && !createOpen && !selectMode && (e.target as HTMLElement).tagName !== "INPUT") {
           startCreate()
         }
       }}
@@ -342,22 +303,6 @@ export function SuiteTree({
           </button>
         )}
 
-        {/* Inline input — appears at top of suite list */}
-        {canEdit && creating && !selectMode && (
-          <div className="px-1 py-1">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newSuiteName}
-              onChange={(e) => setNewSuiteName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={cancelCreate}
-              placeholder="Suite name…"
-              className="w-full rounded border border-primary bg-white px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-        )}
-
         {/* Root suite nodes — wrapped in DndContext for within-root reorder */}
         <DndContext
           sensors={sensors}
@@ -389,6 +334,15 @@ export function SuiteTree({
         )}
       </div>
 
+      <SuiteFormModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        workspaceId={workspaceId}
+        projectId={projectId}
+        mode="create"
+        parentId={null}
+        onSaved={() => { onSuiteCreated?.() }}
+      />
     </div>
   )
 }
