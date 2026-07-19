@@ -16,7 +16,12 @@ import { RecycleBin } from "@/components/recycle-bin/RecycleBin"
 
 const DATA = {
   suites: [{ id: "s1", name: "Login suite", deleted_at: "2026-07-18T10:00:00Z", deleted_by_name: "Ada Lovelace" }],
-  cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z", deleted_by_name: null, restores_to_root: true }],
+  cases: [
+    // Standalone deleted case (no deleted parent) → shown top-level.
+    { id: "c1", title: "Password reset", suite_id: null, deleted_at: "2026-07-18T11:00:00Z", deleted_by_name: null, restores_to_root: false },
+    // Case recycled with s1 → nested inside s1's side panel, not top-level.
+    { id: "c2", title: "Add to cart", suite_id: "s1", deleted_at: "2026-07-18T11:30:00Z", deleted_by_name: null, restores_to_root: true },
+  ],
   runs: [{ id: "r1", name: "Smoke run", deleted_at: "2026-07-18T12:00:00Z", deleted_by_name: "Ada Lovelace" }],
 }
 
@@ -65,10 +70,37 @@ describe("RecycleBin", () => {
     expect(screen.getByText("Password reset")).toBeDefined()
   })
 
-  it("flags a case that will restore to root (its suite is also deleted)", async () => {
+  it("nests a suite's child cases in a side panel instead of the top-level list", async () => {
     stubFetch()
+    const user = userEvent.setup()
     renderBin()
-    expect(await screen.findByText(/restores to root/i)).toBeDefined()
+    // The child case is hidden until the suite's panel is opened.
+    expect(await screen.findByText("Login suite")).toBeDefined()
+    expect(screen.queryByText("Add to cart")).toBeNull()
+
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /view 1 deleted case in login suite/i }))
+    })
+    expect(await screen.findByText("Add to cart")).toBeDefined()
+  })
+
+  it("restores a child case from the suite side panel", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    await act(async () => {
+      await user.click(await screen.findByRole("button", { name: /view 1 deleted case in login suite/i }))
+    })
+    await act(async () => {
+      await user.click(await screen.findByRole("button", { name: /restore add to cart/i }))
+    })
+
+    const call = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).endsWith("/cases/bulk")
+    ) as unknown as [string, RequestInit]
+    const body = JSON.parse(call[1].body as string)
+    expect(body.action).toBe("restore")
+    expect(body.case_ids).toEqual(["c2"])
   })
 
   it("attributes an item to whoever deleted it", async () => {
