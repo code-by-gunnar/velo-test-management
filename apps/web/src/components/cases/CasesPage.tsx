@@ -139,6 +139,13 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
     void refetchCases()
   }
 
+  // Suite create/rename/delete/restore can all change what cases are visible
+  // (delete recycles a suite's cases; restore brings them back), so refetch both.
+  const handleSuiteMutated = () => {
+    void refetchSuites()
+    void refetchCases()
+  }
+
   // Find selected suite for breadcrumb
   const selectedSuite = selectedSuiteId
     ? flatList.find((s) => s.id === selectedSuiteId) ?? null
@@ -160,7 +167,7 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
           onSelect={setSelectedSuiteId}
           workspaceId={workspaceId}
           projectId={projectId}
-          onSuiteCreated={refetchSuites}
+          onSuiteCreated={handleSuiteMutated}
           onSuiteReordered={refetchSuites}
         />
         {/* Drag handle: resize the sidebar; double-click to reset to default */}

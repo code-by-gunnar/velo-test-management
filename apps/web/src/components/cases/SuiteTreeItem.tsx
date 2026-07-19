@@ -195,6 +195,28 @@ export function SuiteTreeItem({
     }
   }, [renameValue, suite.name, suite.id, workspaceId, projectId, onSuiteChanged, toast])
 
+  // Undo a suite delete — soft-deletes are restorable via bulk-restore.
+  const undoSuiteDelete = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/bulk-restore`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: [suite.id] }),
+        }
+      )
+      if (res.ok) {
+        onSuiteChanged?.()
+        toast("success", `Restored “${suite.name}”`)
+      } else {
+        toast("error", "Couldn't undo — please try again.")
+      }
+    } catch {
+      toast("error", "Couldn't undo — check your connection and retry.")
+    }
+  }, [suite.id, suite.name, workspaceId, projectId, onSuiteChanged, toast])
+
   const confirmDelete = useCallback(async () => {
     try {
       const res = await fetch(
@@ -203,6 +225,9 @@ export function SuiteTreeItem({
       )
       if (res.ok) {
         onSuiteChanged?.()
+        toast("success", `Deleted “${suite.name}”`, {
+          action: { label: "Undo", onClick: () => { void undoSuiteDelete() } },
+        })
       } else {
         toast("error", "Couldn't delete the suite — please try again.")
       }
@@ -211,7 +236,7 @@ export function SuiteTreeItem({
     } finally {
       setIsDeleting(false)
     }
-  }, [suite.id, workspaceId, projectId, onSuiteChanged, toast])
+  }, [suite.id, suite.name, workspaceId, projectId, onSuiteChanged, toast, undoSuiteDelete])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -360,7 +385,7 @@ export function SuiteTreeItem({
         <ConfirmInline
           layout="card"
           className="mx-2 my-1"
-          message={`Delete “${suite.name}”? Cases move to All Cases.`}
+          message={`Delete “${suite.name}” and its cases? You can undo this.`}
           confirmLabel="Delete"
           onConfirm={() => { void confirmDelete() }}
           onCancel={() => setIsDeleting(false)}

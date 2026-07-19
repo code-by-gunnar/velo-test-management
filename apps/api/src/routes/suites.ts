@@ -1,7 +1,57 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
-import { withWorkspace } from "../db/tenant.js"
+import { withWorkspace, type WorkspaceSql } from "../db/tenant.js"
 import { requireEditor } from "../plugins/require-editor.js"
+
+// Recursively soft-delete suites: the given suites, all descendant suites, and
+// every case within that subtree (VEL-31 — deleting a suite recycles its cases,
+// restorable together). The recursive CTE walks parent_id regardless of
+// deleted_at so it also covers already-partially-deleted subtrees.
+async function softDeleteSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: string[]): Promise<void> {
+  await tx`
+    WITH RECURSIVE subtree AS (
+      SELECT id FROM suites
+      WHERE id = ANY(${ids}::uuid[])
+        AND project_id = ${projectId}::uuid
+        AND workspace_id = current_setting('app.workspace_id', true)::uuid
+      UNION ALL
+      SELECT s.id FROM suites s
+      JOIN subtree ON s.parent_id = subtree.id
+      WHERE s.workspace_id = current_setting('app.workspace_id', true)::uuid
+    ),
+    del_suites AS (
+      UPDATE suites SET deleted_at = NOW()
+      WHERE id IN (SELECT id FROM subtree) AND deleted_at IS NULL
+      RETURNING id
+    )
+    UPDATE test_cases SET deleted_at = NOW()
+    WHERE suite_id IN (SELECT id FROM subtree) AND deleted_at IS NULL
+  `
+}
+
+// Reverse of softDeleteSuiteSubtree — restore the subtree (powers Undo and, later,
+// the recycle-bin restore).
+async function restoreSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: string[]): Promise<void> {
+  await tx`
+    WITH RECURSIVE subtree AS (
+      SELECT id FROM suites
+      WHERE id = ANY(${ids}::uuid[])
+        AND project_id = ${projectId}::uuid
+        AND workspace_id = current_setting('app.workspace_id', true)::uuid
+      UNION ALL
+      SELECT s.id FROM suites s
+      JOIN subtree ON s.parent_id = subtree.id
+      WHERE s.workspace_id = current_setting('app.workspace_id', true)::uuid
+    ),
+    res_suites AS (
+      UPDATE suites SET deleted_at = NULL
+      WHERE id IN (SELECT id FROM subtree) AND deleted_at IS NOT NULL
+      RETURNING id
+    )
+    UPDATE test_cases SET deleted_at = NULL
+    WHERE suite_id IN (SELECT id FROM subtree) AND deleted_at IS NOT NULL
+  `
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -49,6 +99,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
             FROM   suites
             WHERE  project_id = ${projectId}::uuid
               AND  parent_id IS NULL
+              AND  deleted_at IS NULL
               AND  workspace_id = current_setting('app.workspace_id', true)::uuid
 
             UNION ALL
@@ -56,7 +107,8 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
             SELECT s.id, s.name, s.description, s.parent_id, s.position, st.depth + 1
             FROM   suites s
             JOIN   suite_tree st ON s.parent_id = st.id
-            WHERE  s.workspace_id = current_setting('app.workspace_id', true)::uuid
+            WHERE  s.deleted_at IS NULL
+              AND  s.workspace_id = current_setting('app.workspace_id', true)::uuid
           )
           SELECT * FROM suite_tree ORDER BY depth, position
         ` as unknown as { id: string; name: string; description: string | null; parent_id: string | null; position: number; depth: number }[]
@@ -300,21 +352,14 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suiteId" })
       }
 
-      await withWorkspace(workspaceId, async (tx) => {
-        await tx`
-          DELETE FROM suites
-          WHERE id = ${suiteId}::uuid
-            AND project_id = ${projectId}::uuid
-            AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `
-      })
+      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, [suiteId]))
 
       return reply.status(204).send()
     }
   )
-  // ── POST /suites/bulk-delete — delete multiple suites at once ─────────────
+  // ── POST /suites/bulk-delete — soft-delete multiple suites at once ─────────
   // Body: { ids: string[] }
-  // test_cases.suite_id is ON DELETE SET NULL — cases are unparented, not deleted
+  // Recursively soft-deletes each suite's subtree (suites + their cases), VEL-31.
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
     Body: { ids: string[] }
@@ -337,14 +382,37 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suite id in array" })
       }
 
-      await withWorkspace(workspaceId, async (tx) => {
-        await tx`
-          DELETE FROM suites
-          WHERE id = ANY(${ids}::uuid[])
-            AND project_id = ${projectId}::uuid
-            AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `
-      })
+      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, ids))
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /suites/bulk-restore — restore soft-deleted suites (Undo / recycle bin)
+  // Body: { ids: string[] } — restores each suite's subtree (suites + their cases).
+  fastify.post<{
+    Params: { workspaceId: string; projectId: string }
+    Body: { ids: string[] }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/suites/bulk-restore",
+    { preHandler: [requireEditor] },
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+      const { ids } = request.body ?? {}
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({ error: "ids array is required" })
+      }
+
+      if (ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+        return reply.status(400).send({ error: "Invalid suite id in array" })
+      }
+
+      await withWorkspace(workspaceId, (tx) => restoreSuiteSubtree(tx, projectId, ids))
 
       return reply.status(204).send()
     }

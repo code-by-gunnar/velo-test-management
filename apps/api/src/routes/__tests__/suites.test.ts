@@ -311,15 +311,34 @@ describe("Suite routes integration (TC-01)", () => {
     expect(res.statusCode).toBe(403)
   })
 
-  // ── DELETE /suites/:id ──────────────────────────────────────────────────────
+  // ── DELETE /suites/:id — soft delete (VEL-31) ────────────────────────────────
 
-  it("DELETE /suites/:id hard-deletes the suite", async () => {
-    const createRes = await appA.inject({
+  const mkSuite = async (name: string, parent_id?: string) => {
+    const res = await appA.inject({
       method: "POST",
       url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
-      payload: { name: "Suite to Delete" },
+      payload: parent_id ? { name, parent_id } : { name },
     })
-    const { id } = createRes.json() as { id: string }
+    return (res.json() as { id: string }).id
+  }
+  // The suites test app only registers suite routes, so insert cases directly
+  // (tests run as superuser — RLS is bypassed).
+  const mkCase = async (title: string, suite_id: string) => {
+    const id = uuidv7()
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, priority, position)
+      VALUES (${id}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, ${suite_id}::uuid, ${title}, 'low', 1000)
+    `
+    return id
+  }
+  const suiteDeletedAt = async (id: string) =>
+    (await sql`SELECT deleted_at FROM suites WHERE id = ${id}::uuid`)[0]?.deleted_at ?? null
+  const caseDeletedAt = async (id: string) =>
+    (await sql`SELECT deleted_at FROM test_cases WHERE id = ${id}::uuid`)[0]?.deleted_at ?? null
+
+  it("DELETE /suites/:id soft-deletes the suite and its cases (row remains, excluded from list)", async () => {
+    const id = await mkSuite("Suite to Delete")
+    const caseId = await mkCase("Case in suite", id)
 
     const deleteRes = await appA.inject({
       method: "DELETE",
@@ -327,13 +346,63 @@ describe("Suite routes integration (TC-01)", () => {
     })
     expect(deleteRes.statusCode).toBe(204)
 
-    // Verify it's gone from the list
+    // Rows remain, but deleted_at is set on both suite and its case.
+    expect(await suiteDeletedAt(id)).not.toBeNull()
+    expect(await caseDeletedAt(caseId)).not.toBeNull()
+
+    // Excluded from the suite list.
     const listRes = await appA.inject({
       method: "GET",
       url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
     })
-    const suites = listRes.json() as Array<{ id: string }>
-    expect(suites.find((s) => s.id === id)).toBeUndefined()
+    expect((listRes.json() as Array<{ id: string }>).find((s) => s.id === id)).toBeUndefined()
+  })
+
+  it("DELETE recurses into child suites and their cases", async () => {
+    const parent = await mkSuite("Parent")
+    const child = await mkSuite("Child", parent)
+    const childCase = await mkCase("Child case", child)
+
+    const res = await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${parent}`,
+    })
+    expect(res.statusCode).toBe(204)
+
+    expect(await suiteDeletedAt(parent)).not.toBeNull()
+    expect(await suiteDeletedAt(child)).not.toBeNull()
+    expect(await caseDeletedAt(childCase)).not.toBeNull()
+  })
+
+  it("POST /suites/bulk-restore restores the subtree (suite + cases come back)", async () => {
+    const parent = await mkSuite("Restore parent")
+    const child = await mkSuite("Restore child", parent)
+    const childCase = await mkCase("Restore case", child)
+
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${parent}`,
+    })
+    expect(await suiteDeletedAt(child)).not.toBeNull()
+
+    const restoreRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/bulk-restore`,
+      payload: { ids: [parent] },
+    })
+    expect(restoreRes.statusCode).toBe(204)
+
+    expect(await suiteDeletedAt(parent)).toBeNull()
+    expect(await suiteDeletedAt(child)).toBeNull()
+    expect(await caseDeletedAt(childCase)).toBeNull()
+
+    const listRes = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
+    })
+    const ids = (listRes.json() as Array<{ id: string }>).map((s) => s.id)
+    expect(ids).toContain(parent)
+    expect(ids).toContain(child)
   })
 
   // ── Suite description (Phase: suite descriptions) ──────────────────────────
