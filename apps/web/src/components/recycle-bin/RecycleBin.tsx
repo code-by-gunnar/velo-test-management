@@ -1,21 +1,25 @@
-import { useCallback, useEffect, useState } from "react"
-import { FolderTree, FileText, RotateCcw, Trash2, Undo2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { FolderTree, FileText, Play, RotateCcw, Trash2, Undo2 } from "lucide-react"
 import { Button, ConfirmDialog } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { useCachedState } from "@/hooks/useCachedState"
 
-// A soft-deleted item, normalized across the two source types so the list can
-// render and restore them uniformly. `label` is the suite name or case title.
+type RecycleType = "suite" | "case" | "run"
+
+// A soft-deleted item, normalized across the source types so the list can render
+// and restore them uniformly. `label` is the suite name, case title, or run name.
 interface RecycleItem {
   id: string
   label: string
   deleted_at: string
-  type: "suite" | "case"
+  type: RecycleType
 }
 
 interface RecycleBinResponse {
   suites: { id: string; name: string; deleted_at: string }[]
   cases: { id: string; title: string; deleted_at: string }[]
+  // Present only for admins (runs are an admin-only concern); may be absent.
+  runs?: { id: string; name: string; deleted_at: string }[]
 }
 
 interface RecycleBinProps {
@@ -23,52 +27,45 @@ interface RecycleBinProps {
   projectId: string
 }
 
-// Restore endpoints diverge by type (see VEL-31): suites have a dedicated
-// bulk-restore route keyed by { ids }, cases ride the generic /cases/bulk action
-// enum keyed by { case_ids }. One helper owns that split so callers never guess.
-function restoreRequest(
-  base: string,
-  type: "suite" | "case",
-  ids: string[]
-): [string, RequestInit] {
-  if (type === "suite") {
-    return [
-      `${base}/suites/bulk-restore`,
-      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) },
-    ]
-  }
-  return [
-    `${base}/cases/bulk`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "restore", case_ids: ids }),
-    },
-  ]
+// Project- vs workspace-scoped API bases. Suites/cases hang off the project;
+// runs are workspace-scoped (/workspaces/:id/runs/...).
+interface Bases {
+  project: string
+  workspace: string
+}
+
+// Restore endpoints diverge by type (VEL-31): suites → /suites/bulk-restore
+// ({ ids }), runs → /runs/bulk-restore ({ ids }), cases → /cases/bulk action
+// enum ({ case_ids }). One helper owns the split so callers never guess.
+function restoreRequest(bases: Bases, type: RecycleType, ids: string[]): [string, RequestInit] {
+  const json = (body: unknown): RequestInit => ({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (type === "suite") return [`${bases.project}/suites/bulk-restore`, json({ ids })]
+  if (type === "run") return [`${bases.workspace}/runs/bulk-restore`, json({ ids })]
+  return [`${bases.project}/cases/bulk`, json({ action: "restore", case_ids: ids })]
 }
 
 // Purge (permanent delete) is the destructive twin of restore and splits the
-// same way: suites → /suites/bulk-purge ({ ids }), cases → /cases/bulk
-// ({ action: "purge", case_ids }).
-function purgeRequest(
-  base: string,
-  type: "suite" | "case",
-  ids: string[]
-): [string, RequestInit] {
-  if (type === "suite") {
-    return [
-      `${base}/suites/bulk-purge`,
-      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) },
-    ]
-  }
-  return [
-    `${base}/cases/bulk`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "purge", case_ids: ids }),
-    },
-  ]
+// same way, plus /runs/bulk-purge for runs.
+function purgeRequest(bases: Bases, type: RecycleType, ids: string[]): [string, RequestInit] {
+  const json = (body: unknown): RequestInit => ({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  if (type === "suite") return [`${bases.project}/suites/bulk-purge`, json({ ids })]
+  if (type === "run") return [`${bases.workspace}/runs/bulk-purge`, json({ ids })]
+  return [`${bases.project}/cases/bulk`, json({ action: "purge", case_ids: ids })]
+}
+
+// Per-type presentation: icon, icon tone, and the singular label shown per row.
+const TYPE_META: Record<RecycleType, { icon: typeof FolderTree; tone: string; label: string }> = {
+  suite: { icon: FolderTree, tone: "text-primary", label: "Suite" },
+  case: { icon: FileText, tone: "text-gray-400", label: "Case" },
+  run: { icon: Play, tone: "text-gray-400", label: "Run" },
 }
 
 // Other surfaces (sidebar badge, cases page) listen for this to refresh once an
@@ -95,7 +92,12 @@ function relativeTime(iso: string): string {
 
 export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
   const { toast } = useToast()
-  const base = `/api/backend/workspaces/${workspaceId}/projects/${projectId}`
+  const workspaceBase = `/api/backend/workspaces/${workspaceId}`
+  const base = `${workspaceBase}/projects/${projectId}`
+  const bases: Bases = useMemo(
+    () => ({ project: base, workspace: workspaceBase }),
+    [base, workspaceBase]
+  )
 
   const [items, setItems, hadCache] = useCachedState<RecycleItem[]>(
     `velo:recycle-bin:${projectId}`,
@@ -117,6 +119,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       const merged: RecycleItem[] = [
         ...data.suites.map((s) => ({ id: s.id, label: s.name, deleted_at: s.deleted_at, type: "suite" as const })),
         ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, type: "case" as const })),
+        ...(data.runs ?? []).map((r) => ({ id: r.id, label: r.name, deleted_at: r.deleted_at, type: "run" as const })),
       ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at))
       setItems(merged)
     } catch {
@@ -133,10 +136,10 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
   // Restore a batch of items of a single type. Removes them from the list on
   // success and surfaces failure without dropping the rows (so a retry is easy).
   const restore = useCallback(
-    async (type: "suite" | "case", ids: string[], noun: string) => {
+    async (type: RecycleType, ids: string[], noun: string) => {
       setBusy((prev) => new Set([...prev, ...ids]))
       try {
-        const [url, init] = restoreRequest(base, type, ids)
+        const [url, init] = restoreRequest(bases, type, ids)
         const res = await fetch(url, init)
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
@@ -152,28 +155,39 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         })
       }
     },
-    [base, setItems, toast]
+    [bases, setItems, toast]
+  )
+
+  // Fan a batch operation across all three types with correct plural nouns.
+  const forEachType = useCallback(
+    (run: (type: RecycleType, ids: string[], noun: string) => Promise<void> | void) => {
+      const groups: Array<[RecycleType, string]> = [
+        ["suite", "suite"],
+        ["case", "case"],
+        ["run", "run"],
+      ]
+      return groups
+        .map(([type, singular]) => {
+          const ids = items.filter((i) => i.type === type).map((i) => i.id)
+          if (ids.length === 0) return null
+          const noun = `${ids.length} ${ids.length === 1 ? singular : `${singular}s`}`
+          return run(type, ids, noun)
+        })
+        .filter(Boolean)
+    },
+    [items]
   )
 
   const restoreAll = useCallback(async () => {
-    const suiteIds = items.filter((i) => i.type === "suite").map((i) => i.id)
-    const caseIds = items.filter((i) => i.type === "case").map((i) => i.id)
-    const total = suiteIds.length + caseIds.length
-    if (total === 0) return
-    const noun = `${total} ${total === 1 ? "item" : "items"}`
-    await Promise.all([
-      suiteIds.length ? restore("suite", suiteIds, `${suiteIds.length} ${suiteIds.length === 1 ? "suite" : "suites"}`) : null,
-      caseIds.length ? restore("case", caseIds, `${caseIds.length} ${caseIds.length === 1 ? "case" : "cases"}`) : null,
-    ])
-    void noun
-  }, [items, restore])
+    await Promise.all(forEachType(restore))
+  }, [forEachType, restore])
 
   // Permanently delete a batch of one type. Unlike restore this is irreversible,
   // so it's only ever reached through the confirm dialog below.
   const purge = useCallback(
-    async (type: "suite" | "case", ids: string[], noun: string) => {
+    async (type: RecycleType, ids: string[], noun: string) => {
       try {
-        const [url, init] = purgeRequest(base, type, ids)
+        const [url, init] = purgeRequest(bases, type, ids)
         const res = await fetch(url, init)
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
@@ -183,7 +197,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         toast("error", `Couldn't delete ${noun}. Please try again.`)
       }
     },
-    [base, setItems, toast]
+    [bases, setItems, toast]
   )
 
   const runPurge = useCallback(async () => {
@@ -194,18 +208,13 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         const { item } = confirmTarget
         await purge(item.type, [item.id], `"${item.label}"`)
       } else {
-        const suiteIds = items.filter((i) => i.type === "suite").map((i) => i.id)
-        const caseIds = items.filter((i) => i.type === "case").map((i) => i.id)
-        await Promise.all([
-          suiteIds.length ? purge("suite", suiteIds, `${suiteIds.length} ${suiteIds.length === 1 ? "suite" : "suites"}`) : null,
-          caseIds.length ? purge("case", caseIds, `${caseIds.length} ${caseIds.length === 1 ? "case" : "cases"}`) : null,
-        ])
+        await Promise.all(forEachType(purge))
       }
     } finally {
       setPurging(false)
       setConfirmTarget(null)
     }
-  }, [confirmTarget, items, purge])
+  }, [confirmTarget, forEachType, purge])
 
   // Dialog copy adapts to the target so the consequence is explicit.
   const confirmProps = (() => {
@@ -217,13 +226,13 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       }
     }
     const { item } = confirmTarget
-    return {
-      title: `Delete “${item.label}” permanently?`,
-      message:
-        item.type === "suite"
-          ? "The suite and every case inside it are removed for good. It can't be undone."
-          : "This case is removed for good. It can't be undone.",
-    }
+    const message =
+      item.type === "suite"
+        ? "The suite and every case inside it are removed for good. It can't be undone."
+        : item.type === "run"
+          ? "The run, its results, and any evidence are removed for good. It can't be undone."
+          : "This case is removed for good. It can't be undone."
+    return { title: `Delete “${item.label}” permanently?`, message }
   })()
 
   if (loading && items.length === 0) {
@@ -244,7 +253,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         </div>
         <h2 className="text-base font-semibold text-gray-900">Recycle bin is empty</h2>
         <p className="max-w-sm text-sm text-gray-500">
-          Deleted suites and cases show up here. Restore anything you removed by mistake.
+          Deleted suites, cases, and runs show up here. Restore anything you removed by mistake.
         </p>
       </div>
     )
@@ -271,19 +280,17 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
         {items.map((item) => {
           const isBusy = busy.has(item.id)
-          const typeLabel = item.type === "suite" ? "suite" : "case"
+          const meta = TYPE_META[item.type]
+          const Icon = meta.icon
           return (
             <li key={`${item.type}:${item.id}`} className="flex items-center gap-3 px-4 py-3">
-              <span
-                className={item.type === "suite" ? "text-primary" : "text-gray-400"}
-                aria-hidden="true"
-              >
-                {item.type === "suite" ? <FolderTree size={16} /> : <FileText size={16} />}
+              <span className={meta.tone} aria-hidden="true">
+                <Icon size={16} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">{item.label}</p>
                 <p className="text-xs text-gray-500">
-                  {typeLabel === "suite" ? "Suite" : "Case"}
+                  {meta.label}
                   <span aria-hidden="true"> · </span>
                   deleted {relativeTime(item.deleted_at)}
                 </p>

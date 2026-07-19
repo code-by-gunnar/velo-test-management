@@ -78,6 +78,7 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
         SELECT id, name, status, created_at, completed_at
         FROM test_runs
         WHERE workspace_id = ${workspaceId}::uuid
+          AND deleted_at IS NULL
         ORDER BY created_at DESC
       `
 

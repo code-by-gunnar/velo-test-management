@@ -232,6 +232,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           LEFT JOIN users u_assigned ON u_assigned.id = tr.assigned_to
           LEFT JOIN users u_created ON u_created.id = tr.created_by
           WHERE tr.project_id = ${project_id}::uuid
+            AND tr.deleted_at IS NULL
             ${status ? tx`AND tr.status = ${status}` : tx``}
             ${assigned_to && isUuid(assigned_to) ? tx`AND tr.assigned_to = ${assigned_to}::uuid` : tx``}
           GROUP BY tr.id, u_assigned.name, u_created.name
@@ -274,6 +275,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           FROM test_runs tr
           LEFT JOIN run_items ri ON ri.run_id = tr.id
           WHERE tr.id = ${runId}::uuid
+            AND tr.deleted_at IS NULL
             AND tr.workspace_id = current_setting('app.workspace_id', true)::uuid
           GROUP BY tr.id
         ` as unknown as Array<Record<string, unknown>>
@@ -506,6 +508,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
           LEFT JOIN users u ON u.id = ri.executed_by
           LEFT JOIN defects d ON d.run_item_id = ri.id
           WHERE ri.test_case_id = ${caseId}::uuid
+            AND tr.deleted_at IS NULL
           ORDER BY ri.executed_at DESC NULLS LAST
           LIMIT 50
         `
@@ -666,7 +669,10 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       reply.hijack()
     }
   )
-  // ── DELETE /runs/:runId — hard delete run + items (admin only) ────────────
+  // ── DELETE /runs/:runId — soft delete (recycle bin, admin only) ────────────
+  // VEL-31: deleting a run now recycles it (deleted_at) instead of hard-deleting.
+  // Evidence + history stay untouched and R2 is not purged — that's deferred to
+  // the explicit purge action below, so a deletion is fully recoverable.
   fastify.delete<{
     Params: { workspaceId: string; runId: string }
   }>(
@@ -683,32 +689,114 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid runId" })
       }
 
+      await withWorkspace(workspaceId, async (tx) => {
+        await tx`
+          UPDATE test_runs SET deleted_at = NOW()
+          WHERE id = ${runId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            AND deleted_at IS NULL
+        `
+      })
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /runs/bulk-restore — bring recycled runs back (admin only) ────────
+  fastify.post<{
+    Params: { workspaceId: string }
+    Body: { ids: string[] }
+  }>(
+    "/api/workspaces/:workspaceId/runs/bulk-restore",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { workspaceId } = request.params
+      const { ids } = request.body ?? {}
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({ error: "ids array is required" })
+      }
+
+      if (ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+        return reply.status(400).send({ error: "Invalid run id in array" })
+      }
+
+      await withWorkspace(workspaceId, async (tx) => {
+        await tx`
+          UPDATE test_runs SET deleted_at = NULL
+          WHERE id = ANY(${ids}::uuid[])
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+      })
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /runs/bulk-purge — permanent delete of recycled runs (admin only) ─
+  // This is the old hard-delete: cascade the run's items/comments/defects and
+  // reclaim R2 evidence. Only fires on runs already in the recycle bin.
+  fastify.post<{
+    Params: { workspaceId: string }
+    Body: { ids: string[] }
+  }>(
+    "/api/workspaces/:workspaceId/runs/bulk-purge",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { workspaceId } = request.params
+      const { ids } = request.body ?? {}
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({ error: "ids array is required" })
+      }
+
+      if (ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+        return reply.status(400).send({ error: "Invalid run id in array" })
+      }
+
       const attachmentKeys = await withWorkspace(workspaceId, async (tx) => {
+        // Only purge runs already recycled — guards against purging a live run.
+        const purgeable = await tx<{ id: string }[]>`
+          SELECT id FROM test_runs
+          WHERE id = ANY(${ids}::uuid[])
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+            AND deleted_at IS NOT NULL
+        `
+        const runIds = purgeable.map((r) => r.id)
+        if (runIds.length === 0) return []
+
         // Capture evidence R2 keys BEFORE the rows cascade-delete with run_items —
-        // the DB cascade removes the attachment rows but never the R2 objects (VEL-54).
+        // the DB cascade removes the attachment rows but never the R2 objects.
         const keyRows = await tx<{ r2_key: string }[]>`
           SELECT r2_key FROM run_item_attachments WHERE run_item_id IN (
-            SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+            SELECT id FROM run_items WHERE run_id = ANY(${runIds}::uuid[])
           )
         `
-        // Delete step comments, defects, run items, then the run itself
         await tx`DELETE FROM run_item_step_comments WHERE run_item_id IN (
-          SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+          SELECT id FROM run_items WHERE run_id = ANY(${runIds}::uuid[])
         )`
         await tx`DELETE FROM defects WHERE run_item_id IN (
-          SELECT id FROM run_items WHERE run_id = ${runId}::uuid
+          SELECT id FROM run_items WHERE run_id = ANY(${runIds}::uuid[])
         )`
-        await tx`DELETE FROM run_items WHERE run_id = ${runId}::uuid`
-        await tx`DELETE FROM test_runs WHERE id = ${runId}::uuid
+        await tx`DELETE FROM run_items WHERE run_id = ANY(${runIds}::uuid[])`
+        await tx`DELETE FROM test_runs WHERE id = ANY(${runIds}::uuid[])
           AND workspace_id = current_setting('app.workspace_id', true)::uuid`
         return keyRows.map((r) => r.r2_key)
       })
 
       // Best-effort R2 cleanup AFTER the transaction commits — orphaned objects are
-      // wasteful but non-fatal, so a storage failure must not fail the delete.
+      // wasteful but non-fatal, so a storage failure must not fail the purge.
       if (attachmentKeys.length > 0) {
         await deleteR2Objects(attachmentKeys).catch((err) => {
-          fastify.log.error({ err, runId }, "run delete: R2 evidence cleanup failed")
+          fastify.log.error({ err, ids }, "run purge: R2 evidence cleanup failed")
         })
       }
 
