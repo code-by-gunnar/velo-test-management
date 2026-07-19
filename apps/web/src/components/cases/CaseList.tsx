@@ -15,8 +15,9 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable"
+import Image from "next/image"
 import { Button, useToast } from "@/components/ui"
-import { ArrowUp, ArrowDown, Sparkles, Pencil, ClipboardList } from "lucide-react"
+import { ArrowUp, ArrowDown, Pencil, ClipboardList } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
@@ -190,11 +191,13 @@ export function CaseList({
     }
   }
 
-  // Single source of truth for the three bulk operations — all POST the same
-  // /cases/bulk endpoint, differing only by action. Checks res.ok and reports
-  // success/failure so a failed move/copy/delete is never silent.
-  async function runBulkAction(action: "move" | "copy" | "delete", targetSuiteId?: string | null) {
-    const ids = [...selectedIds]
+  type CaseAction = "move" | "copy" | "duplicate" | "delete"
+
+  // Single source of truth for every /cases/bulk operation — the multi-select
+  // bar and the per-row kebab both funnel through here, differing only by action
+  // and which ids they pass. Checks res.ok and reports success/failure so a
+  // failed move/copy/duplicate/delete is never silent. Returns whether it stuck.
+  async function runCaseAction(action: CaseAction, ids: string[], targetSuiteId?: string | null): Promise<boolean> {
     const count = ids.length
     const noun = count === 1 ? "case" : "cases"
     try {
@@ -204,14 +207,14 @@ export function CaseList({
         body: JSON.stringify({
           action,
           case_ids: ids,
-          ...(action !== "delete" ? { target_suite_id: targetSuiteId ?? null } : {}),
+          // Only move/copy target another suite; duplicate lands in-place, delete has no target.
+          ...(action === "move" || action === "copy" ? { target_suite_id: targetSuiteId ?? null } : {}),
         }),
       })
       if (!res.ok) {
         toast("error", `Couldn't ${action} ${count} ${noun} — please try again.`)
-        return
+        return false
       }
-      setSelectedIds(new Set())
       if (action === "delete") {
         // Soft delete → offer an immediate Undo (restores deleted_at).
         notifyRecycleBinChanged()
@@ -219,13 +222,22 @@ export function CaseList({
           action: { label: "Undo", onClick: () => { void undoDelete(ids) } },
         })
       } else {
-        const verb = action === "move" ? "Moved" : "Copied"
+        const verb = action === "move" ? "Moved" : action === "copy" ? "Copied" : "Duplicated"
         toast("success", `${verb} ${count} ${noun}`)
       }
       refetch()
+      return true
     } catch {
       toast("error", `Couldn't ${action} ${count} ${noun} — check your connection and retry.`)
+      return false
     }
+  }
+
+  // Multi-select path: operate on the current selection, clearing it only when
+  // the action actually succeeded (a failed op keeps the bar for a retry).
+  async function runBulkAction(action: "move" | "copy" | "delete", targetSuiteId?: string | null) {
+    const ok = await runCaseAction(action, [...selectedIds], targetSuiteId)
+    if (ok) setSelectedIds(new Set())
   }
 
   const toggleSelect = (index: number, shiftKey: boolean) => {
@@ -299,7 +311,7 @@ export function CaseList({
         <div className="flex items-center gap-2">
           {onLinearImport && (
             <Button variant="secondary" size="sm" onClick={onLinearImport} disabled={!canEdit}>
-              <Sparkles size={14} className="mr-1.5" />
+              <Image src="/linear-logo.svg" alt="" aria-hidden="true" width={14} height={14} className="mr-1.5" />
               From Linear
             </Button>
           )}
@@ -383,6 +395,8 @@ export function CaseList({
                   <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Steps
                   </th>
+                  {/* Row-actions kebab column — header intentionally blank */}
+                  <th className="w-8 pr-2" />
                 </tr>
               </thead>
               <SortableContext
@@ -401,6 +415,9 @@ export function CaseList({
                       suites={suites}
                       onToggleSelect={toggleSelect}
                       onOpen={onOpenCase}
+                      onMove={(target) => { void runCaseAction("move", [tc.id], target) }}
+                      onCopy={(target) => { void runCaseAction("copy", [tc.id], target) }}
+                      onDuplicate={() => { void runCaseAction("duplicate", [tc.id]) }}
                     />
                   ))}
                 </tbody>
