@@ -169,6 +169,13 @@
       "when": 1784452436768,
       "tag": "0023_run_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784452436769,
+      "tag": "0024_deleted_by",
+      "breakpoints": true
     }
   ]
 }
