@@ -2,7 +2,8 @@ import { useState, useEffect } from "react"
 import { clsx } from "clsx"
 import { Button, Input, Label } from "@/components/ui"
 import { useLinearImport, type SuggestedCase } from "@/hooks/useLinearImport"
-import { ExternalLink, Trash2, Loader2, Sparkles, Check, X } from "lucide-react"
+import Image from "next/image"
+import { ExternalLink, Trash2, Loader2, Check, X } from "lucide-react"
 
 interface LinearImportModalProps {
   isOpen: boolean
@@ -71,7 +72,7 @@ export function LinearImportModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-primary" />
+            <Image src="/linear-logo.svg" alt="" aria-hidden="true" width={16} height={16} />
             <h2 id="linear-import-title" className="text-base font-semibold text-gray-900 font-display">
               Import from Linear
             </h2>
