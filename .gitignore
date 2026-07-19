@@ -20,3 +20,11 @@ claude.nd
 
 # Impeccable design-review snapshots (local tooling)
 .impeccable/
+
+# Internal planning / AI-assisted-dev docs — kept local, not public
+/CLAUDE.md
+/docs/plans/
+/docs/superpowers/
+/docs/audit-*.md
+/docs/velo-market-positioning.md
+/docs/velo-product-spec.md
