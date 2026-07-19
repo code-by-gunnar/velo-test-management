@@ -405,6 +405,35 @@ describe("Suite routes integration (TC-01)", () => {
     expect(ids).toContain(child)
   })
 
+  it("GET /recycle-bin lists deleted suites + standalone deleted cases (dedups cases under a deleted suite)", async () => {
+    // A suite with a case, then deleted → suite appears; its child case does not.
+    const suite = await mkSuite("Bin suite")
+    const childCase = await mkCase("Child of bin suite", suite)
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${suite}`,
+    })
+
+    // A standalone case (no suite), soft-deleted individually → should appear.
+    const soloId = uuidv7()
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, priority, position, deleted_at)
+      VALUES (${soloId}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, NULL, 'Solo deleted', 'low', 1000, NOW())
+    `
+
+    const res = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/recycle-bin`,
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { suites: Array<{ id: string }>; cases: Array<{ id: string }> }
+
+    expect(body.suites.map((s) => s.id)).toContain(suite)
+    expect(body.cases.map((c) => c.id)).toContain(soloId)
+    // The child case is represented by its (deleted) suite, not listed separately.
+    expect(body.cases.map((c) => c.id)).not.toContain(childCase)
+  })
+
   // ── Suite description (Phase: suite descriptions) ──────────────────────────
 
   it("GET /suites includes a description field (null by default, set when created with one)", async () => {
