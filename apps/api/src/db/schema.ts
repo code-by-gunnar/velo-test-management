@@ -185,6 +185,7 @@ export const suites = pgTable(
     // Null parent_id = root suite
     parent_id: uuid("parent_id"),
     name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
     // Gap-based integer position for drag-drop reorder (increments of 1000)
     position: integer("position").notNull().default(0),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

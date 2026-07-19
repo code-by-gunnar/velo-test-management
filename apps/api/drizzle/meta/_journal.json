@@ -148,6 +148,13 @@
       "when": 1774308000000,
       "tag": "0020_integration_secret_endpoint",
       "breakpoints": false
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784452436766,
+      "tag": "0021_suite_description",
+      "breakpoints": true
     }
   ]
 }
