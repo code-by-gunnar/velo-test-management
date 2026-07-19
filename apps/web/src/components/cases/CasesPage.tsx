@@ -97,6 +97,9 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
       if (panelOpen) return
       const target = e.target as HTMLElement
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return
+      // The suites sidebar owns "n" (create suite) when focused — don't also
+      // open the case editor, or one keypress opens two overlays.
+      if (sidebarRef.current?.contains(target)) return
       if (e.key === "n" || e.key === "N") {
         e.preventDefault()
         setOpenCaseId(null)

@@ -99,7 +99,17 @@ export function CasePanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, caseId])
 
-  const onSubmit = async (values: CaseFormValues) => {
+  // Reset the form to a fresh, blank new case (used after "Save & new").
+  const resetToNewCase = () => {
+    reset({ title: "", priority: "medium", preconditions: "" })
+    setSteps(testFormat === "gwt"
+      ? [{ action: "", expected_result: "", step_type: "given" }]
+      : DEFAULT_STEPS
+    )
+    setTimeout(() => titleRef.current?.focus(), 0)
+  }
+
+  const saveCase = async (values: CaseFormValues, keepOpen: boolean) => {
     setIsSaving(true)
     try {
       const body: Record<string, unknown> = {
@@ -123,7 +133,12 @@ export function CasePanel({
       if (res.ok) {
         toast("success", caseId ? "Case saved" : "Case created")
         onSaved()
-        onClose()
+        // "Save & new" only applies to creation — clear the form and stay open.
+        if (keepOpen && caseId === null) {
+          resetToNewCase()
+        } else {
+          onClose()
+        }
       } else {
         // Keep the editor open so the user's work isn't lost.
         toast("error", "Couldn't save the case — please try again.")
@@ -134,6 +149,8 @@ export function CasePanel({
       setIsSaving(false)
     }
   }
+
+  const onSubmit = (values: CaseFormValues) => saveCase(values, false)
 
   // Keyboard: Ctrl/Cmd+S to save, E to enter edit. (Escape is the Modal's.)
   useEffect(() => {
@@ -177,6 +194,18 @@ export function CasePanel({
     <>
       <span className="mr-auto self-center text-xs text-gray-500">Ctrl+S to save · Esc to close</span>
       <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+      {isCreateMode && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={isSaving}
+          onClick={() => void handleSubmit((v) => saveCase(v, true))()}
+          title="Save and start another (keeps this open)"
+        >
+          Save &amp; new
+        </Button>
+      )}
       <Button
         type="button"
         variant="primary"

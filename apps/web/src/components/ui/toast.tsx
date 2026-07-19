@@ -38,17 +38,24 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    // Errors/warnings carry something the user must read or act on — don't
+    // auto-dismiss them; they stay until dismissed via the close button.
+    if (t.type === "error" || t.type === "warning") return
     timerRef.current = setTimeout(() => onDismiss(t.id), AUTO_DISMISS_MS)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [t.id, onDismiss])
+  }, [t.id, t.type, onDismiss])
 
   const { Icon, className: iconClassName } = ICON_MAP[t.type]
 
+  // Errors/warnings interrupt (assertive); success/info wait their turn (polite).
+  const assertive = t.type === "error" || t.type === "warning"
+
   return (
     <div
-      role="alert"
+      role={assertive ? "alert" : "status"}
+      aria-live={assertive ? "assertive" : "polite"}
       className="flex min-w-[300px] max-w-[420px] items-start gap-3 rounded-md border border-gray-200 bg-white p-3 shadow-toast"
     >
       <Icon size={18} className={`shrink-0 mt-0.5 ${iconClassName}`} aria-hidden="true" />

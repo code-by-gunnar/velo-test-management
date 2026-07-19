@@ -275,7 +275,7 @@ export function CaseList({
           <Button variant="secondary" size="sm" onClick={onImport} disabled={!canEdit}>
             Import CSV
           </Button>
-          <Button variant="primary" size="sm" onClick={onNewCase} disabled={!canEdit}>
+          <Button variant="primary" size="sm" onClick={onNewCase} disabled={!canEdit} title="New case (press N)">
             New Case
           </Button>
         </div>
@@ -308,9 +308,17 @@ export function CaseList({
             <h3 className="mb-1 text-base font-semibold text-gray-900">No test cases yet</h3>
             <p className="text-sm text-gray-500">Create your first test case to get started</p>
           </div>
-          <Button variant="primary" size="md" onClick={onNewCase} disabled={!canEdit}>
-            New Test Case
-          </Button>
+          <div className="flex flex-col items-center gap-2">
+            <Button variant="primary" size="md" onClick={onNewCase} disabled={!canEdit} title="New case (press N)">
+              New Test Case
+            </Button>
+            {canEdit && (
+              <p className="text-xs text-gray-500">
+                or press{" "}
+                <kbd className="rounded border border-gray-300 bg-gray-50 px-1 font-mono text-[10px] text-gray-600">N</kbd>
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <DndContext

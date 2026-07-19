@@ -39,6 +39,42 @@ function setup(overrides?: { onDelete?: () => Promise<void> }) {
   return { onDelete }
 }
 
+const SUITES: Suite[] = [
+  { id: "a", parent_id: null, name: "Auth", description: null, position: 1, depth: 0, children: [] },
+  { id: "b", parent_id: null, name: "Billing", description: null, position: 2, depth: 0, children: [] },
+  { id: "c", parent_id: null, name: "Dashboard", description: null, position: 3, depth: 0, children: [] },
+]
+
+describe("BulkActionBar — suite picker search", () => {
+  it("filters the Move-to suite list by the search query", async () => {
+    const user = userEvent.setup()
+    render(
+      <BulkActionBar
+        selectedCount={2}
+        suites={SUITES}
+        onMove={vi.fn(async () => {})}
+        onCopy={vi.fn(async () => {})}
+        onDelete={vi.fn(async () => {})}
+        onClearSelection={vi.fn()}
+      />
+    )
+
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /move to/i }))
+    })
+    // All suites visible before filtering
+    expect(screen.getByRole("button", { name: "Billing" })).toBeDefined()
+
+    await act(async () => {
+      await user.type(screen.getByRole("textbox", { name: /search suites/i }), "auth")
+    })
+
+    expect(screen.getByRole("button", { name: "Auth" })).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Billing" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Dashboard" })).toBeNull()
+  })
+})
+
 describe("BulkActionBar — destructive confirmation", () => {
   it("clicking the initial Delete button does not delete; it reveals a confirm affordance", async () => {
     const user = userEvent.setup()
