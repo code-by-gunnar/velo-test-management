@@ -62,3 +62,34 @@ describe("SuiteTreeItem — rename failure feedback", () => {
     })
   })
 })
+
+describe("SuiteTreeItem — delete Undo", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("a successful delete offers Undo, which restores via bulk-restore", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }) as Response)
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    renderItem()
+
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /suite actions/i }))
+    })
+    await act(async () => {
+      await user.click(screen.getByRole("menuitem", { name: /delete/i }))
+    })
+    // Confirm card's destructive button
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /^delete$/i }))
+    })
+
+    const undo = await screen.findByRole("button", { name: "Undo" })
+    await act(async () => {
+      await user.click(undo)
+    })
+
+    const lastCall = fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit]
+    expect(lastCall[0]).toContain("/suites/bulk-restore")
+    expect(JSON.parse(lastCall[1].body as string).ids).toEqual(["s1"])
+  })
+})

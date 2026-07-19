@@ -116,8 +116,32 @@ export function SuiteTree({
     })
   }, [rootSuites])
 
+  const undoBulkDelete = useCallback(async (ids: string[]) => {
+    const noun = ids.length === 1 ? "suite" : "suites"
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/bulk-restore`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        }
+      )
+      if (res.ok) {
+        onSuiteCreated?.()
+        toast("success", `Restored ${ids.length} ${noun}`)
+      } else {
+        toast("error", "Couldn't undo — please try again.")
+      }
+    } catch {
+      toast("error", "Couldn't undo — check your connection and retry.")
+    }
+  }, [workspaceId, projectId, onSuiteCreated, toast])
+
   const handleBulkDelete = useCallback(async () => {
     if (checkedIds.size === 0) return
+    const ids = [...checkedIds]
+    const noun = ids.length === 1 ? "suite" : "suites"
     setIsDeleting(true)
     try {
       const res = await fetch(
@@ -125,7 +149,7 @@ export function SuiteTree({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: [...checkedIds] }),
+          body: JSON.stringify({ ids }),
         }
       )
       if (res.ok) {
@@ -135,6 +159,9 @@ export function SuiteTree({
         }
         onSuiteCreated?.()
         exitSelectMode()
+        toast("success", `Deleted ${ids.length} ${noun}`, {
+          action: { label: "Undo", onClick: () => { void undoBulkDelete(ids) } },
+        })
       } else {
         toast("error", "Couldn't delete the selected suites — please try again.")
       }
@@ -143,7 +170,7 @@ export function SuiteTree({
     } finally {
       setIsDeleting(false)
     }
-  }, [checkedIds, workspaceId, projectId, selected, onSelect, onSuiteCreated, exitSelectMode, toast])
+  }, [checkedIds, workspaceId, projectId, selected, onSelect, onSuiteCreated, exitSelectMode, toast, undoBulkDelete])
 
   async function handleSuiteDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -340,7 +367,7 @@ export function SuiteTree({
         <ConfirmDialog
           isOpen
           title={`Delete ${checkedIds.size} ${checkedIds.size === 1 ? "suite" : "suites"}?`}
-          message={`This moves ${checkedIds.size === 1 ? "its" : "their"} cases to All Cases and can't be undone.`}
+          message={`${checkedIds.size === 1 ? "Its" : "Their"} cases are removed too. You can undo this right after.`}
           confirmLabel={`Delete ${checkedIds.size}`}
           busyLabel="Deleting…"
           busy={isDeleting}
