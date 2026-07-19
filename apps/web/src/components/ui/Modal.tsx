@@ -6,6 +6,8 @@ interface ModalProps {
   onClose: () => void
   title: string
   size?: "sm" | "md" | "lg" | "xl"
+  // "center" (default) = centered dialog; "right" = full-height right drawer.
+  placement?: "center" | "right"
   children: ReactNode
   footer?: ReactNode
 }
@@ -20,7 +22,7 @@ const SIZE_CLASS: Record<NonNullable<ModalProps["size"]>, string> = {
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
-export function Modal({ isOpen, onClose, title, size = "md", children, footer }: ModalProps) {
+export function Modal({ isOpen, onClose, title, size = "md", placement = "center", children, footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -72,9 +74,15 @@ export function Modal({ isOpen, onClose, title, size = "md", children, footer }:
 
   if (!isOpen) return null
 
+  const isDrawer = placement === "right"
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className={
+        isDrawer
+          ? "fixed inset-0 z-50 flex items-stretch justify-end"
+          : "fixed inset-0 z-50 flex items-center justify-center p-4"
+      }
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -83,7 +91,11 @@ export function Modal({ isOpen, onClose, title, size = "md", children, footer }:
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={`relative z-10 flex max-h-[85vh] w-full ${SIZE_CLASS[size]} flex-col rounded-lg border border-gray-200 bg-white shadow-xl focus:outline-none`}
+        className={
+          isDrawer
+            ? `relative z-10 flex h-full w-full ${SIZE_CLASS[size]} flex-col border-l border-gray-200 bg-white shadow-xl focus:outline-none`
+            : `relative z-10 flex max-h-[85vh] w-full ${SIZE_CLASS[size]} flex-col rounded-lg border border-gray-200 bg-white shadow-xl focus:outline-none`
+        }
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <h2 id={titleId} className="font-display text-sm font-semibold text-gray-900">{title}</h2>

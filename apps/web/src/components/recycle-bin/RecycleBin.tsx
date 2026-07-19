@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { FolderTree, FileText, Play, RotateCcw, Trash2, Undo2 } from "lucide-react"
-import { Button, ConfirmDialog } from "@/components/ui"
+import { FolderTree, FileText, Play, RotateCcw, Trash2, Undo2, ChevronRight } from "lucide-react"
+import { Button, ConfirmDialog, ConfirmInline, Modal } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { useCachedState } from "@/hooks/useCachedState"
 import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
@@ -18,6 +18,9 @@ interface RecycleItem {
   // Cases only: true when the parent suite is also deleted, so restoring the
   // case reparents it to the project root.
   restoresToRoot?: boolean
+  // Cases only: the parent suite id (used to group child cases under a deleted
+  // suite's side panel).
+  suiteId?: string | null
 }
 
 interface DeletedRow {
@@ -27,7 +30,7 @@ interface DeletedRow {
 
 interface RecycleBinResponse {
   suites: ({ id: string; name: string } & DeletedRow)[]
-  cases: ({ id: string; title: string; restores_to_root?: boolean } & DeletedRow)[]
+  cases: ({ id: string; title: string; restores_to_root?: boolean; suite_id?: string | null } & DeletedRow)[]
   // Present only for admins (runs are an admin-only concern); may be absent.
   runs?: ({ id: string; name: string } & DeletedRow)[]
 }
@@ -78,6 +81,34 @@ const TYPE_META: Record<RecycleType, { icon: typeof FolderTree; tone: string; la
   run: { icon: Play, tone: "text-gray-400", label: "Run" },
 }
 
+// The shared left side of a row: type icon, label, and a "Type · deleted 2h ago
+// · by Name" subtitle. Reused by the main list and the suite side panel.
+function ItemBody({ item }: { item: RecycleItem }) {
+  const meta = TYPE_META[item.type]
+  const Icon = meta.icon
+  return (
+    <>
+      <span className={meta.tone} aria-hidden="true">
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-gray-900">{item.label}</p>
+        <p className="text-xs text-gray-500">
+          {meta.label}
+          <span aria-hidden="true"> · </span>
+          deleted {relativeTime(item.deleted_at)}
+          {item.deletedBy && (
+            <>
+              <span aria-hidden="true"> · </span>
+              by {item.deletedBy}
+            </>
+          )}
+        </p>
+      </div>
+    </>
+  )
+}
+
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ""
@@ -112,6 +143,10 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
     { kind: "one"; item: RecycleItem } | { kind: "all" } | null
   >(null)
   const [purging, setPurging] = useState(false)
+  // Side panel: which deleted suite's child cases are being viewed (null = closed).
+  const [openSuiteId, setOpenSuiteId] = useState<string | null>(null)
+  // Inline purge confirm inside the panel, keyed by the case row awaiting it.
+  const [panelConfirmId, setPanelConfirmId] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
     try {
@@ -120,7 +155,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       const data = (await res.json()) as RecycleBinResponse
       const merged: RecycleItem[] = [
         ...data.suites.map((s) => ({ id: s.id, label: s.name, deleted_at: s.deleted_at, deletedBy: s.deleted_by_name ?? null, type: "suite" as const })),
-        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, deletedBy: c.deleted_by_name ?? null, restoresToRoot: c.restores_to_root ?? false, type: "case" as const })),
+        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, deletedBy: c.deleted_by_name ?? null, restoresToRoot: c.restores_to_root ?? false, suiteId: c.suite_id ?? null, type: "case" as const })),
         ...(data.runs ?? []).map((r) => ({ id: r.id, label: r.name, deleted_at: r.deleted_at, deletedBy: r.deleted_by_name ?? null, type: "run" as const })),
       ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at))
       setItems(merged)
@@ -242,6 +277,28 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
     return { title: `Delete “${item.label}” permanently?`, message }
   })()
 
+  // A case whose parent suite is also in the bin is shown inside that suite's
+  // side panel, not at the top level. Group those; keep everything else flat.
+  const childCasesBySuite = useMemo(() => {
+    const map = new Map<string, RecycleItem[]>()
+    for (const item of items) {
+      if (item.type === "case" && item.restoresToRoot && item.suiteId) {
+        const arr = map.get(item.suiteId) ?? []
+        arr.push(item)
+        map.set(item.suiteId, arr)
+      }
+    }
+    return map
+  }, [items])
+
+  const topLevel = useMemo(
+    () => items.filter((i) => !(i.type === "case" && i.restoresToRoot && i.suiteId)),
+    [items]
+  )
+
+  const openSuite = openSuiteId ? items.find((i) => i.type === "suite" && i.id === openSuiteId) ?? null : null
+  const panelCases = openSuiteId ? childCasesBySuite.get(openSuiteId) ?? [] : []
+
   if (loading && items.length === 0) {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-2 py-6" aria-busy="true">
@@ -286,36 +343,24 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       </div>
 
       <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
-        {items.map((item) => {
+        {topLevel.map((item) => {
           const isBusy = busy.has(item.id)
-          const meta = TYPE_META[item.type]
-          const Icon = meta.icon
+          const childCount = item.type === "suite" ? childCasesBySuite.get(item.id)?.length ?? 0 : 0
           return (
             <li key={`${item.type}:${item.id}`} className="flex items-center gap-3 px-4 py-3">
-              <span className={meta.tone} aria-hidden="true">
-                <Icon size={16} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">{item.label}</p>
-                <p className="text-xs text-gray-500">
-                  {meta.label}
-                  <span aria-hidden="true"> · </span>
-                  deleted {relativeTime(item.deleted_at)}
-                  {item.deletedBy && (
-                    <>
-                      <span aria-hidden="true"> · </span>
-                      by {item.deletedBy}
-                    </>
-                  )}
-                  {item.restoresToRoot && (
-                    <>
-                      <span aria-hidden="true"> · </span>
-                      <span className="text-gray-400">restores to root</span>
-                    </>
-                  )}
-                </p>
-              </div>
+              <ItemBody item={item} />
               <div className="flex items-center gap-1">
+                {childCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenSuiteId(item.id)}
+                    className="mr-1 inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={`View ${childCount} deleted ${childCount === 1 ? "case" : "cases"} in ${item.label}`}
+                  >
+                    {childCount} {childCount === 1 ? "case" : "cases"}
+                    <ChevronRight size={13} />
+                  </button>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"
@@ -353,6 +398,74 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         onConfirm={() => void runPurge()}
         onClose={() => setConfirmTarget(null)}
       />
+
+      {/* Side panel: the deleted cases inside a deleted suite (VEL-31). */}
+      <Modal
+        isOpen={openSuiteId !== null}
+        onClose={() => {
+          setOpenSuiteId(null)
+          setPanelConfirmId(null)
+        }}
+        placement="right"
+        size="md"
+        title={openSuite ? `${openSuite.label} — deleted cases` : "Deleted cases"}
+      >
+        <p className="mb-3 text-xs text-gray-500">
+          Restoring a case here sends it to the project root. To bring the cases back
+          inside the suite, restore the suite itself.
+        </p>
+        {panelCases.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-500">No deleted cases left in this suite.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {panelCases.map((c) => {
+              const isBusy = busy.has(c.id)
+              return (
+                <li key={c.id} className="flex items-center gap-3 py-3">
+                  <ItemBody item={c} />
+                  {panelConfirmId === c.id ? (
+                    <ConfirmInline
+                      confirmLabel="Delete"
+                      busyLabel="Deleting…"
+                      busy={isBusy}
+                      message="Can't be undone"
+                      onConfirm={() => {
+                        void purge("case", [c.id], `"${c.label}"`)
+                        setPanelConfirmId(null)
+                      }}
+                      onCancel={() => setPanelConfirmId(null)}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={isBusy}
+                        aria-label={`Restore ${c.label}`}
+                        onClick={() => void restore("case", [c.id], `"${c.label}"`)}
+                      >
+                        <RotateCcw size={14} />
+                        Restore
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isBusy}
+                        aria-label={`Delete ${c.label} permanently`}
+                        title="Delete permanently"
+                        className="text-gray-500 hover:text-fail"
+                        onClick={() => setPanelConfirmId(c.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Modal>
     </div>
   )
 }
