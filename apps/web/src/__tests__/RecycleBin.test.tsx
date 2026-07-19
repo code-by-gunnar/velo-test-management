@@ -16,17 +16,30 @@ import { RecycleBin } from "@/components/recycle-bin/RecycleBin"
 
 const DATA = {
   suites: [{ id: "s1", name: "Login suite", deleted_at: "2026-07-18T10:00:00Z", deleted_by_name: "Ada Lovelace" }],
-  cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z", deleted_by_name: null }],
+  cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z", deleted_by_name: null, restores_to_root: true }],
   runs: [{ id: "r1", name: "Smoke run", deleted_at: "2026-07-18T12:00:00Z", deleted_by_name: "Ada Lovelace" }],
 }
 
-/** fetch stub: GET recycle-bin returns DATA, every mutation returns ok. */
+// Stateful fetch stub: GET returns the current server view; a successful
+// restore/purge removes the affected ids so the post-mutation refetch reflects
+// it (the component refetches to resync cross-item effects).
 function stubFetch(over?: { post?: () => Response }) {
+  const state = { suites: [...DATA.suites], cases: [...DATA.cases], runs: [...DATA.runs] }
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (!init || init.method === undefined || init.method === "GET") {
-      return { ok: true, status: 200, json: async () => DATA } as Response
+      return { ok: true, status: 200, json: async () => state } as Response
     }
-    return over?.post ? over.post() : ({ ok: true, status: 200 } as Response)
+    if (over?.post) return over.post()
+    try {
+      const body = JSON.parse(init.body as string) as { ids?: string[]; case_ids?: string[] }
+      const idset = new Set(body.case_ids ?? body.ids ?? [])
+      if (url.includes("/cases/")) state.cases = state.cases.filter((c) => !idset.has(c.id))
+      else if (url.includes("/suites/")) state.suites = state.suites.filter((s) => !idset.has(s.id))
+      else if (url.includes("/runs/")) state.runs = state.runs.filter((r) => !idset.has(r.id))
+    } catch {
+      // non-JSON body — ignore
+    }
+    return { ok: true, status: 200 } as Response
   })
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
@@ -50,6 +63,12 @@ describe("RecycleBin", () => {
     renderBin()
     expect(await screen.findByText("Login suite")).toBeDefined()
     expect(screen.getByText("Password reset")).toBeDefined()
+  })
+
+  it("flags a case that will restore to root (its suite is also deleted)", async () => {
+    stubFetch()
+    renderBin()
+    expect(await screen.findByText(/restores to root/i)).toBeDefined()
   })
 
   it("attributes an item to whoever deleted it", async () => {
