@@ -17,7 +17,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2, MoreHorizontal, GripVertical, ChevronDown, ChevronRight } from "lucide-react"
+import { useToast, ConfirmInline } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
 
 // Compute mid-gap position for drag reorder.
@@ -48,6 +49,16 @@ interface ContextMenuProps {
 
 function SuiteContextMenu({ x, y, onRename, onDelete, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const firstItemRef = useRef<HTMLButtonElement>(null)
+
+  // Move focus into the menu on open and restore it to the opener on close, so
+  // the menu is fully operable from the keyboard (it can be opened via the
+  // actions button, not just right-click).
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    firstItemRef.current?.focus()
+    return () => opener?.focus?.()
+  }, [])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -70,11 +81,14 @@ function SuiteContextMenu({ x, y, onRename, onDelete, onClose }: ContextMenuProp
   return (
     <div
       ref={menuRef}
+      role="menu"
       className="fixed z-50 min-w-[140px] rounded-md border border-gray-200 bg-white py-1 shadow-dropdown"
       style={{ left: x, top: y }}
     >
       <button
+        ref={firstItemRef}
         type="button"
+        role="menuitem"
         onClick={() => { onRename(); onClose() }}
         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:bg-gray-100 transition-colors"
       >
@@ -83,6 +97,7 @@ function SuiteContextMenu({ x, y, onRename, onDelete, onClose }: ContextMenuProp
       </button>
       <button
         type="button"
+        role="menuitem"
         onClick={() => { onDelete(); onClose() }}
         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:bg-gray-100 transition-colors"
       >
@@ -121,12 +136,14 @@ export function SuiteTreeItem({
   onToggleCheck,
 }: SuiteTreeItemProps) {
   const { canEdit } = useUserRole()
+  const { toast } = useToast()
   const [expanded, setExpanded] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(suite.name)
   const [isDeleting, setIsDeleting] = useState(false)
   const renameRef = useRef<HTMLInputElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const hasChildren = suite.children.length > 0
   const isSelected = selected === suite.id
   const isChecked = checkedIds?.has(suite.id) ?? false
@@ -136,6 +153,14 @@ export function SuiteTreeItem({
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY })
   }, [canEdit, selectMode])
+
+  // Keyboard/click path to the same actions menu — anchored to the button so it
+  // doesn't overflow the sidebar's right edge.
+  const openMenuFromButton = useCallback(() => {
+    const rect = menuButtonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setContextMenu({ x: Math.max(8, rect.right - 140), y: rect.bottom + 4 })
+  }, [])
 
   const startRename = useCallback(() => {
     setRenameValue(suite.name)
@@ -150,7 +175,7 @@ export function SuiteTreeItem({
       return
     }
     try {
-      await fetch(
+      const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${suite.id}`,
         {
           method: "PATCH",
@@ -158,23 +183,35 @@ export function SuiteTreeItem({
           body: JSON.stringify({ name }),
         }
       )
-      onSuiteChanged?.()
+      if (res.ok) {
+        onSuiteChanged?.()
+      } else {
+        toast("error", "Couldn't rename the suite — please try again.")
+      }
+    } catch {
+      toast("error", "Couldn't rename the suite — check your connection and retry.")
     } finally {
       setIsRenaming(false)
     }
-  }, [renameValue, suite.name, suite.id, workspaceId, projectId, onSuiteChanged])
+  }, [renameValue, suite.name, suite.id, workspaceId, projectId, onSuiteChanged, toast])
 
   const confirmDelete = useCallback(async () => {
     try {
-      await fetch(
+      const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${suite.id}`,
         { method: "DELETE" }
       )
-      onSuiteChanged?.()
+      if (res.ok) {
+        onSuiteChanged?.()
+      } else {
+        toast("error", "Couldn't delete the suite — please try again.")
+      }
+    } catch {
+      toast("error", "Couldn't delete the suite — check your connection and retry.")
     } finally {
       setIsDeleting(false)
     }
-  }, [suite.id, workspaceId, projectId, onSuiteChanged])
+  }, [suite.id, workspaceId, projectId, onSuiteChanged, toast])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -200,9 +237,9 @@ export function SuiteTreeItem({
 
     const newPosition = computeNewPosition(suite.children, activeId, overId)
 
-    // Persist to API; refetch via onSuiteReordered restores correct order
+    // Persist to API; refetch via onSuiteReordered restores correct order.
     try {
-      await fetch(
+      const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
         {
           method: "PATCH",
@@ -210,8 +247,9 @@ export function SuiteTreeItem({
           body: JSON.stringify({ position: newPosition }),
         }
       )
+      if (!res.ok) toast("error", "Couldn't save the new order — please try again.")
     } catch {
-      // Ignore network errors — refetch will restore correct state
+      toast("error", "Couldn't save the new order — check your connection and retry.")
     }
 
     onSuiteReordered?.()
@@ -221,7 +259,7 @@ export function SuiteTreeItem({
     <div ref={setNodeRef} style={style} className={isDragging ? "opacity-50" : ""}>
       <div
         className={clsx(
-          "flex w-full items-center gap-1 overflow-hidden rounded-md text-sm text-left transition-colors",
+          "group flex w-full items-center gap-1 overflow-hidden rounded-md text-sm text-left transition-colors",
           isSelected && !selectMode
             ? "bg-primary-selected text-primary font-medium"
             : "text-gray-800 hover:bg-gray-100"
@@ -244,10 +282,10 @@ export function SuiteTreeItem({
               <span
                 {...attributes}
                 {...listeners}
-                className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
+                className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center rounded text-gray-400 hover:text-gray-600 select-none active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-label="Drag to reorder"
               >
-                &#8801;
+                <GripVertical size={13} aria-hidden="true" />
               </span>
             )}
           </>
@@ -263,7 +301,7 @@ export function SuiteTreeItem({
             className={clsx("mr-0.5 flex h-4 w-4 shrink-0 items-center justify-center hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors", isSelected ? "text-primary" : "text-gray-400")}
             aria-label={expanded ? "Collapse" : "Expand"}
           >
-            {expanded ? "▼" : "▶"}
+            {expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
           </button>
         ) : (
           <span className="mr-0.5 h-4 w-4 shrink-0" />
@@ -297,29 +335,36 @@ export function SuiteTreeItem({
             {suite.name}
           </button>
         )}
+
+        {/* Actions — keyboard path to rename/delete (right-click also works).
+            Hidden until row hover or keyboard focus to keep the tree calm. */}
+        {canEdit && !selectMode && !isRenaming && (
+          <button
+            ref={menuButtonRef}
+            type="button"
+            onClick={openMenuFromButton}
+            aria-label="Suite actions"
+            aria-haspopup="menu"
+            className={clsx(
+              "ml-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition",
+              contextMenu ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            )}
+          >
+            <MoreHorizontal size={14} />
+          </button>
+        )}
       </div>
 
       {/* Delete confirmation */}
       {isDeleting && (
-        <div className="mx-2 my-1 rounded-md border border-gray-200 bg-white p-2 text-xs shadow-card">
-          <p className="mb-2 text-gray-600">Delete &ldquo;{suite.name}&rdquo;? Cases move to All Cases.</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => { void confirmDelete() }}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDeleting(false)}
-              className="rounded-md px-2.5 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <ConfirmInline
+          layout="card"
+          className="mx-2 my-1"
+          message={`Delete “${suite.name}”? Cases move to All Cases.`}
+          confirmLabel="Delete"
+          onConfirm={() => { void confirmDelete() }}
+          onCancel={() => setIsDeleting(false)}
+        />
       )}
 
       {/* Context menu */}

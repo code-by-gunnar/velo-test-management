@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { clsx } from "clsx"
 import { Button, Input, Label } from "@/components/ui"
 import { useLinearImport, type SuggestedCase } from "@/hooks/useLinearImport"
-import { ExternalLink, Trash2, Loader2, Sparkles, Check } from "lucide-react"
+import { ExternalLink, Trash2, Loader2, Sparkles, Check, X } from "lucide-react"
 
 interface LinearImportModalProps {
   isOpen: boolean
@@ -79,10 +79,10 @@ export function LinearImportModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="inline-flex items-center justify-center rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-coarse:h-11 pointer-coarse:w-11"
             aria-label="Close"
           >
-            &#10005;
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 

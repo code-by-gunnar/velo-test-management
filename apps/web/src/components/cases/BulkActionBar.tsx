@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui"
+import { Button, ConfirmInline } from "@/components/ui"
+import { ChevronDown } from "lucide-react"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { useUserRole } from "@/hooks/useUserRole"
 
@@ -24,6 +25,7 @@ export function BulkActionBar({
 }: BulkActionBarProps) {
   const { canEdit } = useUserRole()
   const [dropdownMode, setDropdownMode] = useState<DropdownMode>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -57,6 +59,7 @@ export function BulkActionBar({
     setIsSubmitting(true)
     try {
       await onDelete()
+      setConfirmingDelete(false)
     } finally {
       setIsSubmitting(false)
     }
@@ -65,7 +68,9 @@ export function BulkActionBar({
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white px-6 py-3 shadow-lg"
+      // Anchored to the content column (CaseList is relative), not the viewport,
+      // so the bar never overlaps the suite sidebar to its left.
+      className="absolute inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-6 py-3 shadow-lg"
     >
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-gray-700">
@@ -80,7 +85,7 @@ export function BulkActionBar({
             onClick={() => setDropdownMode(dropdownMode === "move" ? null : "move")}
             disabled={isSubmitting || !canEdit}
           >
-            Move to &#9660;
+            Move to <ChevronDown size={14} className="ml-1" aria-hidden="true" />
           </Button>
           {dropdownMode === "move" && (
             <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
@@ -95,22 +100,33 @@ export function BulkActionBar({
             onClick={() => setDropdownMode(dropdownMode === "copy" ? null : "copy")}
             disabled={isSubmitting || !canEdit}
           >
-            Copy to &#9660;
+            Copy to <ChevronDown size={14} className="ml-1" aria-hidden="true" />
           </Button>
           {dropdownMode === "copy" && (
             <SuitePicker suites={suites} onSelect={handleSuiteSelect} />
           )}
         </div>
 
-        {/* Delete */}
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => { void handleDelete() }}
-          disabled={isSubmitting || !canEdit}
-        >
-          Delete
-        </Button>
+        {/* Delete — gated behind an explicit confirm (irreversible, no undo) */}
+        {confirmingDelete ? (
+          <ConfirmInline
+            confirmLabel={`Delete ${selectedCount}`}
+            busyLabel="Deleting…"
+            busy={isSubmitting}
+            message="Can't be undone"
+            onConfirm={() => { void handleDelete() }}
+            onCancel={() => setConfirmingDelete(false)}
+          />
+        ) : (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirmingDelete(true)}
+            disabled={isSubmitting || !canEdit}
+          >
+            Delete {selectedCount}
+          </Button>
+        )}
 
         {/* Clear selection */}
         <button

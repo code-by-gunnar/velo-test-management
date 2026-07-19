@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import plugin from "tailwindcss/plugin"
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
@@ -66,7 +67,13 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Touch-pointer variant (Tailwind 3.4 ships no pointer-coarse). Lets us grow
+    // hit areas to 44px on touch devices without inflating desktop density.
+    plugin(({ addVariant }) => {
+      addVariant("pointer-coarse", "@media (pointer: coarse)")
+    }),
+  ],
 }
 
 export default config
