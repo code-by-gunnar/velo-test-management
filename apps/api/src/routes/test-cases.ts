@@ -654,13 +654,19 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(204).send()
       }
 
-      // restore: clear deleted_at — powers the snackbar Undo (and, later, the
-      // VEL-31 recycle bin). Idempotent; only affects rows in this project.
+      // restore: clear deleted_at — powers the snackbar Undo and the recycle
+      // bin. Idempotent; only affects rows in this project. If the case's parent
+      // suite is still deleted, reparent to the project root (suite_id → NULL) so
+      // the restored case lands somewhere visible (VEL-31 edge case).
       if (action === "restore") {
         await withWorkspace(workspaceId, async (tx) => {
           await tx`
             UPDATE test_cases
-            SET deleted_at = NULL
+            SET deleted_at = NULL,
+                suite_id = CASE
+                  WHEN suite_id IN (SELECT id FROM suites WHERE deleted_at IS NOT NULL)
+                  THEN NULL ELSE suite_id
+                END
             WHERE id = ANY(${case_ids}::uuid[])
               AND project_id = ${projectId}::uuid
           `

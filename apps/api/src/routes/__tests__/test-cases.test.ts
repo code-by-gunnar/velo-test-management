@@ -749,6 +749,50 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect((await sql`SELECT id FROM test_cases WHERE id = ${caseId}::uuid`).length).toBe(1)
   })
 
+  it("action=restore: reparents a case to root when its suite is still deleted (VEL-31)", async () => {
+    // A soft-deleted suite with a soft-deleted case inside it.
+    const deletedSuite = uuidv7()
+    await sql`
+      INSERT INTO suites (id, workspace_id, project_id, name, position, deleted_at)
+      VALUES (${deletedSuite}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, 'Gone suite', 1000, NOW())
+    `
+    const orphan = uuidv7()
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, priority, position, deleted_at)
+      VALUES (${orphan}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, ${deletedSuite}::uuid, 'Orphan case', 'low', 1000, NOW())
+    `
+
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "restore", case_ids: [orphan] },
+    })
+
+    const row = (await sql`SELECT deleted_at, suite_id FROM test_cases WHERE id = ${orphan}::uuid`)[0] as
+      | { deleted_at: string | null; suite_id: string | null }
+      | undefined
+    expect(row?.deleted_at).toBeNull()
+    expect(row?.suite_id).toBeNull() // reparented to root — its suite is still deleted
+  })
+
+  it("action=restore: keeps the suite when it is NOT deleted", async () => {
+    const caseId = uuidv7()
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, suite_id, title, priority, position, deleted_at)
+      VALUES (${caseId}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, ${suiteA}::uuid, 'Kept case', 'low', 1000, NOW())
+    `
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "restore", case_ids: [caseId] },
+    })
+
+    const row = (await sql`SELECT suite_id FROM test_cases WHERE id = ${caseId}::uuid`)[0] as
+      | { suite_id: string | null }
+      | undefined
+    expect(row?.suite_id).toBe(suiteA) // suiteA is live → stays put
+  })
+
   it("bulk endpoint returns 400 when case_ids is empty (TC-05)", async () => {
     const res = await appA.inject({
       method: "POST",

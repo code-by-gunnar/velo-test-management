@@ -15,6 +15,9 @@ interface RecycleItem {
   deleted_at: string
   deletedBy: string | null
   type: RecycleType
+  // Cases only: true when the parent suite is also deleted, so restoring the
+  // case reparents it to the project root.
+  restoresToRoot?: boolean
 }
 
 interface DeletedRow {
@@ -24,7 +27,7 @@ interface DeletedRow {
 
 interface RecycleBinResponse {
   suites: ({ id: string; name: string } & DeletedRow)[]
-  cases: ({ id: string; title: string } & DeletedRow)[]
+  cases: ({ id: string; title: string; restores_to_root?: boolean } & DeletedRow)[]
   // Present only for admins (runs are an admin-only concern); may be absent.
   runs?: ({ id: string; name: string } & DeletedRow)[]
 }
@@ -117,7 +120,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       const data = (await res.json()) as RecycleBinResponse
       const merged: RecycleItem[] = [
         ...data.suites.map((s) => ({ id: s.id, label: s.name, deleted_at: s.deleted_at, deletedBy: s.deleted_by_name ?? null, type: "suite" as const })),
-        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, deletedBy: c.deleted_by_name ?? null, type: "case" as const })),
+        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, deletedBy: c.deleted_by_name ?? null, restoresToRoot: c.restores_to_root ?? false, type: "case" as const })),
         ...(data.runs ?? []).map((r) => ({ id: r.id, label: r.name, deleted_at: r.deleted_at, deletedBy: r.deleted_by_name ?? null, type: "run" as const })),
       ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at))
       setItems(merged)
@@ -143,6 +146,9 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
         notifyRecycleBinChanged()
+        // Resync — restoring a suite also un-deletes its child cases, which are
+        // listed individually, so the server view can differ from the optimistic one.
+        void refetch()
         toast("success", `Restored ${noun}`)
       } catch {
         toast("error", `Couldn't restore ${noun}. Please try again.`)
@@ -154,7 +160,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         })
       }
     },
-    [bases, setItems, toast]
+    [bases, refetch, setItems, toast]
   )
 
   // Fan a batch operation across all three types with correct plural nouns.
@@ -191,12 +197,14 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
         notifyRecycleBinChanged()
+        // Resync — purging a suite also purges its child cases (listed separately).
+        void refetch()
         toast("success", `Permanently deleted ${noun}`)
       } catch {
         toast("error", `Couldn't delete ${noun}. Please try again.`)
       }
     },
-    [bases, setItems, toast]
+    [bases, refetch, setItems, toast]
   )
 
   const runPurge = useCallback(async () => {
@@ -297,6 +305,12 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
                     <>
                       <span aria-hidden="true"> · </span>
                       by {item.deletedBy}
+                    </>
+                  )}
+                  {item.restoresToRoot && (
+                    <>
+                      <span aria-hidden="true"> · </span>
+                      <span className="text-gray-400">restores to root</span>
                     </>
                   )}
                 </p>

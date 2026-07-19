@@ -405,8 +405,9 @@ describe("Suite routes integration (TC-01)", () => {
     expect(ids).toContain(child)
   })
 
-  it("GET /recycle-bin lists deleted suites + standalone deleted cases (dedups cases under a deleted suite)", async () => {
-    // A suite with a case, then deleted → suite appears; its child case does not.
+  it("GET /recycle-bin lists deleted suites AND every deleted case individually, flagging child cases as restores_to_root", async () => {
+    // A suite with a case, then deleted → both the suite and its child case
+    // appear (the child is independently restorable, VEL-31).
     const suite = await mkSuite("Bin suite")
     const childCase = await mkCase("Child of bin suite", suite)
     await appA.inject({
@@ -426,12 +427,21 @@ describe("Suite routes integration (TC-01)", () => {
       url: `/api/workspaces/${workspaceA}/projects/${projectA}/recycle-bin`,
     })
     expect(res.statusCode).toBe(200)
-    const body = res.json() as { suites: Array<{ id: string }>; cases: Array<{ id: string }> }
+    const body = res.json() as {
+      suites: Array<{ id: string }>
+      cases: Array<{ id: string; restores_to_root: boolean }>
+    }
 
     expect(body.suites.map((s) => s.id)).toContain(suite)
-    expect(body.cases.map((c) => c.id)).toContain(soloId)
-    // The child case is represented by its (deleted) suite, not listed separately.
-    expect(body.cases.map((c) => c.id)).not.toContain(childCase)
+
+    const solo = body.cases.find((c) => c.id === soloId)
+    const child = body.cases.find((c) => c.id === childCase)
+    expect(solo).toBeDefined()
+    expect(child).toBeDefined()
+    // The child's suite is still deleted → restoring it lands it at the root.
+    expect(child?.restores_to_root).toBe(true)
+    // The standalone case has no deleted parent → stays where it is.
+    expect(solo?.restores_to_root).toBe(false)
   })
 
   it("GET /recycle-bin attributes a deleted suite to the user who deleted it", async () => {

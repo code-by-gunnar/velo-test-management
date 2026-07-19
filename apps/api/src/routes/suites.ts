@@ -523,18 +523,22 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
           ORDER BY s.deleted_at DESC
         ` as unknown as { id: string; name: string; deleted_at: string; deleted_by_name: string | null }[]
 
+        // Every soft-deleted case is listed individually — including those
+        // recycled as part of a deleted suite — so each can be restored on its
+        // own (VEL-31). `restores_to_root` flags a case whose parent suite is
+        // still deleted: restoring it will reparent it to the project root.
         const cases = await tx`
-          SELECT c.id, c.title, c.deleted_at, u.name AS deleted_by_name
+          SELECT c.id, c.title, c.deleted_at, u.name AS deleted_by_name,
+            (c.suite_id IS NOT NULL AND c.suite_id IN (
+              SELECT id FROM suites WHERE deleted_at IS NOT NULL
+            )) AS restores_to_root
           FROM test_cases c
           LEFT JOIN users u ON u.id = c.deleted_by
           WHERE c.project_id = ${projectId}::uuid
             AND c.deleted_at IS NOT NULL
-            AND (c.suite_id IS NULL OR c.suite_id NOT IN (
-              SELECT id FROM suites WHERE deleted_at IS NOT NULL
-            ))
             AND c.workspace_id = current_setting('app.workspace_id', true)::uuid
           ORDER BY c.deleted_at DESC
-        ` as unknown as { id: string; title: string; deleted_at: string; deleted_by_name: string | null }[]
+        ` as unknown as { id: string; title: string; deleted_at: string; deleted_by_name: string | null; restores_to_root: boolean }[]
 
         // Runs are an admin-only concern end-to-end (delete/restore/purge all
         // require admin), so only admins see them in the bin. Editors get none.
