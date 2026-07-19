@@ -65,6 +65,19 @@ export function useLinearImport({ workspaceId, projectId, onSuccess }: UseLinear
       const data = await res.json() as {
         issue: LinearIssue
         suggested_cases: SuggestedCase[]
+        parse_failed?: boolean
+      }
+
+      // The model returned structured output we couldn't parse (more common with
+      // local LLMs). Show a retry prompt rather than a misleading empty preview.
+      if (data.parse_failed && data.suggested_cases.length === 0) {
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          issue: data.issue,
+          error: "The AI response couldn't be parsed. This can happen with local models — please try again.",
+        }))
+        return
       }
 
       setState({

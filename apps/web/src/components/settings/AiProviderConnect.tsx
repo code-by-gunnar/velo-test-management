@@ -243,6 +243,11 @@ export function AiProviderConnect({ workspaceId }: AiProviderConnectProps) {
                   className={inputClass}
                 />
               </div>
+              <p className="text-[10px] text-gray-400">
+                Import quality scales with the model and hardware behind this endpoint. Smaller local
+                models may return fewer or less detailed test cases than hosted providers — try a larger
+                model if results feel thin.
+              </p>
             </div>
           )}
 

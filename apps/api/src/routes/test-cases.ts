@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
-import { getAiClientForWorkspace } from "../lib/ai.js"
+import { getAiClientForWorkspace, getActiveProvider } from "../lib/ai.js"
+import { parseAiTestCases } from "../lib/parse-ai-cases.js"
 import { withWorkspace } from "../db/tenant.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
@@ -969,28 +970,16 @@ ${testFormat === "gwt"
 }`
 
       try {
-        const text = await ai.complete(prompt)
-        let suggestedCases: Array<{
-          title: string
-          steps: Array<{ action: string; expected_result?: string; step_type?: string }>
-        }>
+        let { cases: suggestedCases, parseFailed } = parseAiTestCases(await ai.complete(prompt))
 
-        try {
-          suggestedCases = JSON.parse(text)
-          if (!Array.isArray(suggestedCases)) suggestedCases = []
-        } catch {
-          // If Claude returned markdown-wrapped JSON or truncated output, try to extract
-          try {
-            const jsonMatch = text.match(/\[[\s\S]*\]/)
-            if (jsonMatch) {
-              suggestedCases = JSON.parse(jsonMatch[0])
-            } else {
-              suggestedCases = []
-            }
-          } catch {
-            // JSON is malformed (truncated, trailing comma, etc.) — return empty
-            fastify.log.warn({ textLength: text.length }, "Claude returned unparseable JSON for linear-import")
-            suggestedCases = []
+        // A parse failure means the model produced structured-looking output we
+        // couldn't parse (small local models occasionally garble JSON). Retry
+        // once — it's usually transient — before giving up.
+        if (parseFailed) {
+          ;({ cases: suggestedCases, parseFailed } = parseAiTestCases(await ai.complete(prompt)))
+          if (parseFailed) {
+            const provider = await getActiveProvider(workspaceId)
+            fastify.log.warn({ provider, workspaceId, projectId, issue_id }, "AI returned unparseable JSON for linear-import after retry")
           }
         }
 
@@ -998,6 +987,7 @@ ${testFormat === "gwt"
           workspace_id: workspaceId,
           project_id: projectId,
           suggested_count: suggestedCases.length,
+          parse_failed: parseFailed,
         })
 
         return reply.send({
@@ -1009,9 +999,10 @@ ${testFormat === "gwt"
             url: issue.url,
           },
           suggested_cases: suggestedCases,
+          parse_failed: parseFailed,
         })
       } catch (err) {
-        fastify.log.error({ err, workspaceId, projectId, issue_id }, "Claude API call failed")
+        fastify.log.error({ err, workspaceId, projectId, issue_id }, "AI completion failed for linear-import")
         return reply.status(502).send({ error: "AI service temporarily unavailable. Please try again." })
       }
     }

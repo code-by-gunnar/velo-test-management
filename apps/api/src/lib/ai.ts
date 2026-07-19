@@ -15,6 +15,13 @@ export interface AiClient {
 
 export const AI_PROVIDERS: readonly AiProvider[] = ["anthropic", "openai", "custom"] as const
 
+// Spec-to-test extraction is a near-deterministic task. A low temperature cuts
+// malformed JSON and run-to-run variance — the difference between a small local
+// model returning cases on the first try vs. a garbled response we must retry.
+// 0.4 balances that reliability against surfacing enough distinct cases (0.2
+// parsed cleanly but ran lean on rich specs).
+const EXTRACTION_TEMPERATURE = 0.4
+
 export function isAiProvider(v: string): v is AiProvider {
   return v === "anthropic" || v === "openai" || v === "custom"
 }
@@ -106,6 +113,7 @@ function buildClient(provider: AiProvider, config: ProviderConfig): AiClient | n
         const msg = await client.messages.create({
           model: config.model ?? DEFAULT_MODEL.anthropic!,
           max_tokens: 4096,
+          temperature: EXTRACTION_TEMPERATURE,
           messages: [{ role: "user", content: prompt }],
         })
         return msg.content[0]?.type === "text" ? msg.content[0].text : ""
@@ -126,6 +134,7 @@ function buildClient(provider: AiProvider, config: ProviderConfig): AiClient | n
       const res = await client.chat.completions.create({
         model,
         max_tokens: 4096,
+        temperature: EXTRACTION_TEMPERATURE,
         messages: [{ role: "user", content: prompt }],
       })
       return res.choices[0]?.message?.content ?? ""
