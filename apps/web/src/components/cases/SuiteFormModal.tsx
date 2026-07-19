@@ -72,7 +72,6 @@ export function SuiteFormModal({
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">Name</label>
           <input
-            autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void handleSave() }}
