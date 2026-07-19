@@ -91,6 +91,22 @@ describe("CaseList — bulk delete feedback", () => {
     expect(refetch).toHaveBeenCalled()
   })
 
+  it("notifies the recycle-bin badge on delete (dispatches velo:recycle-bin-changed)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 }) as Response))
+    const dispatched = vi.spyOn(window, "dispatchEvent")
+    const user = userEvent.setup()
+    renderList()
+
+    await selectAllThenDelete(user)
+
+    await waitFor(() =>
+      expect(
+        dispatched.mock.calls.some((c) => (c[0] as Event).type === "velo:recycle-bin-changed")
+      ).toBe(true)
+    )
+    dispatched.mockRestore()
+  })
+
   it("offers Undo after delete, which restores the deleted cases via the API", async () => {
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }) as Response)
     vi.stubGlobal("fetch", fetchMock)

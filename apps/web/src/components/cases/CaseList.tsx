@@ -19,6 +19,7 @@ import { Button, useToast } from "@/components/ui"
 import { ArrowUp, ArrowDown, Sparkles, Pencil, ClipboardList } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
+import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 import { CaseListRow } from "./CaseListRow"
 import { BulkActionBar } from "./BulkActionBar"
 import { SuiteFormModal } from "./SuiteFormModal"
@@ -182,6 +183,7 @@ export function CaseList({
         return
       }
       toast("success", `Restored ${ids.length} ${noun}`)
+      notifyRecycleBinChanged()
       refetch()
     } catch {
       toast("error", "Couldn't undo — check your connection and retry.")
@@ -212,6 +214,7 @@ export function CaseList({
       setSelectedIds(new Set())
       if (action === "delete") {
         // Soft delete → offer an immediate Undo (restores deleted_at).
+        notifyRecycleBinChanged()
         toast("success", `Deleted ${count} ${noun}`, {
           action: { label: "Undo", onClick: () => { void undoDelete(ids) } },
         })

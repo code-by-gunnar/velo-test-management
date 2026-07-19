@@ -19,6 +19,7 @@ import {
 import { Trash2, Inbox } from "lucide-react"
 import { useToast, ConfirmDialog } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
+import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 import { SuiteTreeItem } from "./SuiteTreeItem"
 import { SuiteFormModal } from "./SuiteFormModal"
 
@@ -129,6 +130,7 @@ export function SuiteTree({
       )
       if (res.ok) {
         onSuiteCreated?.()
+        notifyRecycleBinChanged()
         toast("success", `Restored ${ids.length} ${noun}`)
       } else {
         toast("error", "Couldn't undo — please try again.")
@@ -159,6 +161,7 @@ export function SuiteTree({
         }
         onSuiteCreated?.()
         exitSelectMode()
+        notifyRecycleBinChanged()
         toast("success", `Deleted ${ids.length} ${noun}`, {
           action: { label: "Undo", onClick: () => { void undoBulkDelete(ids) } },
         })
