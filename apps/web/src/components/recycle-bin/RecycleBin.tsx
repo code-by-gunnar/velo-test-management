@@ -264,6 +264,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-gray-500">
           {items.length} deleted {items.length === 1 ? "item" : "items"}
+          <span className="text-gray-400"> · removed automatically after 30 days</span>
         </p>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => setConfirmTarget({ kind: "all" })}>

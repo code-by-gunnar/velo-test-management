@@ -5,6 +5,7 @@ import { sql } from "../db/client.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { r2Enabled, listR2Objects, deleteR2Objects } from "../lib/r2.js"
 import { sendLifecycleEmails } from "../lib/email.js"
+import { purgeExpiredRecycleBin } from "../lib/recycle-bin-sweep.js"
 import type { LifecycleJobData } from "./lifecycle.queue.js"
 import { lifecycleQueue } from "./lifecycle.queue.js"
 
@@ -216,6 +217,16 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
             { type: "user-erasure", userId: er.user_id, workspaceId: er.workspace_id },
             { jobId: `user-erase-${er.user_id}` }
           )
+        }
+
+        // VEL-31: permanently purge recycle-bin items past the retention window.
+        try {
+          const purged = await purgeExpiredRecycleBin()
+          console.log(
+            `[lifecycle-worker] recycle-bin purge: ${purged.runs} runs, ${purged.cases} cases, ${purged.suites} suites, ${purged.r2ObjectsDeleted} R2 objects`
+          )
+        } catch (err) {
+          console.error("[lifecycle-worker] recycle-bin purge failed:", err)
         }
 
         console.log(
