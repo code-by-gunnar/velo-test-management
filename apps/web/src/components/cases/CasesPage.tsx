@@ -215,17 +215,19 @@ export function CasesPage({ workspaceId, projectId, testFormat }: CasesPageProps
         />
       )}
 
-      {/* Right panel: Case editor (slide-in) */}
-      <CasePanel
-        isOpen={panelOpen}
-        caseId={openCaseId}
-        workspaceId={workspaceId}
-        projectId={projectId}
-        testFormat={testFormat}
-        selectedSuiteId={selectedSuiteId}
-        onClose={handleClosePanel}
-        onSaved={handleSaved}
-      />
+      {/* Case editor popup — mounted only while open for fresh per-open state */}
+      {panelOpen && (
+        <CasePanel
+          isOpen={panelOpen}
+          caseId={openCaseId}
+          workspaceId={workspaceId}
+          projectId={projectId}
+          testFormat={testFormat}
+          selectedSuiteId={selectedSuiteId}
+          onClose={handleClosePanel}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }
