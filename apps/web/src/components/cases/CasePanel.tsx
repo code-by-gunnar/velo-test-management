@@ -3,6 +3,7 @@ import { useUserRole } from "@/hooks/useUserRole"
 import { useForm } from "react-hook-form"
 import { clsx } from "clsx"
 import { Button, Label, Modal } from "@/components/ui"
+import { useToast } from "@/components/ui/toast"
 import { StepEditor, type Step } from "./StepEditor"
 import { GwtStepEditor } from "./GwtStepEditor"
 
@@ -36,9 +37,11 @@ export function CasePanel({
   onSaved,
 }: CasePanelProps) {
   const { canEdit } = useUserRole()
+  const { toast } = useToast()
   const titleRef = useRef<HTMLInputElement>(null)
   const [steps, setSteps] = useState<Step[]>(DEFAULT_STEPS)
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingCase, setIsLoadingCase] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [viewData, setViewData] = useState<{
     title: string
@@ -70,11 +73,14 @@ export function CasePanel({
       setViewData(null)
     } else {
       setIsEditing(false)
+      setIsLoadingCase(true)
       const url = `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${caseId}`
       fetch(url)
-        .then((res) => res.ok ? res.json() : null)
-        .then((data: { title: string; priority: string; preconditions: string | null; steps: Step[] } | null) => {
-          if (!data) return
+        .then((res) => {
+          if (!res.ok) throw new Error(`load failed: ${res.status}`)
+          return res.json()
+        })
+        .then((data: { title: string; priority: string; preconditions: string | null; steps: Step[] }) => {
           setViewData(data)
           reset({
             title: data.title,
@@ -83,7 +89,12 @@ export function CasePanel({
           })
           setSteps(data.steps.length > 0 ? data.steps : DEFAULT_STEPS)
         })
-        .catch(() => {})
+        .catch(() => {
+          // Don't strand the user on a blank modal — tell them and close.
+          toast("error", "Couldn't load this case — please try again.")
+          onClose()
+        })
+        .finally(() => setIsLoadingCase(false))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, caseId])
@@ -110,9 +121,15 @@ export function CasePanel({
       })
 
       if (res.ok) {
+        toast("success", caseId ? "Case saved" : "Case created")
         onSaved()
         onClose()
+      } else {
+        // Keep the editor open so the user's work isn't lost.
+        toast("error", "Couldn't save the case — please try again.")
       }
+    } catch {
+      toast("error", "Couldn't save the case — check your connection and retry.")
     } finally {
       setIsSaving(false)
     }
@@ -152,11 +169,13 @@ export function CasePanel({
     ? "New Test Case"
     : isEditing
       ? "Edit Test Case"
-      : (viewData?.title ?? "Test Case")
+      : isLoadingCase
+        ? "Loading…"
+        : (viewData?.title ?? "Test Case")
 
   const footer = showForm ? (
     <>
-      <span className="mr-auto self-center text-xs text-gray-400">Ctrl+S to save · Esc to close</span>
+      <span className="mr-auto self-center text-xs text-gray-500">Ctrl+S to save · Esc to close</span>
       <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
       <Button
         type="button"
@@ -172,7 +191,7 @@ export function CasePanel({
     <Button
       variant="secondary"
       size="sm"
-      disabled={!canEdit}
+      disabled={!canEdit || isLoadingCase}
       onClick={() => {
         setIsEditing(true)
         setTimeout(() => titleRef.current?.focus(), 0)
@@ -243,6 +262,13 @@ export function CasePanel({
             </div>
           </div>
         </form>
+      ) : isLoadingCase ? (
+        <div className="space-y-4" aria-busy="true">
+          <div className="skeleton h-3 w-20 rounded" />
+          <div className="skeleton h-4 w-3/4 rounded" />
+          <div className="skeleton h-3 w-24 rounded" />
+          <div className="skeleton h-16 w-full rounded" />
+        </div>
       ) : (
         viewData && (
           <div className="space-y-4">
@@ -259,7 +285,7 @@ export function CasePanel({
             <div>
               <Label>Steps</Label>
               {viewData.steps.length === 0 ? (
-                <p className="mt-1 text-sm text-gray-400">No steps</p>
+                <p className="mt-1 text-sm text-gray-500">No steps</p>
               ) : testFormat === "gwt" ? (
                 <div className="mt-2 space-y-1">
                   {viewData.steps.map((step, i) => (
@@ -268,7 +294,7 @@ export function CasePanel({
                         {(step.step_type ?? "given").charAt(0).toUpperCase() + (step.step_type ?? "given").slice(1)}
                       </span>
                       <div className="flex-1 whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
-                        {step.action || <span className="text-gray-300">—</span>}
+                        {step.action || <span className="text-gray-400">—</span>}
                       </div>
                     </div>
                   ))}
@@ -282,10 +308,10 @@ export function CasePanel({
                   {viewData.steps.map((step, i) => (
                     <div key={i} className="grid grid-cols-2 gap-2">
                       <div className="whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
-                        {step.action || <span className="text-gray-300">—</span>}
+                        {step.action || <span className="text-gray-400">—</span>}
                       </div>
                       <div className="whitespace-pre-wrap rounded bg-gray-50 px-2 py-1.5 text-sm text-gray-700">
-                        {step.expected_result || <span className="text-gray-300">—</span>}
+                        {step.expected_result || <span className="text-gray-400">—</span>}
                       </div>
                     </div>
                   ))}
@@ -293,7 +319,7 @@ export function CasePanel({
               )}
             </div>
             {canEdit && (
-              <p className="text-xs text-gray-400">Press E to edit</p>
+              <p className="text-xs text-gray-500">Press E to edit</p>
             )}
           </div>
         )

@@ -16,7 +16,8 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable"
-import { Trash2 } from "lucide-react"
+import { Trash2, Inbox } from "lucide-react"
+import { useToast, ConfirmInline } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { SuiteTreeItem } from "./SuiteTreeItem"
 import { SuiteFormModal } from "./SuiteFormModal"
@@ -69,6 +70,7 @@ export function SuiteTree({
   onSuiteReordered,
 }: SuiteTreeProps) {
   const { canEdit } = useUserRole()
+  const { toast } = useToast()
   const [createOpen, setCreateOpen] = useState(false)
   const [rootSuites, setRootSuites] = useState<Suite[]>(tree)
 
@@ -133,11 +135,15 @@ export function SuiteTree({
         }
         onSuiteCreated?.()
         exitSelectMode()
+      } else {
+        toast("error", "Couldn't delete the selected suites — please try again.")
       }
+    } catch {
+      toast("error", "Couldn't delete the selected suites — check your connection and retry.")
     } finally {
       setIsDeleting(false)
     }
-  }, [checkedIds, workspaceId, projectId, selected, onSelect, onSuiteCreated, exitSelectMode])
+  }, [checkedIds, workspaceId, projectId, selected, onSelect, onSuiteCreated, exitSelectMode, toast])
 
   async function handleSuiteDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -155,7 +161,7 @@ export function SuiteTree({
 
     // Persist to API
     try {
-      await fetch(
+      const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/suites/${activeId}/position`,
         {
           method: "PATCH",
@@ -163,8 +169,9 @@ export function SuiteTree({
           body: JSON.stringify({ position: newPosition }),
         }
       )
+      if (!res.ok) toast("error", "Couldn't save the new order — please try again.")
     } catch {
-      // Ignore network errors — refetch will restore correct state
+      toast("error", "Couldn't save the new order — check your connection and retry.")
     }
 
     // Refetch to confirm server order
@@ -192,7 +199,7 @@ export function SuiteTree({
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-3" style={{ minHeight: 52 }}>
-        <span className="text-xs font-semibold uppercase text-gray-500" style={{ fontSize: 12, letterSpacing: '0.5px' }}>Suites</span>
+        <span className="text-section-label uppercase text-gray-500">Suites</span>
         <div className="flex items-center gap-1">
           {canEdit && !selectMode && rootSuites.length > 0 && (
             <button
@@ -251,23 +258,13 @@ export function SuiteTree({
             </button>
           )}
           {confirmingBulkDelete && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { void handleBulkDelete() }}
-                disabled={isDeleting}
-                className="text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting…" : "Confirm"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmingBulkDelete(false)}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                No
-              </button>
-            </div>
+            <ConfirmInline
+              confirmLabel={`Delete ${checkedIds.size}`}
+              busyLabel="Deleting…"
+              busy={isDeleting}
+              onConfirm={() => { void handleBulkDelete() }}
+              onCancel={() => setConfirmingBulkDelete(false)}
+            />
           )}
         </div>
       )}
@@ -298,7 +295,7 @@ export function SuiteTree({
             )}
             style={{ height: 32, padding: '6px 8px' }}
           >
-            <span className="text-gray-400">◈</span>
+            <Inbox size={15} className="shrink-0" aria-hidden="true" />
             <span>All Cases</span>
           </button>
         )}

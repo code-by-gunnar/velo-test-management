@@ -4,27 +4,8 @@ import { CSS } from "@dnd-kit/utilities"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { useUserRole } from "@/hooks/useUserRole"
-
-type Priority = "critical" | "high" | "medium" | "low"
-
-const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = {
-  critical: {
-    label: "Critical",
-    className: "bg-fail-bg text-fail-text border-fail/20",
-  },
-  high: {
-    label: "High",
-    className: "bg-blocked-bg text-blocked-text border-blocked/20",
-  },
-  medium: {
-    label: "Medium",
-    className: "bg-primary/5 text-primary border-primary/20",
-  },
-  low: {
-    label: "Low",
-    className: "bg-gray-50 text-gray-500 border-gray-200",
-  },
-}
+import { GripVertical } from "lucide-react"
+import { PriorityBadge, type Priority } from "@/components/ui"
 
 interface CaseListRowProps {
   testCase: TestCase
@@ -48,7 +29,6 @@ function findSuiteName(suites: Suite[], suiteId: string): string | null {
 export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suites, onToggleSelect, onOpen }: CaseListRowProps) {
   const { canEdit } = useUserRole()
   const priority = testCase.priority as Priority
-  const priorityCfg = PRIORITY_CONFIG[priority]
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: testCase.id,
@@ -80,10 +60,10 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
           <span
             {...attributes}
             {...listeners}
-            className="flex cursor-grab items-center justify-center text-gray-300 hover:text-gray-500 select-none active:cursor-grabbing"
+            className="flex cursor-grab items-center justify-center rounded text-gray-400 hover:text-gray-600 select-none active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-label="Drag to reorder"
           >
-            &#8801;
+            <GripVertical size={14} aria-hidden="true" />
           </span>
         )}
       </td>
@@ -99,9 +79,16 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
         />
       </td>
 
-      {/* Title */}
+      {/* Title — a real button so the case opens from the keyboard (Enter/Space),
+          not just a row click. stopPropagation avoids a double-open via the tr. */}
       <td className="py-2.5 pr-4">
-        <span className="text-sm text-gray-900 group-hover:text-primary">{testCase.title}</span>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpen(testCase.id) }}
+          className="rounded text-left text-sm text-gray-900 group-hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {testCase.title}
+        </button>
       </td>
 
       {/* Suite (only in All Cases view) */}
@@ -113,14 +100,7 @@ export function CaseListRow({ testCase, index, isSelected, showSuiteColumn, suit
 
       {/* Priority */}
       <td className="py-2.5 pr-4">
-        <span
-          className={clsx(
-            "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-            priorityCfg.className
-          )}
-        >
-          {priorityCfg.label}
-        </span>
+        <PriorityBadge priority={priority} />
       </td>
 
       {/* Steps count */}

@@ -17,3 +17,6 @@ claude.nd
 # Sentry Config File
 .env.sentry-build-plugin
 .playwright-mcp/
+
+# Impeccable design-review snapshots (local tooling)
+.impeccable/

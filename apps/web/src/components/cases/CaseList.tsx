@@ -15,8 +15,8 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable"
-import { Button } from "@/components/ui"
-import { ArrowUp, ArrowDown, Sparkles, Pencil } from "lucide-react"
+import { Button, useToast } from "@/components/ui"
+import { ArrowUp, ArrowDown, Sparkles, Pencil, ClipboardList } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { CaseListRow } from "./CaseListRow"
@@ -73,6 +73,7 @@ export function CaseList({
   refetch,
 }: CaseListProps) {
   const { canEdit } = useUserRole()
+  const { toast } = useToast()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -144,9 +145,10 @@ export function CaseList({
     const reordered = arrayMove(cases, oldIndex, newIndex)
     onCasesChange(reordered)
 
-    // Persist to API
+    // Persist to API. On failure the refetch below restores the true order, but
+    // tell the user their reorder didn't stick rather than silently snapping back.
     try {
-      await fetch(
+      const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/${activeId}/position`,
         {
           method: "PATCH",
@@ -154,12 +156,45 @@ export function CaseList({
           body: JSON.stringify({ position: newPosition }),
         }
       )
+      if (!res.ok) toast("error", "Couldn't save the new order — please try again.")
     } catch {
-      // Ignore network errors — refetch will restore correct state
+      toast("error", "Couldn't save the new order — check your connection and retry.")
     }
 
     // Refetch to get server-confirmed order (in case of renumber)
     refetch()
+  }
+
+  // Single source of truth for the three bulk operations — all POST the same
+  // /cases/bulk endpoint, differing only by action. Checks res.ok and reports
+  // success/failure so a failed move/copy/delete is never silent.
+  async function runBulkAction(action: "move" | "copy" | "delete", targetSuiteId?: string | null) {
+    const count = selectedIds.size
+    const noun = count === 1 ? "case" : "cases"
+    try {
+      const res = await fetch(
+        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            case_ids: [...selectedIds],
+            ...(action !== "delete" ? { target_suite_id: targetSuiteId ?? null } : {}),
+          }),
+        }
+      )
+      if (!res.ok) {
+        toast("error", `Couldn't ${action} ${count} ${noun} — please try again.`)
+        return
+      }
+      setSelectedIds(new Set())
+      const verb = action === "move" ? "Moved" : action === "copy" ? "Copied" : "Deleted"
+      toast("success", `${verb} ${count} ${noun}`)
+      refetch()
+    } catch {
+      toast("error", `Couldn't ${action} ${count} ${noun} — check your connection and retry.`)
+    }
   }
 
   const toggleSelect = (index: number, shiftKey: boolean) => {
@@ -205,14 +240,14 @@ export function CaseList({
   const indeterminate = selectedIds.size > 0 && selectedIds.size < cases.length
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4" style={{ minHeight: 52 }}>
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-900">{suiteName}</span>
             {!isLoading && (
-              <span className="text-xs text-gray-400">{cases.length} {cases.length === 1 ? "case" : "cases"}</span>
+              <span className="text-xs text-gray-500">{cases.length} {cases.length === 1 ? "case" : "cases"}</span>
             )}
             {selectedSuite && canEdit && (
               <button
@@ -220,7 +255,7 @@ export function CaseList({
                 onClick={() => setEditSuiteOpen(true)}
                 aria-label="Edit suite"
                 title="Edit suite"
-                className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                className="inline-flex items-center justify-center rounded p-0.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 pointer-coarse:h-11 pointer-coarse:w-11"
               >
                 <Pencil size={13} />
               </button>
@@ -266,8 +301,8 @@ export function CaseList({
       ) : cases.length === 0 ? (
         // Empty state
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl text-gray-300">
-            ✓
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+            <ClipboardList size={28} aria-hidden="true" />
           </div>
           <div>
             <h3 className="mb-1 text-base font-semibold text-gray-900">No test cases yet</h3>
@@ -306,7 +341,7 @@ export function CaseList({
                     <SortHeader field="suite" label="Suite" sortField={sortField} sortDir={sortDir} onToggle={toggleSort} />
                   )}
                   <SortHeader field="priority" label="Priority" sortField={sortField} sortDir={sortDir} onToggle={toggleSort} />
-                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  <th className="py-2.5 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Steps
                   </th>
                 </tr>
@@ -340,53 +375,9 @@ export function CaseList({
         <BulkActionBar
           selectedCount={selectedIds.size}
           suites={suites}
-          onMove={async (targetSuiteId) => {
-            await fetch(
-              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  action: "move",
-                  case_ids: [...selectedIds],
-                  target_suite_id: targetSuiteId,
-                }),
-              }
-            )
-            setSelectedIds(new Set())
-            refetch()
-          }}
-          onCopy={async (targetSuiteId) => {
-            await fetch(
-              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  action: "copy",
-                  case_ids: [...selectedIds],
-                  target_suite_id: targetSuiteId,
-                }),
-              }
-            )
-            setSelectedIds(new Set())
-            refetch()
-          }}
-          onDelete={async () => {
-            await fetch(
-              `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  action: "delete",
-                  case_ids: [...selectedIds],
-                }),
-              }
-            )
-            setSelectedIds(new Set())
-            refetch()
-          }}
+          onMove={(targetSuiteId) => runBulkAction("move", targetSuiteId)}
+          onCopy={(targetSuiteId) => runBulkAction("copy", targetSuiteId)}
+          onDelete={() => runBulkAction("delete")}
           onClearSelection={() => setSelectedIds(new Set())}
         />
       )}
@@ -425,7 +416,7 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onToggle(field)}
-        className="group inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600"
+        className="group inline-flex items-center gap-1 rounded text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         {label}
         {active ? (

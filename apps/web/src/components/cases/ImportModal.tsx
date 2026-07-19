@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, type DragEvent, type ChangeEvent } from "react"
 import { useImport, type ColumnMapping } from "@/hooks/useImport"
+import { Upload, X, Check } from "lucide-react"
 import { Button } from "@/components/ui"
 
 interface ImportModalProps {
@@ -89,7 +90,7 @@ function FilePicker({ onFile, error, testFormat }: FilePickerProps) {
         }}
         aria-label="Upload file"
       >
-        <div className="text-4xl text-gray-300">&#8679;</div>
+        <Upload className="text-gray-400" size={32} aria-hidden="true" />
         <div>
           <p className="text-sm font-medium text-gray-700">
             Drop your CSV file here
@@ -374,10 +375,10 @@ export function ImportModal({
           <h2 className="text-base font-semibold text-gray-900">Import Test Cases</h2>
           <button
             onClick={handleClose}
-            className="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="inline-flex items-center justify-center rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-coarse:h-11 pointer-coarse:w-11"
             aria-label="Close"
           >
-            &#10005;
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
@@ -414,8 +415,8 @@ export function ImportModal({
           {/* Step 3b: Done */}
           {state.status === "done" && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pass-bg text-2xl text-pass">
-                ✓
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pass-bg text-pass">
+                <Check size={24} aria-hidden="true" />
               </div>
               <p className="text-base font-semibold text-gray-900">
                 {state.importedCount} {state.importedCount === 1 ? "case" : "cases"} imported
@@ -429,8 +430,8 @@ export function ImportModal({
           {/* Step 3c: Error during import */}
           {state.status === "error" && state.file && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-fail-bg text-2xl text-fail">
-                &#10005;
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-fail-bg text-fail">
+                <X size={24} aria-hidden="true" />
               </div>
               <p className="text-sm text-gray-700">{state.error}</p>
               <div className="flex gap-3">
