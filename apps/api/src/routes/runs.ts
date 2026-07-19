@@ -691,7 +691,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
 
       await withWorkspace(workspaceId, async (tx) => {
         await tx`
-          UPDATE test_runs SET deleted_at = NOW()
+          UPDATE test_runs SET deleted_at = NOW(), deleted_by = ${request.userId}::uuid
           WHERE id = ${runId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
             AND deleted_at IS NULL

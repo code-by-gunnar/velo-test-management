@@ -434,6 +434,24 @@ describe("Suite routes integration (TC-01)", () => {
     expect(body.cases.map((c) => c.id)).not.toContain(childCase)
   })
 
+  it("GET /recycle-bin attributes a deleted suite to the user who deleted it", async () => {
+    await sql`UPDATE users SET name = 'Deleter Dana' WHERE id = ${userId}::uuid`
+    const suiteId = await mkSuite("Attributed suite")
+
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${suiteId}`,
+    })
+
+    const res = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/recycle-bin`,
+    })
+    const body = res.json() as { suites: Array<{ id: string; deleted_by_name: string | null }> }
+    const row = body.suites.find((s) => s.id === suiteId)
+    expect(row?.deleted_by_name).toBe("Deleter Dana")
+  })
+
   it("GET /recycle-bin includes soft-deleted runs for an admin", async () => {
     const runId = uuidv7()
     await sql`

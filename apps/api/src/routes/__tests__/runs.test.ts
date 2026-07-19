@@ -628,6 +628,15 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     expect(detailRes.statusCode).toBe(404)
   })
 
+  it("DELETE /runs/:id records deleted_by (attribution for the recycle bin)", async () => {
+    const runId = await createRun("Attributed run")
+    await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/runs/${runId}` })
+    const row = (await sql`SELECT deleted_by FROM test_runs WHERE id = ${runId}::uuid`)[0] as
+      | { deleted_by: string | null }
+      | undefined
+    expect(row?.deleted_by).toBe(userId)
+  })
+
   it("POST /runs/bulk-restore brings a recycled run back into the list", async () => {
     const runId = await createRun("Run to restore")
     await app.inject({ method: "DELETE", url: `/api/workspaces/${workspaceId}/runs/${runId}` })

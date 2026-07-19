@@ -634,6 +634,26 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(keepRow[0]?.deleted_at).toBeNull()
   })
 
+  it("action=delete: records deleted_by (attribution for the recycle bin)", async () => {
+    const mkRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Attributed case", priority: "low", steps: [] },
+    })
+    const caseId = (mkRes.json() as { id: string }).id
+
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "delete", case_ids: [caseId] },
+    })
+
+    const row = (await sql`SELECT deleted_by FROM test_cases WHERE id = ${caseId}::uuid`)[0] as
+      | { deleted_by: string | null }
+      | undefined
+    expect(row?.deleted_by).toBe(userId)
+  })
+
   it("action=restore: clears deleted_at so soft-deleted cases come back (Undo)", async () => {
     const mk = async (title: string) => {
       const res = await appA.inject({

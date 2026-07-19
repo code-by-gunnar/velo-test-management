@@ -13,14 +13,20 @@ interface RecycleItem {
   id: string
   label: string
   deleted_at: string
+  deletedBy: string | null
   type: RecycleType
 }
 
+interface DeletedRow {
+  deleted_at: string
+  deleted_by_name?: string | null
+}
+
 interface RecycleBinResponse {
-  suites: { id: string; name: string; deleted_at: string }[]
-  cases: { id: string; title: string; deleted_at: string }[]
+  suites: ({ id: string; name: string } & DeletedRow)[]
+  cases: ({ id: string; title: string } & DeletedRow)[]
   // Present only for admins (runs are an admin-only concern); may be absent.
-  runs?: { id: string; name: string; deleted_at: string }[]
+  runs?: ({ id: string; name: string } & DeletedRow)[]
 }
 
 interface RecycleBinProps {
@@ -110,9 +116,9 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
       if (!res.ok) return
       const data = (await res.json()) as RecycleBinResponse
       const merged: RecycleItem[] = [
-        ...data.suites.map((s) => ({ id: s.id, label: s.name, deleted_at: s.deleted_at, type: "suite" as const })),
-        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, type: "case" as const })),
-        ...(data.runs ?? []).map((r) => ({ id: r.id, label: r.name, deleted_at: r.deleted_at, type: "run" as const })),
+        ...data.suites.map((s) => ({ id: s.id, label: s.name, deleted_at: s.deleted_at, deletedBy: s.deleted_by_name ?? null, type: "suite" as const })),
+        ...data.cases.map((c) => ({ id: c.id, label: c.title, deleted_at: c.deleted_at, deletedBy: c.deleted_by_name ?? null, type: "case" as const })),
+        ...(data.runs ?? []).map((r) => ({ id: r.id, label: r.name, deleted_at: r.deleted_at, deletedBy: r.deleted_by_name ?? null, type: "run" as const })),
       ].sort((a, b) => b.deleted_at.localeCompare(a.deleted_at))
       setItems(merged)
     } catch {
@@ -287,6 +293,12 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
                   {meta.label}
                   <span aria-hidden="true"> · </span>
                   deleted {relativeTime(item.deleted_at)}
+                  {item.deletedBy && (
+                    <>
+                      <span aria-hidden="true"> · </span>
+                      by {item.deletedBy}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-1">

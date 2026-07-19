@@ -60,6 +60,16 @@ export async function runFixups() {
          ON test_runs (project_id, created_at)
          WHERE deleted_at IS NULL`
     )
+    // VEL-31: who soft-deleted each recycle-bin item (attribution in the bin).
+    await fixupClient.unsafe(
+      `ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL`
+    )
+    await fixupClient.unsafe(
+      `ALTER TABLE suites ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL`
+    )
+    await fixupClient.unsafe(
+      `ALTER TABLE test_runs ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL`
+    )
     // Phase 3: run_item_step_comments table (migration 0003 skipped in prior deploy)
     await fixupClient.unsafe(`
       CREATE TABLE IF NOT EXISTS run_item_step_comments (

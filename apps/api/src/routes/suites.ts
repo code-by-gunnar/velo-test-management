@@ -7,7 +7,12 @@ import { requireEditor } from "../plugins/require-editor.js"
 // every case within that subtree (VEL-31 — deleting a suite recycles its cases,
 // restorable together). The recursive CTE walks parent_id regardless of
 // deleted_at so it also covers already-partially-deleted subtrees.
-async function softDeleteSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: string[]): Promise<void> {
+async function softDeleteSuiteSubtree(
+  tx: WorkspaceSql,
+  projectId: string,
+  ids: string[],
+  deletedBy: string
+): Promise<void> {
   await tx`
     WITH RECURSIVE subtree AS (
       SELECT id FROM suites
@@ -20,11 +25,11 @@ async function softDeleteSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: 
       WHERE s.workspace_id = current_setting('app.workspace_id', true)::uuid
     ),
     del_suites AS (
-      UPDATE suites SET deleted_at = NOW()
+      UPDATE suites SET deleted_at = NOW(), deleted_by = ${deletedBy}::uuid
       WHERE id IN (SELECT id FROM subtree) AND deleted_at IS NULL
       RETURNING id
     )
-    UPDATE test_cases SET deleted_at = NOW()
+    UPDATE test_cases SET deleted_at = NOW(), deleted_by = ${deletedBy}::uuid
     WHERE suite_id IN (SELECT id FROM subtree) AND deleted_at IS NULL
   `
 }
@@ -395,7 +400,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suiteId" })
       }
 
-      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, [suiteId]))
+      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, [suiteId], request.userId))
 
       return reply.status(204).send()
     }
@@ -425,7 +430,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suite id in array" })
       }
 
-      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, ids))
+      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, ids, request.userId))
 
       return reply.status(204).send()
     }
@@ -509,38 +514,41 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
 
       const data = await withWorkspace(workspaceId, async (tx) => {
         const suites = await tx`
-          SELECT id, name, deleted_at
-          FROM suites
-          WHERE project_id = ${projectId}::uuid
-            AND deleted_at IS NOT NULL
-            AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          ORDER BY deleted_at DESC
-        ` as unknown as { id: string; name: string; deleted_at: string }[]
+          SELECT s.id, s.name, s.deleted_at, u.name AS deleted_by_name
+          FROM suites s
+          LEFT JOIN users u ON u.id = s.deleted_by
+          WHERE s.project_id = ${projectId}::uuid
+            AND s.deleted_at IS NOT NULL
+            AND s.workspace_id = current_setting('app.workspace_id', true)::uuid
+          ORDER BY s.deleted_at DESC
+        ` as unknown as { id: string; name: string; deleted_at: string; deleted_by_name: string | null }[]
 
         const cases = await tx`
-          SELECT id, title, deleted_at
-          FROM test_cases
-          WHERE project_id = ${projectId}::uuid
-            AND deleted_at IS NOT NULL
-            AND (suite_id IS NULL OR suite_id NOT IN (
+          SELECT c.id, c.title, c.deleted_at, u.name AS deleted_by_name
+          FROM test_cases c
+          LEFT JOIN users u ON u.id = c.deleted_by
+          WHERE c.project_id = ${projectId}::uuid
+            AND c.deleted_at IS NOT NULL
+            AND (c.suite_id IS NULL OR c.suite_id NOT IN (
               SELECT id FROM suites WHERE deleted_at IS NOT NULL
             ))
-            AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          ORDER BY deleted_at DESC
-        ` as unknown as { id: string; title: string; deleted_at: string }[]
+            AND c.workspace_id = current_setting('app.workspace_id', true)::uuid
+          ORDER BY c.deleted_at DESC
+        ` as unknown as { id: string; title: string; deleted_at: string; deleted_by_name: string | null }[]
 
         // Runs are an admin-only concern end-to-end (delete/restore/purge all
         // require admin), so only admins see them in the bin. Editors get none.
         const runs =
           request.userRole === "admin"
             ? ((await tx`
-                SELECT id, name, deleted_at
-                FROM test_runs
-                WHERE project_id = ${projectId}::uuid
-                  AND deleted_at IS NOT NULL
-                  AND workspace_id = current_setting('app.workspace_id', true)::uuid
-                ORDER BY deleted_at DESC
-              `) as unknown as { id: string; name: string; deleted_at: string }[])
+                SELECT r.id, r.name, r.deleted_at, u.name AS deleted_by_name
+                FROM test_runs r
+                LEFT JOIN users u ON u.id = r.deleted_by
+                WHERE r.project_id = ${projectId}::uuid
+                  AND r.deleted_at IS NOT NULL
+                  AND r.workspace_id = current_setting('app.workspace_id', true)::uuid
+                ORDER BY r.deleted_at DESC
+              `) as unknown as { id: string; name: string; deleted_at: string; deleted_by_name: string | null }[])
             : []
 
         return { suites, cases, runs }

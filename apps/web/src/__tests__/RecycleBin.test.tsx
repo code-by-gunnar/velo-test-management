@@ -15,9 +15,9 @@ import { ToastProvider } from "@/components/ui/toast"
 import { RecycleBin } from "@/components/recycle-bin/RecycleBin"
 
 const DATA = {
-  suites: [{ id: "s1", name: "Login suite", deleted_at: "2026-07-18T10:00:00Z" }],
-  cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z" }],
-  runs: [{ id: "r1", name: "Smoke run", deleted_at: "2026-07-18T12:00:00Z" }],
+  suites: [{ id: "s1", name: "Login suite", deleted_at: "2026-07-18T10:00:00Z", deleted_by_name: "Ada Lovelace" }],
+  cases: [{ id: "c1", title: "Password reset", deleted_at: "2026-07-18T11:00:00Z", deleted_by_name: null }],
+  runs: [{ id: "r1", name: "Smoke run", deleted_at: "2026-07-18T12:00:00Z", deleted_by_name: "Ada Lovelace" }],
 }
 
 /** fetch stub: GET recycle-bin returns DATA, every mutation returns ok. */
@@ -50,6 +50,15 @@ describe("RecycleBin", () => {
     renderBin()
     expect(await screen.findByText("Login suite")).toBeDefined()
     expect(screen.getByText("Password reset")).toBeDefined()
+  })
+
+  it("attributes an item to whoever deleted it", async () => {
+    stubFetch()
+    renderBin()
+    // Suite + run were deleted by a known user → both show "by Ada Lovelace";
+    // the case's deleter is unknown (null) → no dangling "by" (so exactly 2).
+    const attributed = await screen.findAllByText(/by Ada Lovelace/i)
+    expect(attributed).toHaveLength(2)
   })
 
   it("shows an empty state when nothing is deleted", async () => {

@@ -646,7 +646,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         await withWorkspace(workspaceId, async (tx) => {
           await tx`
             UPDATE test_cases
-            SET deleted_at = NOW()
+            SET deleted_at = NOW(), deleted_by = ${request.userId}::uuid
             WHERE id = ANY(${case_ids}::uuid[])
               AND project_id = ${projectId}::uuid
           `
