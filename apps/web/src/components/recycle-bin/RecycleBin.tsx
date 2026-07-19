@@ -3,6 +3,7 @@ import { FolderTree, FileText, Play, RotateCcw, Trash2, Undo2 } from "lucide-rea
 import { Button, ConfirmDialog } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { useCachedState } from "@/hooks/useCachedState"
+import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 
 type RecycleType = "suite" | "case" | "run"
 
@@ -66,14 +67,6 @@ const TYPE_META: Record<RecycleType, { icon: typeof FolderTree; tone: string; la
   suite: { icon: FolderTree, tone: "text-primary", label: "Suite" },
   case: { icon: FileText, tone: "text-gray-400", label: "Case" },
   run: { icon: Play, tone: "text-gray-400", label: "Run" },
-}
-
-// Other surfaces (sidebar badge, cases page) listen for this to refresh once an
-// item leaves the bin. Mirrors the existing `velo:project-updated` convention.
-function announceChange() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("velo:recycle-bin-changed"))
-  }
 }
 
 function relativeTime(iso: string): string {
@@ -143,7 +136,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         const res = await fetch(url, init)
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
-        announceChange()
+        notifyRecycleBinChanged()
         toast("success", `Restored ${noun}`)
       } catch {
         toast("error", `Couldn't restore ${noun}. Please try again.`)
@@ -191,7 +184,7 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         const res = await fetch(url, init)
         if (!res.ok) throw new Error(String(res.status))
         setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
-        announceChange()
+        notifyRecycleBinChanged()
         toast("success", `Permanently deleted ${noun}`)
       } catch {
         toast("error", `Couldn't delete ${noun}. Please try again.`)

@@ -7,6 +7,7 @@ import { useUserRole } from "@/hooks/useUserRole"
 import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
+import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
 import { useRunSSE } from "@/hooks/useRunSSE"
 import { DefectBadge } from "@/components/runs/DefectBadge"
@@ -181,6 +182,7 @@ export default function RunDetailPage({
         body: JSON.stringify({ ids: [runId] }),
       })
       if (!res.ok) throw new Error(String(res.status))
+      notifyRecycleBinChanged()
       toast("success", "Run restored")
       void router.push(`/app/${slug}/${projectKey}/runs/${runId}`)
     } catch {
@@ -196,6 +198,7 @@ export default function RunDetailPage({
         { method: "DELETE" }
       )
       if (res.ok) {
+        notifyRecycleBinChanged()
         toast("success", "Run moved to the recycle bin", { action: { label: "Undo", onClick: () => void undoDeleteRun() } })
         void router.push(`/app/${slug}/${projectKey}/runs`)
       } else {

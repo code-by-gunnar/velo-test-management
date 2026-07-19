@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { Pencil, Trash2, MoreHorizontal, GripVertical, ChevronDown, ChevronRight } from "lucide-react"
 import { useToast, ConfirmInline } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
+import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 
 // Compute mid-gap position for drag reorder.
 // Returns -1 if gap has collapsed (positions equal), signaling server renumber.
@@ -208,6 +209,7 @@ export function SuiteTreeItem({
       )
       if (res.ok) {
         onSuiteChanged?.()
+        notifyRecycleBinChanged()
         toast("success", `Restored “${suite.name}”`)
       } else {
         toast("error", "Couldn't undo — please try again.")
@@ -225,6 +227,7 @@ export function SuiteTreeItem({
       )
       if (res.ok) {
         onSuiteChanged?.()
+        notifyRecycleBinChanged()
         toast("success", `Deleted “${suite.name}”`, {
           action: { label: "Undo", onClick: () => { void undoSuiteDelete() } },
         })

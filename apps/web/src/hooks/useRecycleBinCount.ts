@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { RECYCLE_BIN_CHANGED_EVENT } from "@/lib/recycle-bin-events"
 
 // Live count of soft-deleted items for the sidebar badge. The sidebar only
 // knows the project KEY, so we resolve the id from the projects cache the
@@ -47,10 +48,10 @@ export function useRecycleBinCount(workspaceId: string, projectKey?: string): nu
 
     void load()
     const onChange = () => void load()
-    window.addEventListener("velo:recycle-bin-changed", onChange)
+    window.addEventListener(RECYCLE_BIN_CHANGED_EVENT, onChange)
     return () => {
       cancelled = true
-      window.removeEventListener("velo:recycle-bin-changed", onChange)
+      window.removeEventListener(RECYCLE_BIN_CHANGED_EVENT, onChange)
     }
   }, [workspaceId, projectKey])
 
