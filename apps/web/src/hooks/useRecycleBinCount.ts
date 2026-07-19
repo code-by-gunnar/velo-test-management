@@ -1,15 +1,29 @@
 import { useEffect, useState } from "react"
 import { RECYCLE_BIN_CHANGED_EVENT } from "@/lib/recycle-bin-events"
 
+const countCacheKey = (projectKey: string) => `velo:recycle-bin-count:${projectKey}`
+
 // Live count of soft-deleted items for the sidebar badge. The sidebar only
 // knows the project KEY, so we resolve the id from the projects cache the
 // ProjectSwitcher already maintains (velo:projects:*) rather than adding a
-// second lookup. Best-effort: if the cache isn't warm yet the badge stays 0
-// until the next navigation, which is an acceptable degradation for a hint.
+// second lookup.
 //
-// Refreshes whenever a restore/purge dispatches `velo:recycle-bin-changed`.
+// The count is cached per project (velo:recycle-bin-count:*) and read
+// synchronously on mount, so navigating to a page doesn't flash the badge to
+// zero before the fetch resolves — it renders the last known count instantly,
+// then refreshes. Also refreshes whenever a delete/restore/purge dispatches
+// `velo:recycle-bin-changed`.
 export function useRecycleBinCount(workspaceId: string, projectKey?: string): number {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState<number>(() => {
+    if (typeof window === "undefined" || !projectKey) return 0
+    try {
+      const raw = sessionStorage.getItem(countCacheKey(projectKey))
+      const n = raw ? parseInt(raw, 10) : 0
+      return Number.isFinite(n) ? n : 0
+    } catch {
+      return 0
+    }
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -34,8 +48,8 @@ export function useRecycleBinCount(workspaceId: string, projectKey?: string): nu
       try {
         const res = await fetch(`/api/backend/workspaces/${workspaceId}/projects/${projectId}/recycle-bin`)
         if (!res.ok) return 0
-        const data = (await res.json()) as { suites?: unknown[]; cases?: unknown[] }
-        return (data.suites?.length ?? 0) + (data.cases?.length ?? 0)
+        const data = (await res.json()) as { suites?: unknown[]; cases?: unknown[]; runs?: unknown[] }
+        return (data.suites?.length ?? 0) + (data.cases?.length ?? 0) + (data.runs?.length ?? 0)
       } catch {
         return 0
       }
@@ -43,7 +57,13 @@ export function useRecycleBinCount(workspaceId: string, projectKey?: string): nu
 
     const load = () =>
       computeCount().then((n) => {
-        if (!cancelled) setCount(n)
+        if (cancelled) return
+        setCount(n)
+        try {
+          if (projectKey) sessionStorage.setItem(countCacheKey(projectKey), String(n))
+        } catch {
+          // Storage unavailable — the badge is a hint, not load-bearing.
+        }
       })
 
     void load()
