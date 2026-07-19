@@ -16,11 +16,12 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { Button } from "@/components/ui"
-import { ArrowUp, ArrowDown, Sparkles } from "lucide-react"
+import { ArrowUp, ArrowDown, Sparkles, Pencil } from "lucide-react"
 import type { TestCase } from "@/hooks/useTestCases"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { CaseListRow } from "./CaseListRow"
 import { BulkActionBar } from "./BulkActionBar"
+import { SuiteFormModal } from "./SuiteFormModal"
 
 type SortField = "title" | "suite" | "priority"
 type SortDir = "asc" | "desc"
@@ -76,6 +77,7 @@ export function CaseList({
   const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>("asc")
+  const [editSuiteOpen, setEditSuiteOpen] = useState(false)
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -206,10 +208,26 @@ export function CaseList({
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4" style={{ minHeight: 52 }}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">{suiteName}</span>
-          {!isLoading && (
-            <span className="text-xs text-gray-400">{cases.length} {cases.length === 1 ? "case" : "cases"}</span>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">{suiteName}</span>
+            {!isLoading && (
+              <span className="text-xs text-gray-400">{cases.length} {cases.length === 1 ? "case" : "cases"}</span>
+            )}
+            {selectedSuite && canEdit && (
+              <button
+                type="button"
+                onClick={() => setEditSuiteOpen(true)}
+                aria-label="Edit suite"
+                title="Edit suite"
+                className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+          </div>
+          {selectedSuite?.description && (
+            <span className="text-xs text-gray-500">{selectedSuite.description}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -370,6 +388,18 @@ export function CaseList({
             refetch()
           }}
           onClearSelection={() => setSelectedIds(new Set())}
+        />
+      )}
+
+      {selectedSuite && (
+        <SuiteFormModal
+          isOpen={editSuiteOpen}
+          onClose={() => setEditSuiteOpen(false)}
+          workspaceId={workspaceId}
+          projectId={projectId}
+          mode="edit"
+          suite={selectedSuite}
+          onSaved={() => { refetch() }}
         />
       )}
     </div>
