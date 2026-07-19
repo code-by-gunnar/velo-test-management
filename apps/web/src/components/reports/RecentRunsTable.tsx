@@ -73,7 +73,7 @@ export function RecentRunsTable({ data, slug, projectKey }: RecentRunsTableProps
                     style={{
                       borderColor: r.status === "completed" ? "rgba(61,153,112,0.3)" : r.status === "aborted" ? "rgba(192,57,43,0.3)" : "rgba(45,127,249,0.3)",
                       backgroundColor: r.status === "completed" ? "rgba(61,153,112,0.08)" : r.status === "aborted" ? "rgba(192,57,43,0.08)" : "rgba(45,127,249,0.08)",
-                      color: r.status === "completed" ? "#1B5E42" : r.status === "aborted" ? "#7B241C" : "#2D7FF9",
+                      color: r.status === "completed" ? "#1B5E42" : r.status === "aborted" ? "#7B241C" : "#5B5BD6",
                     }}
                   >
                     {r.status}
