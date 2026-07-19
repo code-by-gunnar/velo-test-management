@@ -179,6 +179,7 @@ export async function runFixups() {
     for (const table of [
       "workspace_members", "projects", "suites", "test_cases", "test_runs",
       "run_items", "defects", "run_item_step_comments", "workspace_invitations",
+      "api_keys",
     ]) {
       await fixupClient.unsafe(`
         ALTER POLICY workspace_isolation ON ${table}
@@ -236,6 +237,24 @@ export async function ensureAppRole() {
           WHERE tablename = 'workspace_members' AND policyname = 'app_members_access'
         ) THEN
           CREATE POLICY app_members_access ON workspace_members
+            FOR ALL TO velo_app USING (true) WITH CHECK (true);
+        END IF;
+      END $$
+    `)
+    // api_keys is looked up by (prefix, hash) from the pre-context auth path
+    // (verifyApiKey, shared by v1 routes + CI ingestion) which never sets
+    // app.workspace_id — the workspace is a RESULT of the lookup, not an input.
+    // Under velo_app the workspace_isolation policy would match zero rows, so
+    // every API key reads as invalid. Same exemption as workspace_members; the
+    // management routes (create/list/revoke) still filter by workspace_id
+    // explicitly inside withWorkspace, so tenant scoping there is unchanged.
+    await client.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE tablename = 'api_keys' AND policyname = 'app_api_keys_access'
+        ) THEN
+          CREATE POLICY app_api_keys_access ON api_keys
             FOR ALL TO velo_app USING (true) WITH CHECK (true);
         END IF;
       END $$
