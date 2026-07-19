@@ -23,7 +23,9 @@ import {
   Plus,
   Check,
   MessageCircle,
+  Trash2,
 } from "lucide-react"
+import { useRecycleBinCount } from "@/hooks/useRecycleBinCount"
 
 interface SidebarProps {
   slug: string
@@ -83,6 +85,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
   }
 
   const effectiveProjectKey = projectKey ?? storedProjectKey ?? undefined
+  const recycleCount = useRecycleBinCount(session?.user?.workspace_id ?? "", effectiveProjectKey)
 
   const toggleCollapsed = () => {
     localStorage.setItem(STORAGE_KEY, String(!collapsed))
@@ -238,6 +241,36 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
               {!collapsed && <span>Project Settings</span>}
             </span>
           )
+        )}
+
+        {/* Recycle Bin */}
+        {effectiveProjectKey && canEdit && (
+          <Link
+            href={`/app/${slug}/${effectiveProjectKey}/recycle-bin`}
+            title={collapsed ? `Recycle Bin${recycleCount > 0 ? ` (${recycleCount})` : ""}` : undefined}
+            className={clsx(
+              "relative flex items-center gap-2.5 rounded-md py-1.5 text-sm transition-colors",
+              collapsed ? "justify-center px-2" : "px-3",
+              router.asPath.includes("/recycle-bin")
+                ? "bg-primary-selected text-primary font-semibold"
+                : "text-gray-800 hover:bg-gray-100"
+            )}
+          >
+            <Trash2 size={ICON_SIZE} className={clsx("shrink-0", router.asPath.includes("/recycle-bin") ? "text-primary" : "text-gray-500")} />
+            {!collapsed && <span className="flex-1">Recycle Bin</span>}
+            {recycleCount > 0 && (
+              collapsed ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-white"
+                />
+              ) : (
+                <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gray-100 px-1.5 text-xs font-medium text-gray-600">
+                  {recycleCount}
+                </span>
+              )
+            )}
+          </Link>
         )}
 
         <div className="my-3 border-t border-gray-200" />
