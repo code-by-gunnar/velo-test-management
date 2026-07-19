@@ -417,6 +417,50 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(204).send()
     }
   )
+
+  // ── GET /recycle-bin — soft-deleted items for the project (VEL-31) ───────────
+  // Returns deleted suites and deleted cases. Cases recycled as part of a deleted
+  // suite are omitted (they belong to the suite item, restored with it).
+  fastify.get<{
+    Params: { workspaceId: string; projectId: string }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/recycle-bin",
+    { preHandler: [requireEditor] },
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      const data = await withWorkspace(workspaceId, async (tx) => {
+        const suites = await tx`
+          SELECT id, name, deleted_at
+          FROM suites
+          WHERE project_id = ${projectId}::uuid
+            AND deleted_at IS NOT NULL
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          ORDER BY deleted_at DESC
+        ` as unknown as { id: string; name: string; deleted_at: string }[]
+
+        const cases = await tx`
+          SELECT id, title, deleted_at
+          FROM test_cases
+          WHERE project_id = ${projectId}::uuid
+            AND deleted_at IS NOT NULL
+            AND (suite_id IS NULL OR suite_id NOT IN (
+              SELECT id FROM suites WHERE deleted_at IS NOT NULL
+            ))
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+          ORDER BY deleted_at DESC
+        ` as unknown as { id: string; title: string; deleted_at: string }[]
+
+        return { suites, cases }
+      })
+
+      return reply.send(data)
+    }
+  )
 }
 
 export default suitesRoutes
