@@ -92,6 +92,31 @@ describe("CasePanel — save feedback", () => {
   })
 })
 
+describe("CasePanel — save & new (rapid authoring)", () => {
+  beforeEach(() => vi.restoreAllMocks())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("saves, keeps the editor open, and resets to a blank case", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 }) as Response))
+    const user = userEvent.setup()
+    const { onClose, onSaved } = renderPanel()
+
+    await act(async () => {
+      await user.type(screen.getByLabelText(/title/i), "First case")
+    })
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /save & new/i }))
+    })
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    // Stays open for the next case…
+    expect(onClose).not.toHaveBeenCalled()
+    // …with a fresh, empty title field.
+    expect((screen.getByLabelText(/title/i) as HTMLInputElement).value).toBe("")
+    expect(screen.getByText(/case created/i)).toBeDefined()
+  })
+})
+
 describe("CasePanel — load feedback (existing case)", () => {
   beforeEach(() => vi.restoreAllMocks())
   afterEach(() => vi.unstubAllGlobals())

@@ -262,6 +262,7 @@ export function SuiteTree({
               confirmLabel={`Delete ${checkedIds.size}`}
               busyLabel="Deleting…"
               busy={isDeleting}
+              message="Deletes the suites and moves their cases to All Cases. Can't be undone."
               onConfirm={() => { void handleBulkDelete() }}
               onCancel={() => setConfirmingBulkDelete(false)}
             />

@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronsUpDown,
   LogOut,
   User,
   Plus,
@@ -312,6 +313,8 @@ function UserMenu({
   const [open, setOpen] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const firstItemRef = useRef<HTMLButtonElement>(null)
 
   // Fetch avatar URL once on mount
   useEffect(() => {
@@ -334,6 +337,20 @@ function UserMenu({
     return () => document.removeEventListener("mousedown", handleClick)
   }, [open])
 
+  // Keyboard: move focus into the menu on open; Escape closes + restores focus.
+  useEffect(() => {
+    if (!open) return
+    firstItemRef.current?.focus()
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [open])
+
   const avatar = avatarUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -350,14 +367,20 @@ function UserMenu({
   return (
     <div className="relative border-t border-gray-200 p-2" ref={menuRef}>
       {open && (
-        <div className="absolute bottom-full left-2 right-2 mb-1 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
+        <div
+          role="menu"
+          aria-label="Account"
+          className="absolute bottom-full left-2 right-2 mb-1 rounded-lg border border-gray-200 bg-white py-1 shadow-card"
+        >
           <button
+            ref={firstItemRef}
             type="button"
+            role="menuitem"
             onClick={() => {
               setOpen(false)
               void router.push(`/app/${slug}/profile`)
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:bg-gray-50 transition-colors"
           >
             <User size={14} className="text-gray-400" />
             Profile
@@ -365,11 +388,12 @@ function UserMenu({
           <div className="mx-2 my-1 border-t border-gray-100" />
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
               clearVeloCache()
               void signOut({ callbackUrl: "/login" })
             }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:bg-gray-50 transition-colors"
           >
             <LogOut size={14} className="text-gray-400" />
             Sign out
@@ -377,17 +401,25 @@ function UserMenu({
         </div>
       )}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title={collapsed ? (displayName || "Menu") : undefined}
+        title={collapsed ? (displayName || "Account menu") : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Account menu${displayName ? ` for ${displayName}` : ""}`}
         className={clsx(
-          "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-800 hover:bg-gray-100 transition-colors",
+          "flex w-full items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          open ? "bg-gray-100" : "hover:bg-gray-100",
           collapsed ? "justify-center px-2" : "px-2"
         )}
       >
         {avatar}
         {!collapsed && (
-          <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Menu"}</span>
+          <>
+            <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Account"}</span>
+            <ChevronsUpDown size={14} className="shrink-0 text-gray-400" aria-hidden="true" />
+          </>
         )}
       </button>
     </div>
