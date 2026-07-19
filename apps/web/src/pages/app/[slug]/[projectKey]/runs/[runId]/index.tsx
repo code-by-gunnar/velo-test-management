@@ -333,7 +333,7 @@ export default function RunDetailPage({
                 <>
                   {confirmDelete ? (
                     <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5">
-                      <span className="text-xs text-gray-600">Delete this run permanently?</span>
+                      <span className="text-xs text-gray-600">Delete this run? You can restore it from the recycle bin.</span>
                       <button
                         type="button"
                         onClick={() => void handleDeleteRun()}

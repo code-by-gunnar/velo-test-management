@@ -86,8 +86,8 @@ describe("BulkActionBar — destructive confirmation", () => {
 
     // onDelete must NOT have fired on the first click
     expect(onDelete).not.toHaveBeenCalled()
-    // The confirm step is now visible (irreversibility note + a Cancel)
-    expect(screen.getByText(/can't be undone/i)).toBeDefined()
+    // The confirm step is now visible (recycle-bin/undo note + a Cancel)
+    expect(screen.getByText(/undo this/i)).toBeDefined()
     expect(screen.getByRole("button", { name: /cancel/i })).toBeDefined()
   })
 
@@ -120,6 +120,6 @@ describe("BulkActionBar — destructive confirmation", () => {
     expect(onDelete).not.toHaveBeenCalled()
     // Back to the initial trigger, confirm affordance gone
     expect(screen.getByRole("button", { name: /delete 3/i })).toBeDefined()
-    expect(screen.queryByText(/can't be undone/i)).toBeNull()
+    expect(screen.queryByText(/undo this/i)).toBeNull()
   })
 })
