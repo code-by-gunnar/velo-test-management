@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { FolderTree, FileText, RotateCcw, Trash2, Undo2 } from "lucide-react"
-import { Button } from "@/components/ui"
+import { Button, ConfirmDialog } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { useCachedState } from "@/hooks/useCachedState"
 
@@ -47,6 +47,30 @@ function restoreRequest(
   ]
 }
 
+// Purge (permanent delete) is the destructive twin of restore and splits the
+// same way: suites → /suites/bulk-purge ({ ids }), cases → /cases/bulk
+// ({ action: "purge", case_ids }).
+function purgeRequest(
+  base: string,
+  type: "suite" | "case",
+  ids: string[]
+): [string, RequestInit] {
+  if (type === "suite") {
+    return [
+      `${base}/suites/bulk-purge`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) },
+    ]
+  }
+  return [
+    `${base}/cases/bulk`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "purge", case_ids: ids }),
+    },
+  ]
+}
+
 // Other surfaces (sidebar badge, cases page) listen for this to refresh once an
 // item leaves the bin. Mirrors the existing `velo:project-updated` convention.
 function announceChange() {
@@ -79,6 +103,11 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
   )
   const [loading, setLoading] = useState(!hadCache)
   const [busy, setBusy] = useState<Set<string>>(new Set())
+  // Permanent-delete confirmation target: a single item, or "all" (empty bin).
+  const [confirmTarget, setConfirmTarget] = useState<
+    { kind: "one"; item: RecycleItem } | { kind: "all" } | null
+  >(null)
+  const [purging, setPurging] = useState(false)
 
   const refetch = useCallback(async () => {
     try {
@@ -139,6 +168,64 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
     void noun
   }, [items, restore])
 
+  // Permanently delete a batch of one type. Unlike restore this is irreversible,
+  // so it's only ever reached through the confirm dialog below.
+  const purge = useCallback(
+    async (type: "suite" | "case", ids: string[], noun: string) => {
+      try {
+        const [url, init] = purgeRequest(base, type, ids)
+        const res = await fetch(url, init)
+        if (!res.ok) throw new Error(String(res.status))
+        setItems((prev) => prev.filter((i) => !(i.type === type && ids.includes(i.id))))
+        announceChange()
+        toast("success", `Permanently deleted ${noun}`)
+      } catch {
+        toast("error", `Couldn't delete ${noun}. Please try again.`)
+      }
+    },
+    [base, setItems, toast]
+  )
+
+  const runPurge = useCallback(async () => {
+    if (!confirmTarget) return
+    setPurging(true)
+    try {
+      if (confirmTarget.kind === "one") {
+        const { item } = confirmTarget
+        await purge(item.type, [item.id], `"${item.label}"`)
+      } else {
+        const suiteIds = items.filter((i) => i.type === "suite").map((i) => i.id)
+        const caseIds = items.filter((i) => i.type === "case").map((i) => i.id)
+        await Promise.all([
+          suiteIds.length ? purge("suite", suiteIds, `${suiteIds.length} ${suiteIds.length === 1 ? "suite" : "suites"}`) : null,
+          caseIds.length ? purge("case", caseIds, `${caseIds.length} ${caseIds.length === 1 ? "case" : "cases"}`) : null,
+        ])
+      }
+    } finally {
+      setPurging(false)
+      setConfirmTarget(null)
+    }
+  }, [confirmTarget, items, purge])
+
+  // Dialog copy adapts to the target so the consequence is explicit.
+  const confirmProps = (() => {
+    if (!confirmTarget) return { title: "", message: undefined as string | undefined }
+    if (confirmTarget.kind === "all") {
+      return {
+        title: "Empty the recycle bin?",
+        message: `This permanently deletes all ${items.length} ${items.length === 1 ? "item" : "items"}. It can't be undone.`,
+      }
+    }
+    const { item } = confirmTarget
+    return {
+      title: `Delete “${item.label}” permanently?`,
+      message:
+        item.type === "suite"
+          ? "The suite and every case inside it are removed for good. It can't be undone."
+          : "This case is removed for good. It can't be undone.",
+    }
+  })()
+
   if (loading && items.length === 0) {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-2 py-6" aria-busy="true">
@@ -169,10 +256,16 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         <p className="text-sm text-gray-500">
           {items.length} deleted {items.length === 1 ? "item" : "items"}
         </p>
-        <Button variant="secondary" size="sm" onClick={() => void restoreAll()}>
-          <Undo2 size={14} />
-          Restore all
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmTarget({ kind: "all" })}>
+            <Trash2 size={14} />
+            Empty bin
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void restoreAll()}>
+            <Undo2 size={14} />
+            Restore all
+          </Button>
+        </div>
       </div>
 
       <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -195,20 +288,44 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
                   deleted {relativeTime(item.deleted_at)}
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={isBusy}
-                aria-label={`Restore ${item.label}`}
-                onClick={() => void restore(item.type, [item.id], `"${item.label}"`)}
-              >
-                <RotateCcw size={14} />
-                Restore
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={isBusy}
+                  aria-label={`Restore ${item.label}`}
+                  onClick={() => void restore(item.type, [item.id], `"${item.label}"`)}
+                >
+                  <RotateCcw size={14} />
+                  Restore
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isBusy}
+                  aria-label={`Delete ${item.label} permanently`}
+                  title="Delete permanently"
+                  className="text-gray-500 hover:text-fail"
+                  onClick={() => setConfirmTarget({ kind: "one", item })}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
             </li>
           )
         })}
       </ul>
+
+      <ConfirmDialog
+        isOpen={confirmTarget !== null}
+        title={confirmProps.title}
+        {...(confirmProps.message ? { message: confirmProps.message } : {})}
+        confirmLabel="Delete permanently"
+        busyLabel="Deleting…"
+        busy={purging}
+        onConfirm={() => void runPurge()}
+        onClose={() => setConfirmTarget(null)}
+      />
     </div>
   )
 }

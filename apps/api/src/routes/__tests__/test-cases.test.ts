@@ -667,6 +667,68 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(afterRestore.every((row) => row.deleted_at === null)).toBe(true)
   })
 
+  it("action=purge: permanently deletes a soft-deleted case but keeps its run history (VEL-31)", async () => {
+    const mkRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Case to purge", priority: "low", steps: [{ action: "do a thing", expected_result: "it works" }] },
+    })
+    const caseId = (mkRes.json() as { id: string }).id
+
+    // A run item referencing this case, with an immutable title snapshot.
+    const runId = uuidv7()
+    const runItemId = uuidv7()
+    await sql`
+      INSERT INTO test_runs (id, workspace_id, project_id, name, status)
+      VALUES (${runId}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, 'Purge run', 'active')
+    `
+    await sql`
+      INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
+      VALUES (${runItemId}::uuid, ${workspaceA}::uuid, ${runId}::uuid, ${caseId}::uuid, 'Case to purge', 'pass')
+    `
+
+    // A purge only fires on rows already in the recycle bin.
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "delete", case_ids: [caseId] },
+    })
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "purge", case_ids: [caseId] },
+    })
+    expect(res.statusCode).toBe(204)
+
+    // Case row + its steps are gone…
+    expect((await sql`SELECT id FROM test_cases WHERE id = ${caseId}::uuid`).length).toBe(0)
+    expect((await sql`SELECT id FROM test_case_steps WHERE test_case_id = ${caseId}::uuid`).length).toBe(0)
+    // …but the run item survives, detached, with its snapshot intact.
+    const item = (await sql`
+      SELECT test_case_id, case_title FROM run_items WHERE id = ${runItemId}::uuid
+    `)[0] as { test_case_id: string | null; case_title: string } | undefined
+    expect(item?.test_case_id).toBeNull()
+    expect(item?.case_title).toBe("Case to purge")
+  })
+
+  it("action=purge: leaves a case that is NOT soft-deleted untouched", async () => {
+    const mkRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+      payload: { title: "Live case", priority: "low", steps: [] },
+    })
+    const caseId = (mkRes.json() as { id: string }).id
+
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "purge", case_ids: [caseId] },
+    })
+    expect(res.statusCode).toBe(204)
+    expect((await sql`SELECT id FROM test_cases WHERE id = ${caseId}::uuid`).length).toBe(1)
+  })
+
   it("bulk endpoint returns 400 when case_ids is empty (TC-05)", async () => {
     const res = await appA.inject({
       method: "POST",

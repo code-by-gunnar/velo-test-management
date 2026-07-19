@@ -53,6 +53,49 @@ async function restoreSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: str
   `
 }
 
+// Permanently delete a soft-deleted suite subtree and every soft-deleted case
+// within it (VEL-31 purge). Run history is preserved: run_items that referenced
+// a purged case are detached (test_case_id → NULL) rather than cascade-deleted,
+// so their immutable case_snapshot/case_title keep the run intact. Done as
+// separate statements (not one CTE) to avoid FK-trigger ordering hazards between
+// deleting cases and the suite's ON DELETE SET NULL on test_cases.suite_id.
+async function purgeSuiteSubtree(tx: WorkspaceSql, projectId: string, ids: string[]): Promise<void> {
+  const subtree = await tx<{ id: string }[]>`
+    WITH RECURSIVE subtree AS (
+      SELECT id FROM suites
+      WHERE id = ANY(${ids}::uuid[])
+        AND project_id = ${projectId}::uuid
+        AND deleted_at IS NOT NULL
+        AND workspace_id = current_setting('app.workspace_id', true)::uuid
+      UNION ALL
+      SELECT s.id FROM suites s
+      JOIN subtree ON s.parent_id = subtree.id
+      WHERE s.workspace_id = current_setting('app.workspace_id', true)::uuid
+    )
+    SELECT id FROM subtree
+  `
+  const suiteIds = subtree.map((r) => r.id)
+  if (suiteIds.length === 0) return
+
+  // Detach run_items from the cases we're about to purge (keep their snapshots).
+  await tx`
+    UPDATE run_items SET test_case_id = NULL
+    WHERE test_case_id IN (
+      SELECT id FROM test_cases
+      WHERE suite_id = ANY(${suiteIds}::uuid[]) AND deleted_at IS NOT NULL
+    )
+  `
+  // Permanently remove the soft-deleted cases (their steps cascade).
+  await tx`
+    DELETE FROM test_cases
+    WHERE suite_id = ANY(${suiteIds}::uuid[]) AND deleted_at IS NOT NULL
+  `
+  // Permanently remove the suites (self-ref parent_id carries no FK cascade).
+  await tx`
+    DELETE FROM suites WHERE id = ANY(${suiteIds}::uuid[]) AND deleted_at IS NOT NULL
+  `
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -413,6 +456,37 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await withWorkspace(workspaceId, (tx) => restoreSuiteSubtree(tx, projectId, ids))
+
+      return reply.status(204).send()
+    }
+  )
+
+  // ── POST /suites/bulk-purge — permanently delete soft-deleted suites (VEL-31)
+  // Body: { ids: string[] } — purges each suite's subtree (suites + their cases).
+  // Only affects rows already in the recycle bin (deleted_at IS NOT NULL).
+  fastify.post<{
+    Params: { workspaceId: string; projectId: string }
+    Body: { ids: string[] }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/suites/bulk-purge",
+    { preHandler: [requireEditor] },
+    async (request, reply) => {
+      const { workspaceId, projectId } = request.params
+      const { ids } = request.body ?? {}
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({ error: "ids array is required" })
+      }
+
+      if (ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+        return reply.status(400).send({ error: "Invalid suite id in array" })
+      }
+
+      await withWorkspace(workspaceId, (tx) => purgeSuiteSubtree(tx, projectId, ids))
 
       return reply.status(204).send()
     }

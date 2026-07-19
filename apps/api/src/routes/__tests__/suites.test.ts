@@ -434,6 +434,79 @@ describe("Suite routes integration (TC-01)", () => {
     expect(body.cases.map((c) => c.id)).not.toContain(childCase)
   })
 
+  it("POST /suites/bulk-purge permanently removes a deleted suite subtree + its cases", async () => {
+    const parent = await mkSuite("Purge parent")
+    const child = await mkSuite("Purge child", parent)
+    const childCase = await mkCase("Purge case", child)
+
+    // Must be in the recycle bin first.
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${parent}`,
+    })
+    expect(await suiteDeletedAt(child)).not.toBeNull()
+
+    const purgeRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/bulk-purge`,
+      payload: { ids: [parent] },
+    })
+    expect(purgeRes.statusCode).toBe(204)
+
+    // Rows are gone for good.
+    expect((await sql`SELECT id FROM suites WHERE id = ${parent}::uuid`).length).toBe(0)
+    expect((await sql`SELECT id FROM suites WHERE id = ${child}::uuid`).length).toBe(0)
+    expect((await sql`SELECT id FROM test_cases WHERE id = ${childCase}::uuid`).length).toBe(0)
+  })
+
+  it("bulk-purge preserves run history — a run_item's case_snapshot survives, detached", async () => {
+    const suite = await mkSuite("Purge with run")
+    const caseId = await mkCase("Executed case", suite)
+
+    // A run that included this case (snapshot captured at run creation).
+    const runId = uuidv7()
+    const runItemId = uuidv7()
+    await sql`
+      INSERT INTO test_runs (id, workspace_id, project_id, name, status)
+      VALUES (${runId}::uuid, ${workspaceA}::uuid, ${projectA}::uuid, 'Run one', 'active')
+    `
+    await sql`
+      INSERT INTO run_items (id, workspace_id, run_id, test_case_id, case_title, status)
+      VALUES (${runItemId}::uuid, ${workspaceA}::uuid, ${runId}::uuid, ${caseId}::uuid, 'Executed case', 'pass')
+    `
+
+    await appA.inject({
+      method: "DELETE",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${suite}`,
+    })
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/bulk-purge`,
+      payload: { ids: [suite] },
+    })
+
+    // The case is gone, but the run item survives with its title snapshot and a
+    // null test_case_id (history intact, no cascade-delete).
+    expect((await sql`SELECT id FROM test_cases WHERE id = ${caseId}::uuid`).length).toBe(0)
+    const item = (await sql`
+      SELECT test_case_id, case_title FROM run_items WHERE id = ${runItemId}::uuid
+    `)[0] as { test_case_id: string | null; case_title: string } | undefined
+    expect(item).toBeDefined()
+    expect(item?.test_case_id).toBeNull()
+    expect(item?.case_title).toBe("Executed case")
+  })
+
+  it("bulk-purge only affects soft-deleted suites (a live suite is left intact)", async () => {
+    const live = await mkSuite("Live suite")
+    const purgeRes = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/bulk-purge`,
+      payload: { ids: [live] },
+    })
+    expect(purgeRes.statusCode).toBe(204)
+    expect((await sql`SELECT id FROM suites WHERE id = ${live}::uuid`).length).toBe(1)
+  })
+
   // ── Suite description (Phase: suite descriptions) ──────────────────────────
 
   it("GET /suites includes a description field (null by default, set when created with one)", async () => {

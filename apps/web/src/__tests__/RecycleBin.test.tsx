@@ -94,6 +94,67 @@ describe("RecycleBin", () => {
     expect(body.ids).toEqual(["s1"])
   })
 
+  it("purges a case via /cases/bulk action=purge after confirming, then removes the row", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    const purgeCase = await screen.findByRole("button", { name: /delete password reset permanently/i })
+    await act(async () => {
+      await user.click(purgeCase)
+    })
+    // A confirm dialog stands between the click and the destructive call.
+    const confirm = await screen.findByRole("button", { name: /^delete permanently$/i })
+    await act(async () => {
+      await user.click(confirm)
+    })
+
+    const call = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).endsWith("/cases/bulk")
+    ) as unknown as [string, RequestInit]
+    const body = JSON.parse(call[1].body as string)
+    expect(body.action).toBe("purge")
+    expect(body.case_ids).toEqual(["c1"])
+    await waitFor(() => expect(screen.queryByText("Password reset")).toBeNull())
+  })
+
+  it("purges a suite via /suites/bulk-purge after confirming", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    const purgeSuite = await screen.findByRole("button", { name: /delete login suite permanently/i })
+    await act(async () => {
+      await user.click(purgeSuite)
+    })
+    const confirm = await screen.findByRole("button", { name: /^delete permanently$/i })
+    await act(async () => {
+      await user.click(confirm)
+    })
+
+    const call = fetchMock.mock.calls.find(
+      (c) => typeof c[0] === "string" && (c[0] as string).endsWith("/suites/bulk-purge")
+    ) as unknown as [string, RequestInit]
+    const body = JSON.parse(call[1].body as string)
+    expect(body.ids).toEqual(["s1"])
+  })
+
+  it("does not purge when the confirm dialog is cancelled", async () => {
+    const fetchMock = stubFetch()
+    const user = userEvent.setup()
+    renderBin()
+    const purgeCase = await screen.findByRole("button", { name: /delete password reset permanently/i })
+    await act(async () => {
+      await user.click(purgeCase)
+    })
+    const cancel = await screen.findByRole("button", { name: /^cancel$/i })
+    await act(async () => {
+      await user.click(cancel)
+    })
+    expect(
+      fetchMock.mock.calls.some((c) => typeof c[0] === "string" && (c[0] as string).endsWith("/cases/bulk"))
+    ).toBe(false)
+    expect(screen.getByText("Password reset")).toBeDefined()
+  })
+
   it("keeps the row and shows an error toast when restore fails", async () => {
     stubFetch({ post: () => ({ ok: false, status: 500 }) as Response })
     const user = userEvent.setup()
