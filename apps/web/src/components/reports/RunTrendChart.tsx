@@ -26,7 +26,7 @@ const COLORS = {
   skipped: "#8B8680",
 }
 
-const TREND_COLOR = "#2D7FF9" // primary
+const TREND_COLOR = "#5B5BD6" // primary (iris)
 
 export function RunTrendChart({ data }: RunTrendChartProps) {
   if (data.length === 0) {

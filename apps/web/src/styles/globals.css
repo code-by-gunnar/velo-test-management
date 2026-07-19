@@ -10,9 +10,9 @@
 
 :root {
   /* Primary */
-  --color-primary: #2D7FF9;
-  --color-primary-hover: #1A6BE8;
-  --color-primary-selected: #EBF3FF;
+  --color-primary: #5B5BD6;
+  --color-primary-hover: #4A4AC4;
+  --color-primary-selected: #ECECFB;
 
   /* Backgrounds — cool elevation */
   --color-mist: #E8EDF2;
@@ -54,8 +54,8 @@
   --color-sidebar-text: #1F2937;
   --color-sidebar-muted: #9CA3AF;
   --color-sidebar-hover: #F3F4F6;
-  --color-sidebar-active: #2D7FF9;
-  --color-sidebar-active-bg: #EBF3FF;
+  --color-sidebar-active: #5B5BD6;
+  --color-sidebar-active-bg: #ECECFB;
   --color-sidebar-border: #E5E7EB;
 
   /* Sidebar sizing */

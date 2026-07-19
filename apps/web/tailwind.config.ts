@@ -23,9 +23,9 @@ const config: Config = {
 
         /* ── Brand — primary blue ─────────────────────────────────────── */
         primary: {
-          DEFAULT: "#2D7FF9",
-          hover:   "#1A6BE8",
-          selected: "#EBF3FF",
+          DEFAULT: "#5B5BD6",
+          hover:   "#4A4AC4",
+          selected: "#ECECFB",
         },
         mist: "#E8EDF2",
 
