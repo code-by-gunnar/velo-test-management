@@ -1,5 +1,6 @@
 export { Button } from "./button"
 export { ConfirmInline } from "./confirm-inline"
+export { ConfirmDialog } from "./confirm-dialog"
 export { Modal } from "./Modal"
 export { Card, CardHeader, CardTitle } from "./card"
 export { Input, Label, FormField } from "./input"

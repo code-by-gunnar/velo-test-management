@@ -17,7 +17,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { Trash2, Inbox } from "lucide-react"
-import { useToast, ConfirmInline } from "@/components/ui"
+import { useToast, ConfirmDialog } from "@/components/ui"
 import type { Suite } from "@/hooks/useSuiteTree"
 import { SuiteTreeItem } from "./SuiteTreeItem"
 import { SuiteFormModal } from "./SuiteFormModal"
@@ -248,24 +248,14 @@ export function SuiteTree({
             />
             All
           </label>
-          {checkedIds.size > 0 && !confirmingBulkDelete && (
+          {checkedIds.size > 0 && (
             <button
               type="button"
               onClick={() => setConfirmingBulkDelete(true)}
-              className="text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              className="text-xs font-medium text-gray-600 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded transition-colors"
             >
               Delete {checkedIds.size}
             </button>
-          )}
-          {confirmingBulkDelete && (
-            <ConfirmInline
-              confirmLabel={`Delete ${checkedIds.size}`}
-              busyLabel="Deleting…"
-              busy={isDeleting}
-              message="Deletes the suites and moves their cases to All Cases. Can't be undone."
-              onConfirm={() => { void handleBulkDelete() }}
-              onCancel={() => setConfirmingBulkDelete(false)}
-            />
           )}
         </div>
       )}
@@ -341,6 +331,21 @@ export function SuiteTree({
           mode="create"
           parentId={null}
           onSaved={() => { onSuiteCreated?.() }}
+        />
+      )}
+
+      {/* Bulk-suite delete confirms in a centered dialog — the sidebar header is
+          far too narrow for an inline confirm with a consequence message. */}
+      {confirmingBulkDelete && (
+        <ConfirmDialog
+          isOpen
+          title={`Delete ${checkedIds.size} ${checkedIds.size === 1 ? "suite" : "suites"}?`}
+          message={`This moves ${checkedIds.size === 1 ? "its" : "their"} cases to All Cases and can't be undone.`}
+          confirmLabel={`Delete ${checkedIds.size}`}
+          busyLabel="Deleting…"
+          busy={isDeleting}
+          onConfirm={() => { void handleBulkDelete() }}
+          onClose={() => setConfirmingBulkDelete(false)}
         />
       )}
     </div>
