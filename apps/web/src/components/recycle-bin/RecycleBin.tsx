@@ -143,9 +143,9 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
     { kind: "one"; item: RecycleItem } | { kind: "all" } | null
   >(null)
   const [purging, setPurging] = useState(false)
-  // Side panel: which deleted suite's child cases are being viewed (null = closed).
+  // Which deleted suite's child cases are shown in the popup (null = closed).
   const [openSuiteId, setOpenSuiteId] = useState<string | null>(null)
-  // Inline purge confirm inside the panel, keyed by the case row awaiting it.
+  // Inline purge confirm inside the popup, keyed by the case row awaiting it.
   const [panelConfirmId, setPanelConfirmId] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
@@ -399,14 +399,14 @@ export function RecycleBin({ workspaceId, projectId }: RecycleBinProps) {
         onClose={() => setConfirmTarget(null)}
       />
 
-      {/* Side panel: the deleted cases inside a deleted suite (VEL-31). */}
+      {/* Popup listing the deleted cases inside a deleted suite (VEL-31) —
+          a centered modal to match the app's other popups. */}
       <Modal
         isOpen={openSuiteId !== null}
         onClose={() => {
           setOpenSuiteId(null)
           setPanelConfirmId(null)
         }}
-        placement="right"
         size="md"
         title={openSuite ? `${openSuite.label} — deleted cases` : "Deleted cases"}
       >
