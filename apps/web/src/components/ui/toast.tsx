@@ -11,14 +11,20 @@ import { CheckCircle, AlertTriangle, Info, X } from "lucide-react"
 
 export type ToastType = "success" | "error" | "warning" | "info"
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 interface Toast {
   id: string
   type: ToastType
   message: string
+  action?: ToastAction
 }
 
 interface ToastContextValue {
-  toast: (type: ToastType, message: string) => void
+  toast: (type: ToastType, message: string, options?: { action?: ToastAction }) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -31,6 +37,8 @@ const ICON_MAP: Record<ToastType, { Icon: typeof CheckCircle; className: string 
 }
 
 const AUTO_DISMISS_MS = 4000
+// Toasts with an action (e.g. Undo) linger so there's time to reach for it.
+const ACTION_DISMISS_MS = 8000
 
 let nextId = 0
 
@@ -41,11 +49,12 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
     // Errors/warnings carry something the user must read or act on — don't
     // auto-dismiss them; they stay until dismissed via the close button.
     if (t.type === "error" || t.type === "warning") return
-    timerRef.current = setTimeout(() => onDismiss(t.id), AUTO_DISMISS_MS)
+    const ms = t.action ? ACTION_DISMISS_MS : AUTO_DISMISS_MS
+    timerRef.current = setTimeout(() => onDismiss(t.id), ms)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [t.id, t.type, onDismiss])
+  }, [t.id, t.type, t.action, onDismiss])
 
   const { Icon, className: iconClassName } = ICON_MAP[t.type]
 
@@ -60,6 +69,18 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
     >
       <Icon size={18} className={`shrink-0 mt-0.5 ${iconClassName}`} aria-hidden="true" />
       <p className="flex-1 text-sm text-gray-800">{t.message}</p>
+      {t.action && (
+        <button
+          type="button"
+          onClick={() => {
+            t.action?.onClick()
+            onDismiss(t.id)
+          }}
+          className="shrink-0 rounded px-1.5 text-sm font-semibold text-primary hover:bg-primary-selected focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
+        >
+          {t.action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onDismiss(t.id)}
@@ -79,9 +100,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
-  const toast = useCallback((type: ToastType, message: string) => {
+  const toast = useCallback((type: ToastType, message: string, options?: { action?: ToastAction }) => {
     const id = `toast-${++nextId}`
-    setToasts((prev) => [...prev, { id, type, message }])
+    setToasts((prev) => [...prev, { id, type, message, ...(options?.action ? { action: options.action } : {}) }])
   }, [])
 
   return (

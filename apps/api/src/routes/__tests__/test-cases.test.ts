@@ -634,6 +634,39 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     expect(keepRow[0]?.deleted_at).toBeNull()
   })
 
+  it("action=restore: clears deleted_at so soft-deleted cases come back (Undo)", async () => {
+    const mk = async (title: string) => {
+      const res = await appA.inject({
+        method: "POST",
+        url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases`,
+        payload: { title, priority: "low", steps: [] },
+      })
+      return (res.json() as { id: string }).id
+    }
+    const r1 = await mk("Restore case 1")
+    const r2 = await mk("Restore case 2")
+
+    // Soft-delete both…
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "delete", case_ids: [r1, r2] },
+    })
+    const afterDelete = await sql`SELECT deleted_at FROM test_cases WHERE id = ANY(${[r1, r2]}::uuid[])`
+    expect(afterDelete.every((row) => row.deleted_at !== null)).toBe(true)
+
+    // …then restore them.
+    const res = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/cases/bulk`,
+      payload: { action: "restore", case_ids: [r1, r2] },
+    })
+    expect(res.statusCode).toBe(204)
+
+    const afterRestore = await sql`SELECT deleted_at FROM test_cases WHERE id = ANY(${[r1, r2]}::uuid[])`
+    expect(afterRestore.every((row) => row.deleted_at === null)).toBe(true)
+  })
+
   it("bulk endpoint returns 400 when case_ids is empty (TC-05)", async () => {
     const res = await appA.inject({
       method: "POST",

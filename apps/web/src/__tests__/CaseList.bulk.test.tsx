@@ -90,4 +90,25 @@ describe("CaseList — bulk delete feedback", () => {
     })
     expect(refetch).toHaveBeenCalled()
   })
+
+  it("offers Undo after delete, which restores the deleted cases via the API", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }) as Response)
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    renderList()
+
+    await selectAllThenDelete(user)
+
+    const undo = await screen.findByRole("button", { name: "Undo" })
+    await act(async () => {
+      await user.click(undo)
+    })
+
+    // The last request must be a restore carrying exactly the deleted ids.
+    const lastCall = fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit]
+    const body = JSON.parse(lastCall[1].body as string)
+    expect(body.action).toBe("restore")
+    expect(body.case_ids).toEqual(["c1", "c2"])
+    await waitFor(() => expect(screen.getByText(/restored 2 cases/i)).toBeDefined())
+  })
 })

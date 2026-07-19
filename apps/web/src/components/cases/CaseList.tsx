@@ -165,32 +165,60 @@ export function CaseList({
     refetch()
   }
 
+  const bulkUrl = `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`
+
+  // Restore soft-deleted cases — powers the "Undo" on a delete toast. (Cases are
+  // soft-deleted server-side, so the ids are still recoverable via deleted_at.)
+  async function undoDelete(ids: string[]) {
+    const noun = ids.length === 1 ? "case" : "cases"
+    try {
+      const res = await fetch(bulkUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", case_ids: ids }),
+      })
+      if (!res.ok) {
+        toast("error", "Couldn't undo — please try again.")
+        return
+      }
+      toast("success", `Restored ${ids.length} ${noun}`)
+      refetch()
+    } catch {
+      toast("error", "Couldn't undo — check your connection and retry.")
+    }
+  }
+
   // Single source of truth for the three bulk operations — all POST the same
   // /cases/bulk endpoint, differing only by action. Checks res.ok and reports
   // success/failure so a failed move/copy/delete is never silent.
   async function runBulkAction(action: "move" | "copy" | "delete", targetSuiteId?: string | null) {
-    const count = selectedIds.size
+    const ids = [...selectedIds]
+    const count = ids.length
     const noun = count === 1 ? "case" : "cases"
     try {
-      const res = await fetch(
-        `/api/backend/workspaces/${workspaceId}/projects/${projectId}/cases/bulk`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            case_ids: [...selectedIds],
-            ...(action !== "delete" ? { target_suite_id: targetSuiteId ?? null } : {}),
-          }),
-        }
-      )
+      const res = await fetch(bulkUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          case_ids: ids,
+          ...(action !== "delete" ? { target_suite_id: targetSuiteId ?? null } : {}),
+        }),
+      })
       if (!res.ok) {
         toast("error", `Couldn't ${action} ${count} ${noun} — please try again.`)
         return
       }
       setSelectedIds(new Set())
-      const verb = action === "move" ? "Moved" : action === "copy" ? "Copied" : "Deleted"
-      toast("success", `${verb} ${count} ${noun}`)
+      if (action === "delete") {
+        // Soft delete → offer an immediate Undo (restores deleted_at).
+        toast("success", `Deleted ${count} ${noun}`, {
+          action: { label: "Undo", onClick: () => { void undoDelete(ids) } },
+        })
+      } else {
+        const verb = action === "move" ? "Moved" : "Copied"
+        toast("success", `${verb} ${count} ${noun}`)
+      }
       refetch()
     } catch {
       toast("error", `Couldn't ${action} ${count} ${noun} — check your connection and retry.`)

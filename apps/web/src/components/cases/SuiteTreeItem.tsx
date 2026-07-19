@@ -282,7 +282,7 @@ export function SuiteTreeItem({
               <span
                 {...attributes}
                 {...listeners}
-                className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center rounded text-gray-400 hover:text-gray-600 select-none active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="mr-0.5 flex h-4 w-4 shrink-0 cursor-grab items-center justify-center rounded text-gray-500 hover:text-gray-700 select-none active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-label="Drag to reorder"
               >
                 <GripVertical size={13} aria-hidden="true" />
