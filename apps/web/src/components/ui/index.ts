@@ -1,4 +1,5 @@
 export { Button } from "./button"
+export { Modal } from "./Modal"
 export { Card, CardHeader, CardTitle } from "./card"
 export { Input, Label, FormField } from "./input"
 export { PriorityBadge, type Priority } from "./priority-badge"

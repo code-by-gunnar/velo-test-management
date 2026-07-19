@@ -4,6 +4,7 @@ export interface Suite {
   id: string
   parent_id: string | null
   name: string
+  description: string | null
   position: number
   depth: number
   children: Suite[]
