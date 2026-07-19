@@ -334,15 +334,17 @@ export function SuiteTree({
         )}
       </div>
 
-      <SuiteFormModal
-        isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
-        workspaceId={workspaceId}
-        projectId={projectId}
-        mode="create"
-        parentId={null}
-        onSaved={() => { onSuiteCreated?.() }}
-      />
+      {createOpen && (
+        <SuiteFormModal
+          isOpen={createOpen}
+          onClose={() => setCreateOpen(false)}
+          workspaceId={workspaceId}
+          projectId={projectId}
+          mode="create"
+          parentId={null}
+          onSaved={() => { onSuiteCreated?.() }}
+        />
+      )}
     </div>
   )
 }

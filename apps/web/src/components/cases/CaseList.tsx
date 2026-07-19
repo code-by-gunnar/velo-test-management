@@ -391,7 +391,7 @@ export function CaseList({
         />
       )}
 
-      {selectedSuite && (
+      {selectedSuite && editSuiteOpen && (
         <SuiteFormModal
           isOpen={editSuiteOpen}
           onClose={() => setEditSuiteOpen(false)}
