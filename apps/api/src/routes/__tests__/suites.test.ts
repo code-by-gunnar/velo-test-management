@@ -360,6 +360,39 @@ describe("Suite routes integration (TC-01)", () => {
     expect(suites.find((s) => s.name === "Has Desc")?.description).toBe("covers login")
   })
 
+  it("PATCH updates description only, name only, and both; rejects empty body", async () => {
+    const created = await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
+      payload: { name: "Original" },
+    })
+    const id = (created.json() as { id: string }).id
+
+    const patchDesc = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${id}`,
+      payload: { description: "now described" },
+    })
+    expect(patchDesc.statusCode).toBe(200)
+    expect((patchDesc.json() as { description: string | null }).description).toBe("now described")
+    expect((patchDesc.json() as { name: string }).name).toBe("Original")
+
+    const patchName = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${id}`,
+      payload: { name: "Renamed" },
+    })
+    expect((patchName.json() as { name: string }).name).toBe("Renamed")
+    expect((patchName.json() as { description: string | null }).description).toBe("now described")
+
+    const empty = await appA.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites/${id}`,
+      payload: {},
+    })
+    expect(empty.statusCode).toBe(400)
+  })
+
   it("GET /suites returns 401 when no session (userId empty)", async () => {
     const noAuthApp = Fastify({ logger: false })
     noAuthApp.decorateRequest("userId", "")

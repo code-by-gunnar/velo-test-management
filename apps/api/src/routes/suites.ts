@@ -140,10 +140,10 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
-  // ── PATCH /suites/:suiteId — rename ───────────────────────────────────────
+  // ── PATCH /suites/:suiteId — update name and/or description ────────────────
   fastify.patch<{
     Params: { workspaceId: string; projectId: string; suiteId: string }
-    Body: { name: string }
+    Body: { name?: string; description?: string | null }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites/:suiteId",
     {
@@ -151,39 +151,42 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       schema: {
         body: {
           type: "object",
-          required: ["name"],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 255 },
+            description: { type: ["string", "null"], maxLength: 2000 },
           },
         },
       },
     },
     async (request, reply) => {
       const { workspaceId, projectId, suiteId } = request.params
-      const { name } = request.body
+      const { name, description } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
       }
-
       if (!isUuid(suiteId)) {
         return reply.status(400).send({ error: "Invalid suiteId" })
       }
+      if (name === undefined && description === undefined) {
+        return reply.status(400).send({ error: "Nothing to update" })
+      }
 
       const updated = await withWorkspace(workspaceId, async (tx) => {
+        const setName = name !== undefined ? tx`name = ${name},` : tx``
+        const setDesc = description !== undefined ? tx`description = ${description},` : tx``
         const rows = await tx`
           UPDATE suites
-          SET name = ${name}, updated_at = NOW()
+          SET ${setName} ${setDesc} updated_at = NOW()
           WHERE id = ${suiteId}::uuid
             AND project_id = ${projectId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          RETURNING id, name, position, parent_id
+          RETURNING id, name, description, position, parent_id
         `
         return rows[0]
       })
 
       if (!updated) return reply.status(404).send({ error: "Suite not found" })
-
       return reply.send(updated)
     }
   )
