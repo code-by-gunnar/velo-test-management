@@ -530,7 +530,7 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           type: "object",
           required: ["action", "case_ids"],
           properties: {
-            action: { type: "string", enum: ["move", "copy", "delete"] },
+            action: { type: "string", enum: ["move", "copy", "delete", "restore"] },
             case_ids: { type: "array", items: { type: "string" }, minItems: 1 },
             target_suite_id: { type: ["string", "null"] },
           },
@@ -647,6 +647,20 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           await tx`
             UPDATE test_cases
             SET deleted_at = NOW()
+            WHERE id = ANY(${case_ids}::uuid[])
+              AND project_id = ${projectId}::uuid
+          `
+        })
+        return reply.status(204).send()
+      }
+
+      // restore: clear deleted_at — powers the snackbar Undo (and, later, the
+      // VEL-31 recycle bin). Idempotent; only affects rows in this project.
+      if (action === "restore") {
+        await withWorkspace(workspaceId, async (tx) => {
+          await tx`
+            UPDATE test_cases
+            SET deleted_at = NULL
             WHERE id = ANY(${case_ids}::uuid[])
               AND project_id = ${projectId}::uuid
           `

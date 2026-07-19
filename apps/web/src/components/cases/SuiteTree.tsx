@@ -205,7 +205,7 @@ export function SuiteTree({
             <button
               type="button"
               onClick={() => setSelectMode(true)}
-              className="flex h-5 w-5 items-center justify-center rounded text-gray-400 text-xs hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
+              className="flex h-5 w-5 items-center justify-center rounded text-gray-500 text-xs hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
               title="Select suites"
               aria-label="Select suites"
             >

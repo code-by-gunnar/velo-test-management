@@ -7,7 +7,7 @@
  */
 
 import { render, screen, act } from "@testing-library/react"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { ToastProvider, useToast, type ToastType } from "@/components/ui/toast"
 
 function Emitter({ type, message }: { type: ToastType; message: string }) {
@@ -37,5 +37,30 @@ describe("Toast — politeness", () => {
     emit("success", "Saved")
     const el = screen.getByText("Saved").closest("[role]")
     expect(el?.getAttribute("role")).toBe("status")
+  })
+
+  it("renders an action button that fires its handler (e.g. Undo)", () => {
+    const onAction = vi.fn()
+    function ActionEmitter() {
+      const { toast } = useToast()
+      return (
+        <button onClick={() => toast("success", "Deleted 2 cases", { action: { label: "Undo", onClick: onAction } })}>
+          emit
+        </button>
+      )
+    }
+    render(
+      <ToastProvider>
+        <ActionEmitter />
+      </ToastProvider>
+    )
+    act(() => {
+      screen.getByText("emit").click()
+    })
+    const undo = screen.getByRole("button", { name: "Undo" })
+    act(() => {
+      undo.click()
+    })
+    expect(onAction).toHaveBeenCalledTimes(1)
   })
 })
