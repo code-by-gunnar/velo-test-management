@@ -336,6 +336,30 @@ describe("Suite routes integration (TC-01)", () => {
     expect(suites.find((s) => s.id === id)).toBeUndefined()
   })
 
+  // ── Suite description (Phase: suite descriptions) ──────────────────────────
+
+  it("GET /suites includes a description field (null by default, set when created with one)", async () => {
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
+      payload: { name: "No Desc" },
+    })
+    await appA.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
+      payload: { name: "Has Desc", description: "covers login" },
+    })
+
+    const res = await appA.inject({
+      method: "GET",
+      url: `/api/workspaces/${workspaceA}/projects/${projectA}/suites`,
+    })
+    expect(res.statusCode).toBe(200)
+    const suites = res.json() as Array<{ name: string; description: string | null }>
+    expect(suites.find((s) => s.name === "No Desc")?.description).toBeNull()
+    expect(suites.find((s) => s.name === "Has Desc")?.description).toBe("covers login")
+  })
+
   it("GET /suites returns 401 when no session (userId empty)", async () => {
     const noAuthApp = Fastify({ logger: false })
     noAuthApp.decorateRequest("userId", "")

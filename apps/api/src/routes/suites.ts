@@ -45,7 +45,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
       const suites = await withWorkspace(workspaceId, async (tx) => {
         return tx`
           WITH RECURSIVE suite_tree AS (
-            SELECT id, name, parent_id, position, 0 AS depth
+            SELECT id, name, description, parent_id, position, 0 AS depth
             FROM   suites
             WHERE  project_id = ${projectId}::uuid
               AND  parent_id IS NULL
@@ -53,13 +53,13 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
 
             UNION ALL
 
-            SELECT s.id, s.name, s.parent_id, s.position, st.depth + 1
+            SELECT s.id, s.name, s.description, s.parent_id, s.position, st.depth + 1
             FROM   suites s
             JOIN   suite_tree st ON s.parent_id = st.id
             WHERE  s.workspace_id = current_setting('app.workspace_id', true)::uuid
           )
           SELECT * FROM suite_tree ORDER BY depth, position
-        ` as unknown as { id: string; name: string; parent_id: string | null; position: number; depth: number }[]
+        ` as unknown as { id: string; name: string; description: string | null; parent_id: string | null; position: number; depth: number }[]
       })
 
       return reply.send(suites)
@@ -69,7 +69,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
   // ── POST /suites — create suite ───────────────────────────────────────────
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
-    Body: { name: string; parent_id?: string }
+    Body: { name: string; description?: string; parent_id?: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/suites",
     {
@@ -80,6 +80,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
           required: ["name"],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 255 },
+            description: { type: "string", maxLength: 2000 },
             parent_id: { type: "string" },
           },
         },
@@ -87,7 +88,7 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const { workspaceId, projectId } = request.params
-      const { name, parent_id } = request.body
+      const { name, description, parent_id } = request.body
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
@@ -119,16 +120,17 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         const id = uuidv7()
 
         const inserted = await tx`
-          INSERT INTO suites (id, workspace_id, project_id, parent_id, name, position)
+          INSERT INTO suites (id, workspace_id, project_id, parent_id, name, description, position)
           VALUES (
             ${id}::uuid,
             current_setting('app.workspace_id', true)::uuid,
             ${projectId}::uuid,
             ${parent_id ?? null}::uuid,
             ${name},
+            ${description ?? null},
             ${position}
           )
-          RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
+          RETURNING id, workspace_id, project_id, parent_id, name, description, position, created_at
         `
 
         return inserted[0]
