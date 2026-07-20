@@ -54,7 +54,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
           <Link href="/">
-            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={48} height={48} />
+            <Image src="/velo-mark.svg" alt="Velo" width={48} height={48} />
           </Link>
         </div>
         <Card padding="lg">
