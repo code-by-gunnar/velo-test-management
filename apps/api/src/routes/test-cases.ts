@@ -59,6 +59,11 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           ? tx`AND tc.suite_id = ${suite_id}::uuid`
           : tx``
 
+        // No LIMIT: the old hardcoded `LIMIT 500` silently dropped cases 501+
+        // once the 500-case product cap was removed (VEL-59), making data
+        // invisible with no signal (VEL-66). Return the full ordered set.
+        // Keyset/cursor pagination for very large projects is tracked with the
+        // frontend virtualization work (VEL-62).
         return tx`
           SELECT tc.id, tc.suite_id, tc.title, tc.preconditions, tc.priority, tc.position,
                  COUNT(tcs.id)::int AS step_count
@@ -69,7 +74,6 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             ${suiteFilter}
           GROUP BY tc.id
           ORDER BY tc.position
-          LIMIT  500
         `
       })
 
