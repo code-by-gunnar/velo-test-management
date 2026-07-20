@@ -1,3 +1,4 @@
+import type { GetServerSideProps } from "next"
 import Head from "next/head"
 import { Star, ArrowRight } from "lucide-react"
 import { MarketingNav } from "@/components/layout/marketing-nav"
@@ -42,6 +43,18 @@ const selfHostPoints = [
   "Analytics, error tracking, email: off until you switch them on. Nothing phones home.",
   "Free. MIT-licensed. Fork it if you want.",
 ]
+
+// The marketing landing only serves where it's wanted. On the public marketing
+// deploy, MARKETING_SITE is set and this page renders. Everywhere else — a
+// self-hosted install — `/` redirects straight to sign-in, so a self-hoster
+// never lands on a sales page for software they've already installed. App-first
+// by default: the self-hoster needs zero config; the marketing deploy opts in.
+export const getServerSideProps: GetServerSideProps = async () => {
+  if (!process.env.MARKETING_SITE) {
+    return { redirect: { destination: "/login", permanent: false } }
+  }
+  return { props: {} }
+}
 
 export default function Home() {
   return (
