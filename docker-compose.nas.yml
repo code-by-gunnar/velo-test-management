@@ -17,10 +17,13 @@
 # │     The two copies MUST be identical or login/gateway will break.          │
 # └────────────────────────────────────────────────────────────────────────────┘
 #
-# Storage (evidence/avatars/CI payloads) and email are OFF by default (email =
-# console mode: login codes print to the api container logs). To enable storage
-# later, add S3_ENDPOINT / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / S3_BUCKET
-# under the api `environment:` block.
+# Storage (evidence/avatars/CI payloads) works OUT OF THE BOX via a bundled
+# MinIO container below — nothing to configure. Browse uploaded objects at
+# http://NAS_IP:9001 (MinIO console). Prefer cloud instead? Delete the `minio` +
+# `minio-init` services and the S3_* lines on the api block, then set S3_* (or
+# R2_*) there to point at R2 / AWS S3 / B2 / Wasabi.
+#
+# Email is OFF by default (console mode: login codes print to the api logs).
 
 services:
   postgres:
@@ -59,6 +62,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: "3001"
@@ -70,6 +75,13 @@ services:
       AUTH_SECRET: REPLACE_AUTH_SECRET               # must match web
       INTERNAL_API_SECRET: REPLACE_INTERNAL_SEC      # must match web
       WEB_URL: http://NAS_IP:3000
+      # Bundled object storage (evidence/avatars/CI payloads) — see minio below.
+      S3_ENDPOINT: http://minio:9000                 # api -> minio (internal)
+      S3_PUBLIC_ENDPOINT: http://NAS_IP:9000         # browser -> minio (MUST be the NAS IP, not localhost)
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: velo
+      S3_SECRET_ACCESS_KEY: velo-minio-secret        # change if this NAS is reachable outside your LAN
+      S3_BUCKET: velo
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
       interval: 10s
@@ -99,6 +111,41 @@ services:
       # reverse proxy (Caddy/Traefik/nginx) whose pooling needs long-lived upstreams.
       KEEP_ALIVE_TIMEOUT: "100"
 
+  # Bundled S3-compatible object store — makes evidence upload work with no cloud
+  # account. Console (browse objects): http://NAS_IP:9001
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API (the browser fetches presigned URLs here)
+      - "9001:9001"   # web console
+    environment:
+      MINIO_ROOT_USER: velo
+      MINIO_ROOT_PASSWORD: velo-minio-secret        # must match the api S3_* creds above
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: create the bucket on boot (idempotent), then exit.
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 velo velo-minio-secret &&
+      mc mb --ignore-existing local/velo &&
+      echo 'bucket ready';
+      "
+    restart: "no"
+
 volumes:
   postgres_data:
   valkey_data:
+  minio_data:

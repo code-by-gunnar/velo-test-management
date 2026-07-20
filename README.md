@@ -49,13 +49,15 @@ VELO_VERSION=beta     # not a secret — image tag to pull (defaults to beta; se
 Then bring up the full stack — this **pulls** `ghcr.io/code-by-gunnar/velo-{api,web}:${VELO_VERSION}`, no build:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.storage.yml up -d
 ```
 
 - Web → http://localhost:3000
 - API → http://localhost:3001
 
 Migrations run automatically on API boot. Open the web app, create the first account, and you're in. With no SMTP set, Velo runs in **console mode**: one-time codes and reset links print to `docker compose logs api`, and workspace invite links show up in the members UI for copy-paste.
+
+The `docker-compose.storage.yml` overlay bundles a **MinIO** object store so evidence attachments, avatars, and CI payloads work out of the box — no cloud account. Prefer your own S3/R2? See [Configuration](#configuration).
 
 > **Beta images.** Published releases are currently prerelease (`X.Y.Z-beta.N`). `VELO_VERSION=beta` always tracks the latest prerelease build; pin an exact version (e.g. `VELO_VERSION=1.0.0-beta.1`) for anything you care about staying stable. Check the current version in the running app under Settings → General, or `GET /health`.
 >
@@ -65,11 +67,11 @@ Migrations run automatically on API boot. Open the web app, create the first acc
 
 Two ways, depending on your panel:
 
-**Multi-file panels** (Portainer's stack editor, Synology Container Manager "Project"): paste `docker-compose.yml` and `docker-compose.app.yml` as the stack's compose files, and put your filled-in `.env` values in the stack's environment-variables box. No checkout or build on the host.
+**Multi-file panels** (Portainer's stack editor, Synology Container Manager "Project"): paste `docker-compose.yml`, `docker-compose.app.yml`, and `docker-compose.storage.yml` as the stack's compose files, and put your filled-in `.env` values in the stack's environment-variables box. No checkout or build on the host. Set `S3_PUBLIC_ENDPOINT=http://<nas-ip>:9000` so evidence download URLs are reachable from your browser.
 
-**Single-file panels, or any panel whose env box doesn't feed Compose interpolation** (e.g. Dockhand — a missing `${...}` variable fails with `required variable ... is missing a value`): use [`docker-compose.nas.yml`](docker-compose.nas.yml) instead. It's one self-contained file with **no `${}` interpolation** — open it, replace the four `CAPS` placeholders (`NAS_IP`, and the three secrets — note each secret appears in both the `api` and `web` blocks and must match), paste, and deploy.
+**Single-file panels, or any panel whose env box doesn't feed Compose interpolation** (e.g. Dockhand — a missing `${...}` variable fails with `required variable ... is missing a value`): use [`docker-compose.nas.yml`](docker-compose.nas.yml) instead. It's one self-contained file with **no `${}` interpolation** — open it, replace the four `CAPS` placeholders (`NAS_IP`, and the three secrets — note each secret appears in both the `api` and `web` blocks and must match), paste, and deploy. Bundled MinIO storage is already wired in (console at `http://<nas-ip>:9001`).
 
-> Set `NEXT_PUBLIC_API_BASE_URL` / `AUTH_URL` to your NAS's LAN address, not `localhost` — your browser connects to the NAS directly. The NAS file already does this via the `NAS_IP` placeholder, and keeps `KEEP_ALIVE_TIMEOUT=100` so navigation stays snappy (raise it only if you front the app with a reverse proxy).
+> Set `NEXT_PUBLIC_API_BASE_URL` / `AUTH_URL` / `S3_PUBLIC_ENDPOINT` to your NAS's LAN address, not `localhost` — your browser connects to the NAS directly. The NAS file already does this via the `NAS_IP` placeholder, and keeps `KEEP_ALIVE_TIMEOUT=100` so navigation stays snappy (raise it only if you front the app with a reverse proxy).
 
 ## Configuration
 
@@ -80,7 +82,7 @@ The three secrets above are all that's required. Everything else is optional and
 | Email | `SMTP_HOST`, … | Any SMTP provider. Omit for console mode. |
 | Linear + AI-key encryption | `ENCRYPTION_KEY` | `openssl rand -hex 32`. Needed to connect Linear or store AI keys at rest. |
 | AI (env fallback) | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Or add per-workspace keys in Settings → Integrations. |
-| Evidence attachments | Cloudflare R2 credentials | For screenshot/log uploads during execution. |
+| Evidence attachments | *(bundled MinIO)* | Works out of the box. To use cloud instead, drop `docker-compose.storage.yml` and set `S3_*` (R2 / AWS S3 / B2 / Wasabi) — legacy `R2_*` also honored. |
 | Error tracking / analytics | `SENTRY_DSN`, `POSTHOG_KEY` | Off (no phone-home) when unset. |
 
 ### Production
@@ -98,7 +100,7 @@ The production checklist — DNS, public URLs, OAuth callbacks — is in the hea
 If you're working on Velo itself, or want images built from a checkout instead of GHCR, add the build overlay — it replaces the `image:` pulls with local `build:` context for both services:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.build.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.storage.yml -f docker-compose.build.yml up -d --build
 ```
 
 Same `.env` and required secrets as the quick start above. Add `-f docker-compose.prod.yml` too if you're also layering the Caddy overlay.

@@ -49,7 +49,8 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
       # Object storage — any S3-compatible provider (R2, AWS S3, MinIO, B2, Wasabi).
-      # Preferred over R2_* above; empty = storage features (evidence, avatars, CI payloads) disabled.
+      # Preferred over R2_* above. Empty here = disabled; the default stack layers
+      # docker-compose.storage.yml (bundled MinIO), which sets these for you.
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-}
       S3_REGION: ${S3_REGION:-auto}
