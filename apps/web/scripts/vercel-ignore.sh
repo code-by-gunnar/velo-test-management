@@ -4,6 +4,13 @@
 # unless marketing-facing files changed. Runs in the project root (apps/web).
 # Referenced from vercel.json (inline commands are capped at 256 chars).
 
+# Preview deployments are disabled — the marketing site only needs Production.
+# Skip any non-production deployment (VERCEL_ENV is "preview"/"development").
+if [ -n "$VERCEL_ENV" ] && [ "$VERCEL_ENV" != "production" ]; then
+  echo "Non-production deployment ($VERCEL_ENV) — skipping Vercel build"
+  exit 0
+fi
+
 # Shallow clone without a parent commit → can't diff → build to be safe
 git rev-parse HEAD^ >/dev/null 2>&1 || exit 1
 
