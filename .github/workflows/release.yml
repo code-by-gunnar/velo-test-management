@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       # Both images are load-bearing together (compose pulls both for one tag);
-      # don't let one image's failure cancel the other and publish a half-set.
+      # don't let one image's failure cancel the other's in-flight build/push.
       fail-fast: false
       matrix:
         include:
