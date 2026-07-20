@@ -113,7 +113,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
       )}>
         {!collapsed && (
           <>
-            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={30} height={30} className="shrink-0" />
+            <Image src="/velo-mark.svg" alt="Velo" width={30} height={30} className="shrink-0" />
             <span className="flex-1 truncate text-base font-bold text-gray-900 font-display">Velo</span>
           </>
         )}

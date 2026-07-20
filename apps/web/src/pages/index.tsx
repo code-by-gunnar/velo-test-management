@@ -1,280 +1,261 @@
-import { clsx } from "clsx"
-import Link from "next/link"
 import Head from "next/head"
-import { Button } from "@/components/ui"
+import { Star, ArrowRight } from "lucide-react"
 import { MarketingNav } from "@/components/layout/marketing-nav"
 import { MarketingFooter } from "@/components/layout/marketing-footer"
-import {
-  Keyboard,
-  Activity,
-  GitBranch,
-  Zap,
-  ArrowRight,
-  ClipboardList,
-  Play,
-  BarChart3,
-  FlaskConical,
-  Sparkles,
-  Paperclip,
-} from "lucide-react"
 
-const features = [
+const GITHUB_URL = "https://github.com/code-by-gunnar/velo-test-management"
+
+const refusals = [
+  { no: "No per-seat pricing.", detail: "Self-host it and invite the whole team." },
+  { no: "No sprawling integration marketplace.", detail: "Just the few that matter, done well." },
+  { no: "No Gantt charts or planning modules.", detail: "" },
+  { no: "No sales call to get started.", detail: "Clone it and go." },
+  { no: "No lock-in.", detail: "Your data stays in your Postgres — take it with you anytime." },
+]
+
+const capabilities = [
   {
-    title: "Spec to Test in Seconds",
-    description:
-      "Paste a Linear issue ID. AI reads the acceptance criteria and generates test cases — traditional steps or BDD. Review, tweak, import. Your specs become tests before the sprint starts.",
-    icon: <Sparkles size={20} />,
-    highlight: true,
+    tag: "// capture",
+    title: "Write cases fast",
+    body: "A keyboard-first editor. Steps or Given-When-Then, set per project. Tab, type, done. No mouse required.",
   },
   {
-    title: "Keyboard-First Test Editor",
-    description:
-      "Tab, Enter, Backspace — that's it. Write a full test case without touching your mouse. Traditional steps or Given-When-Then, your choice per project.",
-    icon: <Keyboard size={20} />,
+    tag: "// run",
+    title: "Run them live",
+    body: "Execution updates over SSE, not polling. Pass, fail, or block with one key. Attach a screenshot, file the Linear defect, and the evidence rides along.",
   },
   {
-    title: "Native BDD / Given-When-Then",
-    description:
-      "Not a plugin. Not a Gherkin file parser. Pick your format at project creation and get a keyword-aware editor with auto-suggested steps. Import BDD scenarios from CSV.",
-    icon: <FlaskConical size={20} />,
+    tag: "// see",
+    title: "Know where you stand",
+    body: "Pass rates and trends the moment someone records a verdict. No status meeting to find out.",
   },
   {
-    title: "Live Execution Dashboard",
-    description:
-      "Server-sent events, not polling. Pass rates, blockers, and team progress update the instant someone records a verdict. No refresh, no stale data.",
-    icon: <Activity size={20} />,
-  },
-  {
-    title: "CI Pipeline Ingestion",
-    description:
-      "Push JUnit XML or Allure JSON from any CI runner. Results map to your cases automatically. No adapters, no paid add-ons, no YAML config files.",
-    icon: <GitBranch size={20} />,
-  },
-  {
-    title: "Test Evidence, Auto-Synced",
-    description:
-      "Upload screenshots and logs during execution. Log a defect and the evidence auto-attaches to the Linear issue. The developer gets the proof without the QA leaving Velo.",
-    icon: <Paperclip size={20} />,
-  },
-  {
-    title: "5-Minute Setup, No Training",
-    description:
-      "Create a workspace, invite your team, start writing cases. No implementation consultants, no 30-day onboarding programs, no per-seat surprise invoices.",
-    icon: <Zap size={20} />,
+    tag: "// connect",
+    title: "Bring your own AI",
+    body: "Paste a Linear issue; your key turns the acceptance criteria into cases. Claude, OpenAI, or a local model. JUnit and Allure ingest from any CI.",
   },
 ]
 
-const steps = [
-  {
-    number: "01",
-    title: "Write your cases",
-    description: "Create test cases with the keyboard-first editor. Add steps, expected results, and priorities in seconds.",
-    icon: <ClipboardList size={24} />,
-  },
-  {
-    number: "02",
-    title: "Run your tests",
-    description: "Create a test run, assign it to your team, and execute. Pass, fail, or block each step with one click.",
-    icon: <Play size={24} />,
-  },
-  {
-    number: "03",
-    title: "Ship with confidence",
-    description: "See pass rates, blockers, and trends at a glance. Know exactly where you stand before every release.",
-    icon: <BarChart3 size={24} />,
-  },
-]
-
-const comparisons = [
-  { feature: "Spec to test cases", velo: "AI-generated in seconds", others: "Manual transcription" },
-  { feature: "Write a test case", velo: "< 30 seconds", others: "2+ minutes of clicking" },
-  { feature: "BDD / Given-When-Then", velo: "Native, per-project", others: "Plugin or not supported" },
-  { feature: "Live run tracking", velo: "Real-time (SSE)", others: "Refresh to check" },
-  { feature: "CI result ingestion", velo: "Built-in, zero config", others: "Paid add-on or manual" },
-  { feature: "Setup to first test case", velo: "5 minutes", others: "Days to weeks" },
-  { feature: "Data export", velo: "Self-serve, one click", others: "File a support ticket" },
-  { feature: "Pricing model", velo: "Free during beta, flat after", others: "$30-80/seat/month" },
-  { feature: "Training required", velo: "None", others: "\"Implementation partner\"" },
+const selfHostPoints = [
+  "One Docker command. Your Postgres, your data.",
+  "Your own AI keys — Claude, OpenAI, or a model on your LAN.",
+  "Analytics, error tracking, email: off until you switch them on. Nothing phones home.",
+  "Free. MIT-licensed. Fork it if you want.",
 ]
 
 export default function Home() {
   return (
     <>
       <Head>
-        <title>Velo — Test Management for Teams That Ship</title>
-        <meta name="description" content="AI converts your Linear specs into test cases in seconds. Keyboard-first editor, live run tracking, CI ingestion. Built for teams that ship weekly." />
+        <title>Velo — Open-source, self-hosted test management</title>
+        <meta
+          name="description"
+          content="The QA tool that does the part you actually use — write cases, run them, see where you stand — and skips the bloat. Open-source, self-hosted, MIT-licensed."
+        />
       </Head>
 
-      <div className="min-h-screen bg-mist font-body">
+      <div className="min-h-screen bg-mist font-body text-gray-900">
         <MarketingNav />
 
         <main>
-          {/* ── Hero ──────────────────────────────────────────────────────────── */}
-          <section className="pt-20 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-selected px-3 py-1 text-xs font-medium text-primary mb-8">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Now in public beta
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-[1.15] tracking-tight mb-6 font-display">
-                QA that keeps up{" "}
-                <br className="hidden sm:block" />
-                with how you{" "}
-                <span className="text-primary">actually ship.</span>
+          {/* ── Hero ─────────────────────────────────────────────── */}
+          <header className="px-4 pb-28 pt-24 sm:px-6 sm:pt-32 lg:px-8">
+            <div className="mx-auto max-w-3xl">
+              <p className="rise font-mono text-xs tracking-wide text-primary">open source · self-hosted · yours</p>
+              <h1 className="rise rise-1 mt-5 font-display text-4xl font-bold leading-[1.05] tracking-tight text-gray-900 sm:text-6xl">
+                Test management that
+                <br />
+                <span className="text-primary">does less, on purpose.</span>
               </h1>
-
-              <p className="text-lg text-gray-500 max-w-xl mx-auto mb-10 leading-relaxed">
-                Paste a spec, get test cases. AI converts your Linear issues
-                into structured tests in seconds. Traditional steps or BDD.
-                Built for teams that ship weekly, not quarterly.
+              <p className="rise rise-2 mt-7 max-w-xl text-lg leading-relaxed text-gray-600">
+                Open-source, self-hosted test management, focused on what QA teams do every day: write the scenarios, run
+                them, and see where you stand. Not much else, and that&rsquo;s the point.
               </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link href="/features">
-                  <Button variant="primary" size="lg">
-                    Explore Features
-                    <ArrowRight size={16} className="ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/why-velo">
-                  <Button variant="secondary" size="lg">
-                    Why Velo
-                  </Button>
-                </Link>
+              <div className="rise rise-3 mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <a
+                  href="#self-host"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+                >
+                  Deploy with Docker <ArrowRight size={16} aria-hidden="true" />
+                </a>
+                <a
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-gray-400"
+                >
+                  <Star size={16} aria-hidden="true" /> View on GitHub
+                </a>
               </div>
+              <p className="rise rise-4 mt-9 inline-flex items-center gap-2 border-t border-dashed border-gray-300 pt-5 font-mono text-sm text-gray-500">
+                <span className="text-gray-400">$</span> docker compose up{" "}
+                <span className="text-primary">&rarr;</span> localhost:3000
+              </p>
             </div>
-          </section>
+          </header>
 
-          {/* ── How it works ──────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-y border-gray-200">
-            <div className="max-w-5xl mx-auto">
-              <div className="text-center mb-14">
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">How it works</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-display">
-                  Three steps. Zero complexity.
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {steps.map((step, i) => (
-                  <div key={step.number} className="relative text-center">
-                    {/* Connector line between steps (desktop only) */}
-                    {i < steps.length - 1 && (
-                      <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] w-[calc(100%-80px)] border-t-2 border-dashed border-gray-200" />
-                    )}
-
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white border border-gray-200 shadow-card text-primary mb-5">
-                      {step.icon}
-                    </div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-2">
-                      Step {step.number}
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-2 font-display">
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
-                      {step.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── Features ──────────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-5xl mx-auto">
-              <div className="text-center mb-14">
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Features</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-display">
-                  Everything you need. Nothing you don&apos;t.
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {features.map((feature) => (
-                  <div
-                    key={feature.title}
-                    className={clsx(
-                      "group rounded-lg p-5 transition-all hover:shadow-card",
-                      "highlight" in feature && feature.highlight
-                        ? "sm:col-span-2 lg:col-span-3 bg-primary-selected border border-primary/20"
-                        : "bg-white border border-gray-200 hover:border-gray-300"
-                    )}
-                  >
-                    <div className="w-9 h-9 rounded-md bg-primary-selected text-primary flex items-center justify-center mb-4 transition-colors group-hover:bg-primary group-hover:text-white">
-                      {feature.icon}
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1.5 font-display">
-                      {feature.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── Comparison ────────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-y border-gray-200">
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center mb-14">
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Why Velo</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-display">
-                  Built different. On purpose.
-                </h2>
-                <p className="mt-3 text-sm text-gray-500 max-w-lg mx-auto">
-                  Most test management tools were designed for enterprises with 6-month release cycles.
-                  Velo is built for teams shipping weekly.
+          {/* ── The frustration ──────────────────────────────────── */}
+          <section id="why" className="border-y border-gray-200 bg-white px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">
+                I kept paying for tools we barely used.
+              </h2>
+              <div className="mt-6 space-y-4 text-lg leading-relaxed text-gray-600">
+                <p>
+                  For years, every team I joined bought the same kind of thing: a big test-management suite, enterprise
+                  pricing, a long onboarding. And every time, we settled into a small slice of it. Write cases, run them,
+                  log defects.
+                </p>
+                <p>
+                  The rest mostly sat there. The open-source options didn&rsquo;t fit either &mdash; capable, but heavy and
+                  awkward to live in. So I built something smaller, around the slice we actually used.
                 </p>
               </div>
+              <p className="mt-8 rounded-lg border border-gray-200 bg-mist px-5 py-4 font-mono text-sm text-gray-900">
+                a big license <span className="text-gray-400">·</span> a long onboarding{" "}
+                <span className="text-gray-400">·</span> <span className="text-primary">a fraction actually used</span>
+              </p>
+            </div>
+          </section>
 
-              <div className="bg-white border border-gray-200 rounded-lg shadow-card overflow-hidden">
-                <div className="grid grid-cols-3 text-xs font-semibold uppercase tracking-widest text-gray-400 border-b border-gray-100 bg-gray-50">
-                  <div className="px-5 py-3" />
-                  <div className="px-5 py-3 text-primary">Velo</div>
-                  <div className="px-5 py-3">Legacy tools</div>
+          {/* ── What it refuses ──────────────────────────────────── */}
+          <section id="refuses" className="px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">What Velo leaves out.</h2>
+              <p className="mt-3 text-base text-gray-500">The things it skips are on purpose.</p>
+              <ul className="mt-9">
+                {refusals.map((r) => (
+                  <li key={r.no} className="flex items-baseline gap-4 border-b border-gray-100 py-4 text-lg">
+                    <span aria-hidden="true" className="w-5 shrink-0 font-mono text-sm font-bold text-primary">
+                      &times;
+                    </span>
+                    <span className="text-gray-900">
+                      <span className="font-semibold">{r.no}</span>
+                      {r.detail ? <span className="text-gray-500"> {r.detail}</span> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          {/* ── What it is ───────────────────────────────────────── */}
+          <section id="what" className="border-y border-gray-200 bg-white px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="max-w-2xl font-display text-3xl font-bold tracking-tight text-gray-900">
+                The essentials, done properly.
+              </h2>
+              <div className="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-2">
+                {capabilities.map((c) => (
+                  <div key={c.title}>
+                    <p className="font-mono text-xs text-primary">{c.tag}</p>
+                    <h3 className="mt-2 font-display text-lg font-semibold text-gray-900">{c.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-gray-500">{c.body}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Product glimpse — real tokens, no screenshot */}
+              <div className="mt-14 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
+                <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
+                  <span className="ml-2 font-mono text-xs text-gray-400">Checkout suite · 24 cases</span>
                 </div>
-                {comparisons.map((row, i) => (
-                  <div
-                    key={row.feature}
-                    className={`grid grid-cols-3 text-sm ${i < comparisons.length - 1 ? "border-b border-gray-100" : ""}`}
-                  >
-                    <div className="px-5 py-3 font-medium text-gray-700">{row.feature}</div>
-                    <div className="px-5 py-3 text-gray-900">
-                      <span className="font-medium">{row.velo}</span>
-                    </div>
-                    <div className="px-5 py-3 text-gray-400">
-                      {row.others}
-                    </div>
-                  </div>
-                ))}
+                <div className="p-2">
+                  <GlimpseRow selected title="Guest can complete checkout with a saved card" dot="bg-fail" priority="Critical" steps="4 steps" />
+                  <GlimpseRow title="Given an empty cart · When a coupon is applied · Then it is rejected" dot="bg-blocked" priority="High" steps="3 steps" />
+                  <GlimpseRow title="Order confirmation email fires within 30 seconds" dot="bg-pass" priority="Medium" steps="2 steps" />
+                </div>
               </div>
             </div>
           </section>
 
-          {/* ── Bottom CTA ────────────────────────────────────────────────────── */}
-          <section className="py-20 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="bg-gray-900 rounded-xl px-8 py-16">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 font-display">
-                  Ship with confidence,{" "}
-                  <br className="hidden sm:block" />
-                  not crossed fingers.
+          {/* ── Self-host ────────────────────────────────────────── */}
+          <section id="self-host" className="px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto grid max-w-5xl items-center gap-12 lg:grid-cols-2">
+              <div>
+                <p className="font-mono text-xs text-primary">{"// self-host"}</p>
+                <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-gray-900">
+                  Runs on your machine.
+                  <br />
+                  Your data stays yours.
                 </h2>
-                <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
-                  Lean test management for teams that ship fast.
-                  No feature gates, no seat surprises.
-                </p>
-                <Link href="/features">
-                  <Button variant="primary" size="lg">
-                    Explore Features
-                    <ArrowRight size={16} className="ml-2" />
-                  </Button>
-                </Link>
+                <ul className="mt-7 space-y-3">
+                  {selfHostPoints.map((point, i) => (
+                    <li key={point} className="flex gap-3 text-gray-600">
+                      <span className="shrink-0 font-mono text-sm text-primary">{String(i + 1).padStart(2, "0")}</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <a
+                    href={`${GITHUB_URL}#quickstart`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+                  >
+                    Read the quickstart <ArrowRight size={16} aria-hidden="true" />
+                  </a>
+                  <a
+                    href={GITHUB_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-gray-400"
+                  >
+                    <Star size={16} aria-hidden="true" /> GitHub
+                  </a>
+                </div>
+              </div>
+
+              {/* Terminal — the one deliberate dark moment */}
+              <div className="rounded-xl bg-gray-900 p-5 shadow-xl">
+                <div className="mb-4 flex gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-700" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-700" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-700" />
+                </div>
+                <pre className="overflow-x-auto font-mono text-[13px] leading-relaxed text-gray-200">
+                  <span className="text-gray-500"># clone, set three secrets, up</span>
+                  {"\n"}git clone {GITHUB_URL.replace("https://", "")}
+                  {"\n"}cp .env.example .env
+                  {"\n"}docker compose \
+                  {"\n"}  -f docker-compose.yml \
+                  {"\n"}  -f docker-compose.app.yml up -d
+                  {"\n"}
+                  {"\n"}<span className="text-pass">&#10003;</span> web{"  "}<span className="text-primary">&rarr;</span> localhost:3000
+                  {"\n"}<span className="text-pass">&#10003;</span> api{"  "}<span className="text-primary">&rarr;</span> localhost:3001
+                </pre>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Close ────────────────────────────────────────────── */}
+          <section className="border-t border-gray-200 bg-white px-4 py-24 text-center sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+                See if it fits.
+              </h2>
+              <p className="mx-auto mt-4 max-w-md text-gray-500">
+                Clone it, run it, and find out in about five minutes.
+              </p>
+              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <a
+                  href="#self-host"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+                >
+                  Deploy with Docker <ArrowRight size={16} aria-hidden="true" />
+                </a>
+                <a
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-gray-400"
+                >
+                  <Star size={16} aria-hidden="true" /> Star on GitHub
+                </a>
               </div>
             </div>
           </section>
@@ -282,6 +263,55 @@ export default function Home() {
 
         <MarketingFooter />
       </div>
+
+      {/* Quiet hero settle — a single, staggered entrance. Honors reduced-motion. */}
+      <style jsx global>{`
+        .rise {
+          opacity: 0;
+          transform: translateY(14px);
+          animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .rise-1 { animation-delay: 0.08s; }
+        .rise-2 { animation-delay: 0.16s; }
+        .rise-3 { animation-delay: 0.26s; }
+        .rise-4 { animation-delay: 0.36s; }
+        @keyframes rise {
+          to { opacity: 1; transform: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .rise { opacity: 1; transform: none; animation: none; }
+        }
+      `}</style>
     </>
+  )
+}
+
+function GlimpseRow({
+  title,
+  dot,
+  priority,
+  steps,
+  selected = false,
+}: {
+  title: string
+  dot: string
+  priority: string
+  steps: string
+  selected?: boolean
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${selected ? "bg-primary-selected" : ""}`}
+    >
+      <span aria-hidden="true" className="font-mono text-gray-300">
+        &#10303;
+      </span>
+      <span className={`flex-1 ${selected ? "font-medium text-primary" : "text-gray-900"}`}>{title}</span>
+      <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-mist px-2 py-0.5 text-xs font-medium text-gray-600">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        {priority}
+      </span>
+      <span className="hidden font-mono text-xs text-gray-400 sm:inline">{steps}</span>
+    </div>
   )
 }

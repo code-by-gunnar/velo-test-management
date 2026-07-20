@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
       <div className="flex min-h-screen items-center justify-center bg-mist p-4">
         <div className="w-full max-w-md">
           <div className="mb-8 flex justify-center">
-            <Image src="/velo-mark-cobalt.svg" alt="Velo" width={48} height={48} />
+            <Image src="/velo-mark.svg" alt="Velo" width={48} height={48} />
           </div>
           <Card padding="lg">
             <h1 className="text-xl font-semibold text-gray-900 mb-1">Check your email</h1>
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-mist p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <Image src="/velo-mark-cobalt.svg" alt="Velo" width={48} height={48} />
+          <Image src="/velo-mark.svg" alt="Velo" width={48} height={48} />
         </div>
         <Card padding="lg">
           <h1 className="text-xl font-semibold text-gray-900 mb-1">Reset your password</h1>

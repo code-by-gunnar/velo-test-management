@@ -9,10 +9,6 @@ git rev-parse HEAD^ >/dev/null 2>&1 || exit 1
 
 if git diff --quiet HEAD^ HEAD -- \
   src/pages/index.tsx \
-  src/pages/features.tsx \
-  src/pages/pricing.tsx \
-  src/pages/why-velo.tsx \
-  src/pages/privacy.tsx \
   src/components/layout/marketing-nav.tsx \
   src/components/layout/marketing-footer.tsx \
   src/components/ui \
