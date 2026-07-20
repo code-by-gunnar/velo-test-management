@@ -28,13 +28,13 @@ cd velo-test-management
 cp .env.example .env
 ```
 
-Set the three required secrets in `.env` — the stack won't start without them:
+Set the three required secrets in `.env` (the stack won't start without them), plus the image tag to pull:
 
 ```bash
 AUTH_SECRET=          # openssl rand -base64 32   shared web+api session secret
 INTERNAL_API_SECRET=  # openssl rand -hex 32      web→api server-to-server auth
 APP_DB_PASSWORD=      # openssl rand -hex 16      non-superuser app DB role
-VELO_VERSION=beta     # image tag to pull — see note below
+VELO_VERSION=beta     # not a secret — image tag to pull (defaults to beta; see note below)
 ```
 
 Then bring up the full stack — this **pulls** `ghcr.io/code-by-gunnar/velo-{api,web}:${VELO_VERSION}`, no build:
