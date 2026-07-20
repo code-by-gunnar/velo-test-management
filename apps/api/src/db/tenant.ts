@@ -54,3 +54,38 @@ export async function withWorkspace<T>(
     return fn(txSql)
   }) as Promise<T>
 }
+
+// ─── withUser ─────────────────────────────────────────────────────────────────
+//
+// The user-centric counterpart to withWorkspace, for the handful of paths that
+// query a user's OWN rows on an RLS table WITHOUT a workspace in hand — chiefly
+// `workspace_members` (login resolves "which workspaces am I in?", account
+// erasure blocklists across all my workspaces, "my workspaces" listing).
+//
+// It SET LOCAL app.user_id, which the `user_self_access` RLS policy on
+// workspace_members matches (`user_id = app.user_id`). Without it, a bare-sql
+// query on that table under the velo_app role now matches ZERO rows (the old
+// `USING(true)` blanket exemption was removed — see db/bootstrap.ts / VEL-43).
+//
+// Use withWorkspace instead whenever a workspace_id IS available; reserve
+// withUser for genuinely cross-/pre-workspace user queries.
+
+declare const __userScoped: unique symbol
+
+export type UserSql = postgres.Sql & {
+  readonly [__userScoped]: true
+}
+
+export async function withUser<T>(
+  userId: string,
+  fn: (tx: UserSql) => Promise<T>
+): Promise<T> {
+  return sql.begin(async (tx) => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+      throw new Error(`Invalid user_id format: ${userId}`)
+    }
+    const txSql = tx as unknown as UserSql
+    await txSql.unsafe(`SET LOCAL app.user_id = '${userId}'`)
+    return fn(txSql)
+  }) as Promise<T>
+}

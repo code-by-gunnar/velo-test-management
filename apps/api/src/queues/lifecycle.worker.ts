@@ -2,6 +2,7 @@ import { Worker } from "bullmq"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import { valkey, scanKeys } from "../lib/valkey.js"
 import { sql } from "../db/client.js"
+import { withWorkspace, withUser } from "../db/tenant.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { storageEnabled, listObjects, deleteObjects } from "../lib/storage.js"
 import { sendLifecycleEmails } from "../lib/email.js"
@@ -33,22 +34,29 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         let r2ObjectsDeleted = 0
 
         if (storageEnabled()) {
-          // Avatar keys for users who ONLY belong to this workspace
-          const avatarRows = await sql<{ avatar_url: string }[]>`
-            SELECT u.avatar_url FROM users u
-            WHERE u.avatar_url IS NOT NULL
-              AND u.id IN (
-                SELECT wm.user_id FROM workspace_members wm
-                WHERE wm.workspace_id = ${workspaceId}::uuid
-              )
-              AND NOT EXISTS (
-                SELECT 1 FROM workspace_members wm2
-                WHERE wm2.user_id = u.id
-                  AND wm2.workspace_id != ${workspaceId}::uuid
-                  AND wm2.is_active = true
-              )
-          `
-          const avatarKeys = avatarRows.map((r) => r.avatar_url)
+          // Avatar keys for users who ONLY belong to this workspace. This is a
+          // cross-workspace question and workspace_members is now RLS-scoped
+          // (VEL-43), so it can't be a single query: list this workspace's members
+          // (withWorkspace), then per user check for any OTHER active membership
+          // (withUser reveals all of that user's rows across workspaces). N+1 is
+          // fine — workspace deletion is rare and members are few.
+          const wsMembers = await withWorkspace(workspaceId, async (tx) => tx<{ id: string; avatar_url: string }[]>`
+            SELECT DISTINCT u.id, u.avatar_url FROM users u
+            INNER JOIN workspace_members wm ON wm.user_id = u.id
+            WHERE wm.workspace_id = ${workspaceId}::uuid
+              AND u.avatar_url IS NOT NULL
+          `)
+          const avatarKeys: string[] = []
+          for (const m of wsMembers) {
+            const others = await withUser(m.id, async (tx) => tx`
+              SELECT 1 FROM workspace_members
+              WHERE user_id = ${m.id}::uuid
+                AND workspace_id != ${workspaceId}::uuid
+                AND is_active = true
+              LIMIT 1
+            `)
+            if (others.length === 0) avatarKeys.push(m.avatar_url)
+          }
 
           // Ingestion payload keys
           const ingestionKeys = await listObjects(`ingestion/${workspaceId}/`)
@@ -68,11 +76,11 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         // ── TRN-03: Send completion emails BEFORE CASCADE ───────────────────
         // Must collect member emails and workspace name while data still exists
         try {
-          const memberRows = await sql<{ email: string }[]>`
+          const memberRows = await withWorkspace(workspaceId, async (tx) => tx<{ email: string }[]>`
             SELECT u.email FROM users u
             INNER JOIN workspace_members wm ON wm.user_id = u.id
             WHERE wm.workspace_id = ${workspaceId}::uuid AND wm.is_active = true
-          `
+          `)
           const [wsRow] = await sql<{ name: string }[]>`
             SELECT name FROM workspaces WHERE id = ${workspaceId}::uuid
           `
@@ -245,11 +253,11 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           // Only send if still pending — may have been cancelled
           if (!ws || ws.deletion_status !== "pending_deletion") break
 
-          const memberRows = await sql<{ email: string }[]>`
+          const memberRows = await withWorkspace(entityId, async (tx) => tx<{ email: string }[]>`
             SELECT u.email FROM users u
             INNER JOIN workspace_members wm ON wm.user_id = u.id
             WHERE wm.workspace_id = ${entityId}::uuid AND wm.is_active = true
-          `
+          `)
           const emails = memberRows.map((m) => m.email)
           if (emails.length === 0) break
 

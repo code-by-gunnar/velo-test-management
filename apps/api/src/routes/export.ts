@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from "fastify"
 import archiver from "archiver"
-import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
 
 const exportRoutes: FastifyPluginAsync = async (fastify) => {
@@ -26,13 +25,13 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: "format must be 'json' or 'csv'" })
     }
 
-    // Admin check
-    const member = await sql`
+    // Admin check — workspace_members is RLS-scoped (VEL-43), run under withWorkspace
+    const member = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${request.userId}::uuid
         AND is_active = true
-    `
+    `)
     if (member.length === 0 || member[0]?.role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }

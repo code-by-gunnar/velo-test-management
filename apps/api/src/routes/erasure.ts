@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import { sql } from "../db/client.js"
+import { withUser } from "../db/tenant.js"
 import { valkey } from "../lib/valkey.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { logAuditEvent } from "../lib/audit-log.js"
@@ -47,10 +48,10 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
     )
 
     // UER-04 CRITICAL: Immediately blocklist user across ALL workspaces
-    const workspaces = await sql`
+    const workspaces = await withUser(userId, async (tx) => tx`
       SELECT workspace_id FROM workspace_members
       WHERE user_id = ${userId}::uuid AND is_active = true
-    `
+    `)
 
     if (workspaces.length > 0) {
       const pipeline = valkey.pipeline()
@@ -146,10 +147,10 @@ const erasureRoutes: FastifyPluginAsync = async (fastify) => {
     `
 
     // Remove Valkey blocklist entries for all workspaces
-    const workspaces = await sql`
+    const workspaces = await withUser(userId, async (tx) => tx`
       SELECT workspace_id FROM workspace_members
       WHERE user_id = ${userId}::uuid AND is_active = true
-    `
+    `)
 
     if (workspaces.length > 0) {
       const pipeline = valkey.pipeline()
