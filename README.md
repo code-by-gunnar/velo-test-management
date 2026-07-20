@@ -37,14 +37,17 @@ cd velo-test-management
 cp .env.example .env
 ```
 
-Set the three required secrets in `.env` (the stack won't start without them), plus the image tag to pull:
+Set the four required secrets in `.env` (the stack won't start without them), plus the image tag to pull:
 
 ```bash
 AUTH_SECRET=          # openssl rand -base64 32   shared web+api session secret
 INTERNAL_API_SECRET=  # openssl rand -hex 32      web→api server-to-server auth
 APP_DB_PASSWORD=      # openssl rand -hex 16      non-superuser app DB role
+MINIO_ROOT_PASSWORD=  # openssl rand -hex 16      bundled object-storage password
 VELO_VERSION=beta     # not a secret — image tag to pull (defaults to beta; see note below)
 ```
+
+(Using your own S3/R2 instead of bundled MinIO? Drop `-f docker-compose.storage.yml` from the command below — then `MINIO_ROOT_PASSWORD` isn't needed. See [Configuration](#configuration).)
 
 Then bring up the full stack — this **pulls** `ghcr.io/code-by-gunnar/velo-{api,web}:${VELO_VERSION}`, no build:
 
@@ -67,9 +70,9 @@ The `docker-compose.storage.yml` overlay bundles a **MinIO** object store so evi
 
 Two ways, depending on your panel:
 
-**Multi-file panels** (Portainer's stack editor, Synology Container Manager "Project"): paste `docker-compose.yml`, `docker-compose.app.yml`, and `docker-compose.storage.yml` as the stack's compose files, and put your filled-in `.env` values in the stack's environment-variables box. No checkout or build on the host. Set `S3_PUBLIC_ENDPOINT=http://<nas-ip>:9000` so evidence download URLs are reachable from your browser.
+**Multi-file panels** (Portainer's stack editor, Synology Container Manager "Project"): paste `docker-compose.yml`, `docker-compose.app.yml`, and `docker-compose.storage.yml` as the stack's compose files, and put your filled-in `.env` values in the stack's environment-variables box. No checkout or build on the host. Set `MINIO_ROOT_PASSWORD` (openssl rand -hex 16) and `S3_PUBLIC_ENDPOINT=http://<nas-ip>:9000` so evidence uploads work and download URLs are reachable from your browser.
 
-**Single-file panels, or any panel whose env box doesn't feed Compose interpolation** (e.g. Dockhand — a missing `${...}` variable fails with `required variable ... is missing a value`): use [`docker-compose.nas.yml`](docker-compose.nas.yml) instead. It's one self-contained file with **no `${}` interpolation** — open it, replace the four `CAPS` placeholders (`NAS_IP`, and the three secrets — note each secret appears in both the `api` and `web` blocks and must match), paste, and deploy. Bundled MinIO storage is already wired in (console at `http://<nas-ip>:9001`).
+**Single-file panels, or any panel whose env box doesn't feed Compose interpolation** (e.g. Dockhand — a missing `${...}` variable fails with `required variable ... is missing a value`): use [`docker-compose.nas.yml`](docker-compose.nas.yml) instead. It's one self-contained file with **no `${}` interpolation** — open it and replace the five `CAPS` placeholders: `NAS_IP`, the three app secrets, and `REPLACE_MINIO_PASS` (the storage password). Some appear more than once and every copy must match — the app secrets across `api`+`web`, the MinIO password across `api`+`minio`+`minio-init`. Paste and deploy; bundled MinIO storage is wired in.
 
 > Set `NEXT_PUBLIC_API_BASE_URL` / `AUTH_URL` / `S3_PUBLIC_ENDPOINT` to your NAS's LAN address, not `localhost` — your browser connects to the NAS directly. The NAS file already does this via the `NAS_IP` placeholder, and keeps `KEEP_ALIVE_TIMEOUT=100` so navigation stays snappy (raise it only if you front the app with a reverse proxy).
 
