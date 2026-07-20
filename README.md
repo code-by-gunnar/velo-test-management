@@ -18,9 +18,9 @@ Velo is a focused test-management tool you host yourself. It covers the core of 
 
 Everything runs on your infrastructure. Analytics, error tracking, and email stay off until you switch them on; nothing phones home by default.
 
-## Quickstart
+## Quick start (prebuilt images)
 
-You need [Docker](https://docs.docker.com/get-docker/) with Compose v2. That's it.
+You need [Docker](https://docs.docker.com/get-docker/) with Compose v2. That's it — no build, no Node toolchain.
 
 ```bash
 git clone https://github.com/code-by-gunnar/velo-test-management.git
@@ -34,18 +34,27 @@ Set the three required secrets in `.env` — the stack won't start without them:
 AUTH_SECRET=          # openssl rand -base64 32   shared web+api session secret
 INTERNAL_API_SECRET=  # openssl rand -hex 32      web→api server-to-server auth
 APP_DB_PASSWORD=      # openssl rand -hex 16      non-superuser app DB role
+VELO_VERSION=beta     # image tag to pull — see note below
 ```
 
-Then bring up the full stack:
+Then bring up the full stack — this **pulls** `ghcr.io/code-by-gunnar/velo-{api,web}:${VELO_VERSION}`, no build:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 ```
 
 - Web → http://localhost:3000
 - API → http://localhost:3001
 
 Migrations run automatically on API boot. Open the web app, create the first account, and you're in. With no SMTP set, Velo runs in **console mode**: one-time codes and reset links print to `docker compose logs api`, and workspace invite links show up in the members UI for copy-paste.
+
+> **Beta images.** Published releases are currently prerelease (`X.Y.Z-beta.N`). `VELO_VERSION=beta` always tracks the latest prerelease build; pin an exact version (e.g. `VELO_VERSION=1.0.0-beta.1`) for anything you care about staying stable. Check the current version in the running app under Settings → General, or `GET /health`.
+>
+> GHCR publishes packages as private by default; the maintainer flips them to public as a one-time step shortly after the first release. If `docker compose ... up -d` fails to pull with an authentication/403 error, the images may not be public yet — [build from source](#build-from-source-contributors) in the meantime, or try again shortly.
+
+### Portainer / Synology / any Compose-based panel
+
+Paste `docker-compose.yml` and `docker-compose.app.yml` in as the stack's compose files (multi-file / "additional compose files" support varies by panel — Portainer's stack editor and Synology Container Manager's "Project" both accept multiple YAML files), and paste the contents of your filled-in `.env` into the stack's environment-variables box. No repository checkout or build step is needed on the host itself.
 
 ## Configuration
 
@@ -61,13 +70,23 @@ The three secrets above are all that's required. Everything else is optional and
 
 ### Production
 
-Layer the production overlay for TLS and public subdomains via Caddy:
+Layer the production overlay for TLS and public subdomains via Caddy (still pulls the prebuilt images by default):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d
 ```
 
 The production checklist — DNS, public URLs, OAuth callbacks — is in the header of `docker-compose.prod.yml`.
+
+## Build from source (contributors)
+
+If you're working on Velo itself, or want images built from a checkout instead of GHCR, add the build overlay — it replaces the `image:` pulls with local `build:` context for both services:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.build.yml up -d --build
+```
+
+Same `.env` and required secrets as the quick start above. Add `-f docker-compose.prod.yml` too if you're also layering the Caddy overlay.
 
 ## Local development
 
