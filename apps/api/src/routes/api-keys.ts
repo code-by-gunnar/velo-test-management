@@ -4,6 +4,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { sql } from "../db/client.js"
 import { captureEvent } from "../lib/posthog.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -62,6 +63,10 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/api-keys",
     {
+      // API keys are long-lived workspace credentials — creation is admin-only
+      // (VEL-63). Combined with keys inheriting their creator's role, this stops
+      // a viewer minting a key and writing through /api/v1.
+      preHandler: [requireAdmin],
       schema: {
         body: {
           type: "object",
@@ -142,6 +147,7 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; keyId: string }
   }>(
     "/api/workspaces/:workspaceId/api-keys/:keyId",
+    { preHandler: [requireAdmin] },
     async (request, reply) => {
       const { workspaceId, keyId } = request.params
 
