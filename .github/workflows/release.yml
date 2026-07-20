@@ -12,6 +12,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     strategy:
+      # Both images are load-bearing together (compose pulls both for one tag);
+      # don't let one image's failure cancel the other and publish a half-set.
+      fail-fast: false
       matrix:
         include:
           - image: velo-api
@@ -59,3 +62,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ${{ matrix.version_arg }}=${{ steps.meta.outputs.version }}
+          # arm64 builds run under QEMU emulation (slow) — cache across releases.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
