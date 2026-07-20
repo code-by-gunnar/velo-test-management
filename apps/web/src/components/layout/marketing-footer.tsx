@@ -1,7 +1,9 @@
 import Link from "next/link"
 import Image from "next/image"
+import { Coffee } from "lucide-react"
 
 const GITHUB_URL = "https://github.com/code-by-gunnar/velo-test-management"
+const KOFI_URL = "https://ko-fi.com/gunnarfinkeldeh"
 
 export function MarketingFooter() {
   return (
@@ -17,6 +19,9 @@ export function MarketingFooter() {
             <a href={`${GITHUB_URL}#quickstart`} target="_blank" rel="noreferrer" className="text-sm text-gray-500 transition-colors hover:text-gray-900">Quickstart</a>
             <a href={`${GITHUB_URL}/blob/master/LICENSE`} target="_blank" rel="noreferrer" className="text-sm text-gray-500 transition-colors hover:text-gray-900">MIT License</a>
             <a href="mailto:support@runvelo.app" className="text-sm text-gray-500 transition-colors hover:text-gray-900">Contact</a>
+            <a href={KOFI_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-primary">
+              <Coffee size={14} aria-hidden="true" /> Support
+            </a>
           </nav>
         </div>
         <div className="mt-8 border-t border-gray-100 pt-6 text-xs text-gray-400">

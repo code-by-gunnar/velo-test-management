@@ -1,8 +1,17 @@
 <div align="center">
-  <img src="apps/web/public/velo-mark.svg" alt="Velo" width="56" height="56" />
+  <img src="apps/web/public/velo-mark.svg" alt="Velo" width="104" height="104" />
   <h1>Velo</h1>
   <p><strong>Open-source, self-hosted test management that does less, on purpose.</strong></p>
   <p>Write test scenarios, run them, see where you stand — without the bloat of enterprise QA suites.</p>
+  <p>
+    <a href="https://github.com/code-by-gunnar/velo-test-management/tags"><img src="https://img.shields.io/github/v/tag/code-by-gunnar/velo-test-management?sort=semver&label=release&color=5B5BD6" alt="Latest release" /></a>
+    <a href="https://github.com/code-by-gunnar/velo-test-management/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/code-by-gunnar/velo-test-management/ci.yml?branch=master&label=CI" alt="CI status" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" /></a>
+    <a href="#quick-start-prebuilt-images"><img src="https://img.shields.io/badge/self--hosted-Docker-2496ED?logo=docker&logoColor=white" alt="Self-hosted with Docker" /></a>
+    <a href="#stack"><img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" alt="Next.js 16" /></a>
+    <a href="#stack"><img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 16" /></a>
+    <a href="https://ko-fi.com/gunnarfinkeldeh"><img src="https://img.shields.io/badge/Ko--fi-buy_me_a_coffee-FF5E5B?logo=ko-fi&logoColor=white" alt="Support on Ko-fi" /></a>
+  </p>
 </div>
 
 ---
