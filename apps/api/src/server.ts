@@ -34,6 +34,7 @@ import reportsRoutes from "./routes/reports.js"
 import * as Sentry from "@sentry/node"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 import { shutdownPostHog } from "./lib/posthog.js"
+import { warnIfMisconfigured } from "./lib/storage.js"
 
 await runMigrations()
 await runFixups()
@@ -44,6 +45,8 @@ const fastify = Fastify({
     level: process.env.LOG_LEVEL ?? "info",
   },
 })
+
+warnIfMisconfigured((msg) => fastify.log.warn(msg))
 
 await fastify.register(cors, {
   origin: (origin, cb) => {
