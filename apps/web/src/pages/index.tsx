@@ -6,12 +6,16 @@ import { MarketingFooter } from "@/components/layout/marketing-footer"
 
 const GITHUB_URL = "https://github.com/code-by-gunnar/velo-test-management"
 
-const refusals = [
-  { no: "No per-seat pricing.", detail: "Self-host it and invite the whole team." },
-  { no: "No sprawling integration marketplace.", detail: "Just the few that matter, done well." },
-  { no: "No Gantt charts or planning modules.", detail: "" },
-  { no: "No sales call to get started.", detail: "Clone it and go." },
-  { no: "No lock-in.", detail: "Your data stays in your Postgres — take it with you anytime." },
+const comparison = [
+  { feature: "Hosting", velo: "Your server, your data", usual: "Their cloud" },
+  { feature: "Cost", velo: "Free, self-hosted", usual: "Per-seat, per-month" },
+  { feature: "Source", velo: "Open, MIT-licensed", usual: "Proprietary" },
+  { feature: "Setup", velo: "One command, minutes", usual: "Onboarding, days to weeks" },
+  { feature: "Test authoring", velo: "Keyboard-first; steps or GWT", usual: "Form-driven" },
+  { feature: "Run tracking", velo: "Live (SSE)", usual: "Refresh or export" },
+  { feature: "CI results", velo: "Built in", usual: "Paid add-on" },
+  { feature: "Integrations", velo: "A focused few, done well", usual: "A large marketplace" },
+  { feature: "Leaving", velo: "Export from Postgres, anytime", usual: "Vendor-dependent" },
 ]
 
 const capabilities = [
@@ -131,24 +135,32 @@ export default function Home() {
             </div>
           </section>
 
-          {/* ── What it refuses ──────────────────────────────────── */}
-          <section id="refuses" className="px-4 py-24 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl">
-              <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">What Velo leaves out.</h2>
-              <p className="mt-3 text-base text-gray-500">The things it skips are on purpose.</p>
-              <ul className="mt-9">
-                {refusals.map((r) => (
-                  <li key={r.no} className="flex items-baseline gap-4 border-b border-gray-100 py-4 text-lg">
-                    <span aria-hidden="true" className="w-5 shrink-0 font-mono text-sm font-bold text-primary">
-                      &times;
-                    </span>
-                    <span className="text-gray-900">
-                      <span className="font-semibold">{r.no}</span>
-                      {r.detail ? <span className="text-gray-500"> {r.detail}</span> : null}
-                    </span>
-                  </li>
+          {/* ── Comparison ───────────────────────────────────────── */}
+          <section id="compare" className="px-4 py-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl">
+              <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">Built different. On purpose.</h2>
+              <p className="mt-3 max-w-xl text-base text-gray-500">
+                Most QA suites are built for enterprises with quarterly releases. Velo is built for teams that ship
+                weekly, and runs on your own machine.
+              </p>
+
+              <div className="mt-10 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
+                <div className="grid grid-cols-3 border-b border-gray-100 bg-gray-50 font-mono text-[11px] uppercase tracking-wider text-gray-400">
+                  <div className="px-5 py-3" />
+                  <div className="px-5 py-3 text-primary">Velo</div>
+                  <div className="px-5 py-3">The usual suite</div>
+                </div>
+                {comparison.map((row, i) => (
+                  <div
+                    key={row.feature}
+                    className={`grid grid-cols-3 text-sm ${i < comparison.length - 1 ? "border-b border-gray-100" : ""}`}
+                  >
+                    <div className="px-5 py-3.5 font-medium text-gray-700">{row.feature}</div>
+                    <div className="px-5 py-3.5 font-medium text-gray-900">{row.velo}</div>
+                    <div className="px-5 py-3.5 text-gray-400">{row.usual}</div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </section>
 
