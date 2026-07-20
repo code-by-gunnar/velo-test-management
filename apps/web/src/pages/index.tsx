@@ -42,7 +42,7 @@ const capabilities = [
 ]
 
 const selfHostPoints = [
-  "One Docker command. Your Postgres, your data.",
+  "One Docker command. Prebuilt images, amd64 or arm64 — runs on a NAS too.",
   "Your own AI keys — Claude, OpenAI, or a model on your LAN.",
   "Analytics, error tracking, email: off until you switch them on. Nothing phones home.",
   "Free. MIT-licensed. Fork it if you want.",
