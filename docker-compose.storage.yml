@@ -7,7 +7,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.storage.yml up -d
 #
 # It does two things: (1) runs the `minio` container, and (2) points the api's
-# S3_* config at it. Zero config needed — the defaults below just work.
+# S3_* config at it. The only thing you must set is MINIO_ROOT_PASSWORD in .env
+# (openssl rand -hex 16) — everything else defaults sensibly.
 #
 # PREFER CLOUD INSTEAD? Drop this `-f docker-compose.storage.yml` and set S3_*
 # (or legacy R2_*) in .env — the api then talks to R2 / AWS S3 / B2 / Wasabi and
@@ -31,7 +32,7 @@ services:
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}  # browser -> minio (override on remote hosts)
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-velo}
-      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}   # required — guarded on the minio service below
       S3_BUCKET: ${S3_BUCKET:-velo}
 
   minio:
@@ -40,12 +41,16 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # web console (browse uploaded objects at http://localhost:9001)
+      # S3 API only. The browser fetches presigned download URLs here, so it must
+      # be reachable. The :9001 console is deliberately NOT published — the app
+      # never needs it, and recent community builds ship a stripped-down console.
+      # Inspect the bucket with `mc ls` instead, or view evidence inside Velo.
+      - "9000:9000"
     environment:
-      # Change these for any internet-exposed deployment (openssl rand -hex 16).
+      # Username is not a secret; password IS required (no default) — the whole
+      # point of self-hosting is that no one but you holds this credential.
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-velo}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env — openssl rand -hex 16}
     volumes:
       - minio-data:/data
     healthcheck:
@@ -68,7 +73,7 @@ services:
       "
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-velo}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}   # required — guarded on the minio service above
       S3_BUCKET: ${S3_BUCKET:-velo}
     restart: "no"
 
