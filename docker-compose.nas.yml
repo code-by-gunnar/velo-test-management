@@ -1,0 +1,104 @@
+# Velo — single-file NAS stack, NO ${} interpolation (edit values directly).
+# For stack managers (Dockhand/Portainer/Synology) whose env fields don't feed
+# compose interpolation. Just fill in the 4 CAPS placeholders below and deploy.
+#
+# NOTE: this is a convenience mirror of docker-compose.yml + docker-compose.app.yml
+# for single-file stack managers. If you change service config in those files,
+# update it here too. CLI/.env users should prefer the two split files.
+#
+# ┌─ EDIT THESE (find/replace) ────────────────────────────────────────────────┐
+# │ 1. NAS_IP                → your NAS LAN address, e.g. 192.168.1.50          │
+# │                            (appears in 3 URLs below)                        │
+# │ 2. REPLACE_APP_DB_PASS   → openssl rand -hex 16   (used once)              │
+# │ 3. REPLACE_AUTH_SECRET   → openssl rand -base64 32                          │
+# │ 4. REPLACE_INTERNAL_SEC  → openssl rand -hex 32                             │
+# │                                                                            │
+# │ ⚠️  AUTH_SECRET and INTERNAL_API_SECRET each appear TWICE (api + web).      │
+# │     The two copies MUST be identical or login/gateway will break.          │
+# └────────────────────────────────────────────────────────────────────────────┘
+#
+# Storage (evidence/avatars/CI payloads) and email are OFF by default (email =
+# console mode: login codes print to the api container logs). To enable storage
+# later, add S3_ENDPOINT / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / S3_BUCKET
+# under the api `environment:` block.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: velo
+      POSTGRES_PASSWORD: velo
+      POSTGRES_DB: velo_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velo -d velo_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  valkey:
+    image: valkey/valkey:7
+    restart: unless-stopped
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ghcr.io/code-by-gunnar/velo-api:beta
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://velo_app:REPLACE_APP_DB_PASS@postgres:5432/velo_dev
+      MIGRATION_DATABASE_URL: postgresql://velo:velo@postgres:5432/velo_dev
+      APP_DB_PASSWORD: REPLACE_APP_DB_PASS
+      VALKEY_URL: redis://valkey:6379
+      AUTH_SECRET: REPLACE_AUTH_SECRET               # must match web
+      INTERNAL_API_SECRET: REPLACE_INTERNAL_SEC      # must match web
+      WEB_URL: http://NAS_IP:3000
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # migrations run before the server listens
+
+  web:
+    image: ghcr.io/code-by-gunnar/velo-web:beta
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_URL: http://api:3001
+      NEXT_PUBLIC_API_BASE_URL: http://NAS_IP:3001    # browser → api (SSE)
+      AUTH_SECRET: REPLACE_AUTH_SECRET                # must match api
+      INTERNAL_API_SECRET: REPLACE_INTERNAL_SEC       # must match api
+      AUTH_URL: http://NAS_IP:3000
+      NEXTAUTH_URL: http://NAS_IP:3000
+      AUTH_TRUST_HOST: "true"
+      # Drop idle keep-alive sockets fast so Chrome's 6-per-host connection pool
+      # frees between rapid section switches — without this, navigation "stalls"
+      # for seconds. Raise to ~95000 ONLY if you later front the app with a
+      # reverse proxy (Caddy/Traefik/nginx) whose pooling needs long-lived upstreams.
+      KEEP_ALIVE_TIMEOUT: "100"
+
+volumes:
+  postgres_data:
+  valkey_data:

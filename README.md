@@ -52,9 +52,15 @@ Migrations run automatically on API boot. Open the web app, create the first acc
 >
 > GHCR publishes packages as private by default; the maintainer flips them to public as a one-time step shortly after the first release. If `docker compose ... up -d` fails to pull with an authentication/403 error, the images may not be public yet — [build from source](#build-from-source-contributors) in the meantime, or try again shortly.
 
-### Portainer / Synology / any Compose-based panel
+### NAS / single-file panels (Dockhand, Portainer, Synology Container Manager)
 
-Paste `docker-compose.yml` and `docker-compose.app.yml` in as the stack's compose files (multi-file / "additional compose files" support varies by panel — Portainer's stack editor and Synology Container Manager's "Project" both accept multiple YAML files), and paste the contents of your filled-in `.env` into the stack's environment-variables box. No repository checkout or build step is needed on the host itself.
+Two ways, depending on your panel:
+
+**Multi-file panels** (Portainer's stack editor, Synology Container Manager "Project"): paste `docker-compose.yml` and `docker-compose.app.yml` as the stack's compose files, and put your filled-in `.env` values in the stack's environment-variables box. No checkout or build on the host.
+
+**Single-file panels, or any panel whose env box doesn't feed Compose interpolation** (e.g. Dockhand — a missing `${...}` variable fails with `required variable ... is missing a value`): use [`docker-compose.nas.yml`](docker-compose.nas.yml) instead. It's one self-contained file with **no `${}` interpolation** — open it, replace the four `CAPS` placeholders (`NAS_IP`, and the three secrets — note each secret appears in both the `api` and `web` blocks and must match), paste, and deploy.
+
+> Set `NEXT_PUBLIC_API_BASE_URL` / `AUTH_URL` to your NAS's LAN address, not `localhost` — your browser connects to the NAS directly. The NAS file already does this via the `NAS_IP` placeholder, and keeps `KEEP_ALIVE_TIMEOUT=100` so navigation stays snappy (raise it only if you front the app with a reverse proxy).
 
 ## Configuration
 
