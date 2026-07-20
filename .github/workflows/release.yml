@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      # Both images are load-bearing together (compose pulls both for one tag);
+      # don't let one image's failure cancel the other's in-flight build/push.
+      fail-fast: false
+      matrix:
+        include:
+          - image: velo-api
+            dockerfile: apps/api/Dockerfile
+            version_arg: APP_VERSION
+          - image: velo-web
+            dockerfile: apps/web/Dockerfile
+            version_arg: NEXT_PUBLIC_APP_VERSION
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          # latest=auto → :latest only on the highest NON-prerelease. So
+          # v1.0.0-beta.1 never moves :latest; a future v1.0.0 does.
+          flavor: latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=beta,enable=${{ contains(github.ref_name, '-') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            ${{ matrix.version_arg }}=${{ steps.meta.outputs.version }}
+          # arm64 builds run under QEMU emulation (slow) — cache across releases.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -9,9 +9,7 @@
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/code-by-gunnar/velo-api:${VELO_VERSION:-beta}
     restart: unless-stopped
     # Published because the browser connects directly for SSE (EventSource)
     ports:
@@ -73,14 +71,7 @@ services:
       start_period: 30s
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-http://localhost:3001}
-        # Same SENTRY_DSN the api uses at runtime — one value, one Sentry project.
-        # Empty (default) = Sentry disabled in the browser. Changing it needs a web rebuild.
-        NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN:-}
+    image: ghcr.io/code-by-gunnar/velo-web:${VELO_VERSION:-beta}
     restart: unless-stopped
     ports:
       - "3000:3000"

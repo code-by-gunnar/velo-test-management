@@ -22,6 +22,9 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
+# App version, read at runtime by /health. "dev" for local/untagged builds.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 RUN addgroup -S velo && adduser -S velo -G velo
 WORKDIR /app
 COPY --from=build --chown=velo:velo /out/node_modules ./node_modules

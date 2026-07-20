@@ -13,14 +13,19 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @velo/web...
 COPY packages/types packages/types
 COPY apps/web apps/web
-# Baked into client JS at build time (display/banner only; SSE reads it at
-# runtime server-side, so the runtime env var matters too)
+# No longer read in the client bundle (all consumers moved to getServerSideProps,
+# which reads the runtime env) — kept only as a harmless build-time default and
+# for the from-source build overlay. This is what makes ONE prebuilt image portable.
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 # Sentry DSN baked into the client bundle at build. Empty = Sentry disabled
 # (off by default for self-hosted). Set to your own project DSN to opt in.
 ARG NEXT_PUBLIC_SENTRY_DSN=
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+# App version, baked into the client bundle. Correct to bake — it IS this
+# image's immutable tag. Defaults to "dev" for local/untagged builds.
+ARG NEXT_PUBLIC_APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
 # SENTRY_AUTH_TOKEN intentionally absent — source-map upload is skipped
 RUN pnpm --filter @velo/web build
 

@@ -1,0 +1,17 @@
+# Contributor overlay — build both images from source instead of pulling GHCR.
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.build.yml up -d --build
+# Without this overlay the app stack pulls prebuilt images from ghcr.io.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN:-}

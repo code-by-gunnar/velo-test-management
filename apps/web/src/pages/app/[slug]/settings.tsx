@@ -15,6 +15,7 @@ interface SettingsProps {
   workspaceId: string
   userRole: string | null
   userId: string | null
+  apiBaseUrl: string
 }
 
 const TABS = [
@@ -28,7 +29,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"]
 
-export default function SettingsPage({ slug, workspaceId, userRole, userId }: SettingsProps) {
+export default function SettingsPage({ slug, workspaceId, userRole, userId, apiBaseUrl }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("general")
 
   return (
@@ -86,6 +87,10 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
                 {userRole === "admin" && (
                   <ExportPanel workspaceId={workspaceId} />
                 )}
+
+                <p className="text-center text-xs text-gray-400">
+                  Velo {process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+                </p>
               </div>
             )}
 
@@ -102,7 +107,7 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId }: Se
             )}
 
             {activeTab === "api-reference" && (
-              <ApiReference workspaceId={workspaceId} />
+              <ApiReference workspaceId={workspaceId} apiBaseUrl={apiBaseUrl} />
             )}
 
             {activeTab === "integrations" && (
@@ -128,6 +133,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId: session.user.workspace_id ?? "",
       userRole: session.user.role ?? null,
       userId: session.user.id ?? null,
+      apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? "",
     },
   }
 }

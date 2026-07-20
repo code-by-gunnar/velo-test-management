@@ -2,10 +2,9 @@ import { useState } from "react"
 import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react"
 import { clsx } from "clsx"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
-
 interface ApiReferenceProps {
   workspaceId: string
+  apiBaseUrl: string
 }
 
 function CopyBtn({ text }: { text: string }) {
@@ -128,25 +127,18 @@ function Section({ title, children }: SectionProps) {
   )
 }
 
-function curlGet(path: string): string {
-  return `curl -H "Authorization: Bearer YOUR_API_KEY" \\\n  "${API_BASE}${path}"`
-}
-
-function curlPost(path: string, body: string): string {
-  return `curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}' \\\n  "${API_BASE}${path}"`
-}
-
-function curlPatch(path: string, body: string): string {
-  return `curl -X PATCH \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}' \\\n  "${API_BASE}${path}"`
-}
-
-function curlDelete(path: string): string {
-  return `curl -X DELETE \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  "${API_BASE}${path}"`
-}
-
-export function ApiReference({ workspaceId }: ApiReferenceProps) {
+export function ApiReference({ workspaceId, apiBaseUrl }: ApiReferenceProps) {
   const wid = workspaceId
   const pid = "{project_id}"
+
+  const curlGet = (path: string): string =>
+    `curl -H "Authorization: Bearer YOUR_API_KEY" \\\n  "${apiBaseUrl}${path}"`
+
+  const curlPost = (path: string, body: string): string =>
+    `curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}' \\\n  "${apiBaseUrl}${path}"`
+
+  const curlPatch = (path: string, body: string): string =>
+    `curl -X PATCH \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}' \\\n  "${apiBaseUrl}${path}"`
 
   return (
     <div className="flex flex-col gap-5">
@@ -159,7 +151,7 @@ export function ApiReference({ workspaceId }: ApiReferenceProps) {
         </p>
         <CodeBlock code={`Authorization: Bearer velo_your_api_key_here`} />
         <p className="mt-3 text-sm text-gray-600">
-          Base URL: <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">{API_BASE}/api/v1</code>
+          Base URL: <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-mono">{apiBaseUrl}/api/v1</code>
         </p>
         <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
           <p className="text-xs text-blue-700">
@@ -240,9 +232,9 @@ export function ApiReference({ workspaceId }: ApiReferenceProps) {
       {/* Ingestion */}
       <Section title="CI Ingestion">
         <Endpoint method="POST" path={`/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit`} description="Ingest JUnit XML"
-          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@junit-results.xml" \\\n  "${API_BASE}/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit"`} />
+          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@junit-results.xml" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit"`} />
         <Endpoint method="POST" path={`/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure`} description="Ingest Allure JSON"
-          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@allure-results.json" \\\n  "${API_BASE}/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure"`} />
+          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@allure-results.json" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure"`} />
       </Section>
     </div>
   )

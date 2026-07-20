@@ -11,6 +11,7 @@ interface IngestionPageProps {
   workspaceId: string
   projectId: string
   hasApiKeys: boolean
+  publicApiUrl: string
 }
 
 export default function IngestionPage({
@@ -19,6 +20,7 @@ export default function IngestionPage({
   workspaceId,
   projectId,
   hasApiKeys,
+  publicApiUrl,
 }: IngestionPageProps) {
   return (
     <AppLayout slug={slug} projectKey={projectKey}>
@@ -41,6 +43,7 @@ export default function IngestionPage({
               projectId={projectId}
               slug={slug}
               hasApiKeys={hasApiKeys}
+              apiBaseUrl={publicApiUrl}
             />
             <IngestionHistory
               workspaceId={workspaceId}
@@ -62,6 +65,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug, projectKey } = context.params as { slug: string; projectKey: string }
   const workspaceId = session.user.workspace_id ?? ""
   const apiUrl = process.env.API_URL ?? ""
+  const publicApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? ""
 
   const token =
     context.req.cookies["__Secure-authjs.session-token"] ??
@@ -93,6 +97,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId,
       projectId: project?.id ?? "",
       hasApiKeys,
+      publicApiUrl,
     },
   }
 }

@@ -101,6 +101,7 @@ fastify.get("/health", async () => {
   const valkeyPing = await fastify.valkey.ping().catch(() => "ERROR")
   return {
     status: valkeyPing === "PONG" ? "ok" : "degraded",
+    version: process.env.APP_VERSION ?? "dev",
     timestamp: new Date().toISOString(),
     services: {
       valkey: valkeyPing === "PONG" ? "ok" : "error",
