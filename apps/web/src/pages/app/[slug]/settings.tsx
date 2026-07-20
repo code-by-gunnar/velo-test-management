@@ -87,6 +87,10 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId, apiB
                 {userRole === "admin" && (
                   <ExportPanel workspaceId={workspaceId} />
                 )}
+
+                <p className="text-center text-xs text-gray-400">
+                  Velo {process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}
+                </p>
               </div>
             )}
 

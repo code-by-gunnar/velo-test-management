@@ -21,6 +21,10 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 # (off by default for self-hosted). Set to your own project DSN to opt in.
 ARG NEXT_PUBLIC_SENTRY_DSN=
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+# App version, baked into the client bundle. Correct to bake — it IS this
+# image's immutable tag. Defaults to "dev" for local/untagged builds.
+ARG NEXT_PUBLIC_APP_VERSION=dev
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
 # SENTRY_AUTH_TOKEN intentionally absent — source-map upload is skipped
 RUN pnpm --filter @velo/web build
 
