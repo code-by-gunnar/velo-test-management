@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import Head from "next/head"
 import type { AppProps } from "next/app"
 import { SessionProvider, signOut } from "next-auth/react"
 import { Bricolage_Grotesque, Public_Sans, JetBrains_Mono } from "next/font/google"
@@ -93,6 +94,12 @@ const jetbrainsMono = JetBrains_Mono({
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
+      <Head>
+        {/* Override Next's default `width=device-width` (no initial-scale), which
+            makes mobile browsers render zoomed-out/hybrid. next/head dedupes by
+            name, so this replaces the default globally. */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
       <ToastProvider>
         <div className={`${bricolage.variable} ${publicSans.variable} ${jetbrainsMono.variable} font-body`}>
           <RouteProgress />

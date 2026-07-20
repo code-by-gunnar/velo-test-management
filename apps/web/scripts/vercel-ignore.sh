@@ -16,6 +16,8 @@ git rev-parse HEAD^ >/dev/null 2>&1 || exit 1
 
 if git diff --quiet HEAD^ HEAD -- \
   src/pages/index.tsx \
+  src/pages/_app.tsx \
+  src/pages/_document.tsx \
   src/components/layout/marketing-nav.tsx \
   src/components/layout/marketing-footer.tsx \
   src/components/ui \
