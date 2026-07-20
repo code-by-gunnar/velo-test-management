@@ -32,7 +32,6 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug, defaultFo
   const [error, setError] = useState("")
   const [fieldError, setFieldError] = useState<{ name?: string; project_key?: string }>({})
   const [loading, setLoading] = useState(false)
-  const [tierLimited, setTierLimited] = useState(false)
 
   // Escape key handler
   useEffect(() => {
@@ -52,7 +51,6 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug, defaultFo
     setTestFormat(defaultFormat)
     setError("")
     setFieldError({})
-    setTierLimited(false)
     setLoading(false)
     onClose()
   }
@@ -110,11 +108,6 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug, defaultFo
 
       const data = await res.json() as { error?: string; code?: string; field?: string }
 
-      if (res.status === 403 && data.code === "TIER_LIMIT_EXCEEDED") {
-        setTierLimited(true)
-        return
-      }
-
       if (res.status === 409 && data.field === "project_key") {
         setFieldError({ project_key: "This project key is already in use" })
         return
@@ -142,75 +135,62 @@ export function CreateProjectModal({ open, onClose, workspaceId, slug, defaultFo
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 id="create-project-title" className="text-base font-semibold text-gray-900 font-display">
-            {tierLimited ? "Project limit reached" : "New project"}
+            New project
           </h2>
           <button type="button" onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             &#10005;
           </button>
         </div>
 
-        {tierLimited ? (
-          <div className="px-6 py-8 text-center">
-            <p className="text-sm text-gray-600">
-              Your free plan allows 1 project. Upgrade to Starter to create more projects.
-            </p>
-            <div className="mt-6">
-              <Button variant="primary" size="sm" onClick={handleClose}>
-                Got it
-              </Button>
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <div className="space-y-4 px-6 py-5">
+            {error && (
+              <p className="text-sm text-fail" role="alert">{error}</p>
+            )}
+            <FormField label="Project name" htmlFor="create-project-name" error={fieldError.name}>
+              <Input
+                id="create-project-name"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="e.g. Mobile App"
+                maxLength={255}
+                autoFocus
+                error={fieldError.name}
+              />
+            </FormField>
+            <FormField label="Project key" htmlFor="create-project-key" error={fieldError.project_key}>
+              <Input
+                id="create-project-key"
+                value={projectKey}
+                onChange={(e) => handleKeyChange(e.target.value)}
+                placeholder="e.g. mobile-app"
+                maxLength={20}
+                error={fieldError.project_key}
+              />
+              <p className="text-xs text-gray-500">
+                Used in URLs and integrations. Lowercase letters, numbers, and hyphens only.
+              </p>
+            </FormField>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Test case format
+              </label>
+              <FormatPicker value={testFormat} onChange={setTestFormat} />
+              <p className="mt-1.5 text-xs text-gray-400">
+                Cannot be changed after creation.
+              </p>
             </div>
           </div>
-        ) : (
-          <form onSubmit={(e) => void handleSubmit(e)}>
-            <div className="space-y-4 px-6 py-5">
-              {error && (
-                <p className="text-sm text-fail" role="alert">{error}</p>
-              )}
-              <FormField label="Project name" htmlFor="create-project-name" error={fieldError.name}>
-                <Input
-                  id="create-project-name"
-                  value={name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. Mobile App"
-                  maxLength={255}
-                  autoFocus
-                  error={fieldError.name}
-                />
-              </FormField>
-              <FormField label="Project key" htmlFor="create-project-key" error={fieldError.project_key}>
-                <Input
-                  id="create-project-key"
-                  value={projectKey}
-                  onChange={(e) => handleKeyChange(e.target.value)}
-                  placeholder="e.g. mobile-app"
-                  maxLength={20}
-                  error={fieldError.project_key}
-                />
-                <p className="text-xs text-gray-500">
-                  Used in URLs and integrations. Lowercase letters, numbers, and hyphens only.
-                </p>
-              </FormField>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Test case format
-                </label>
-                <FormatPicker value={testFormat} onChange={setTestFormat} />
-                <p className="mt-1.5 text-xs text-gray-400">
-                  Cannot be changed after creation.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
-              <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" size="sm" disabled={loading}>
-                {loading ? "Creating..." : "Create project"}
-              </Button>
-            </div>
-          </form>
-        )}
+          <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={loading}>
+              {loading ? "Creating..." : "Create project"}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   )

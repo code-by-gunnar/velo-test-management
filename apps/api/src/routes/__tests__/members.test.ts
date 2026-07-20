@@ -360,7 +360,7 @@ describe("Members routes (USR-01 through USR-06)", () => {
       expect(res.statusCode).toBe(201)
     })
 
-    it("rejects editor invitation when free tier cap reached", async () => {
+    it("allows editor invitation past the old free-tier cap (limits removed VEL-59)", async () => {
       const capWsId = uuidv7()
       const capAdminId = uuidv7()
       await sql`
@@ -400,9 +400,7 @@ describe("Members routes (USR-01 through USR-06)", () => {
         url: `/api/workspaces/${capWsId}/invitations`,
         payload: { email: `over-cap-${Date.now()}@example.com`, role: "editor" },
       })
-      expect(res.statusCode).toBe(403)
-      const body = res.json() as { code: string }
-      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+      expect(res.statusCode).toBe(201)
 
       await capApp.close()
       for (const editorId of editorIds) {
@@ -415,9 +413,9 @@ describe("Members routes (USR-01 through USR-06)", () => {
     })
   })
 
-  // USR-06: Plan tier limits enforced at API layer
-  describe("Tier limit enforcement (USR-06)", () => {
-    it("returns 403 with TIER_LIMIT_EXCEEDED when editor cap exceeded", async () => {
+  // USR-06 / VEL-59: Free-tier limits removed — inviting past the old editor cap succeeds
+  describe("Editor invites no longer tier-limited (VEL-59)", () => {
+    it("allows an editor invitation past the old free-tier editor cap", async () => {
       const tierWsId = uuidv7()
       const tierAdminId = uuidv7()
       await sql`
@@ -458,10 +456,7 @@ describe("Members routes (USR-01 through USR-06)", () => {
         payload: { email: `over-cap-${Date.now()}@example.com`, role: "editor" },
       })
 
-      expect(res.statusCode).toBe(403)
-      const body = res.json() as { code: string; error: string }
-      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
-      expect(body.error.toLowerCase()).toContain("upgrade")
+      expect(res.statusCode).toBe(201)
 
       await tierApp.close()
       for (const editorId of editorIds) {
@@ -552,7 +547,7 @@ describe("Members routes (USR-01 through USR-06)", () => {
       expect((m as { role: string }).role).toBe("admin")
     })
 
-    it("returns 403 TIER_LIMIT_EXCEEDED when upgrading to editor at free tier cap", async () => {
+    it("allows upgrading to editor past the old free-tier cap (limits removed VEL-59)", async () => {
       const capWsId = uuidv7()
       const capAdminId = uuidv7()
       const targetUserId = uuidv7()
@@ -603,9 +598,9 @@ describe("Members routes (USR-01 through USR-06)", () => {
         url: `/api/workspaces/${capWsId}/members/${targetUserId}`,
         payload: { role: "editor" },
       })
-      expect(res.statusCode).toBe(403)
-      const body = res.json() as { code: string }
-      expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { role: string }
+      expect(body.role).toBe("editor")
 
       await capApp.close()
       for (const editorId of editorIds) {

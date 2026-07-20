@@ -9,11 +9,6 @@ import { emailEnabled } from "../lib/mailer.js"
 import { valkey } from "../lib/valkey.js"
 import { captureEvent } from "../lib/posthog.js"
 
-// Free tier limits — mirrors workspaces.ts constant
-const FREE_TIER_LIMITS = {
-  max_editors: 3,
-} as const
-
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 function generateInviteToken(): string {
@@ -56,7 +51,7 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Admin guard — use bare sql (pre-RLS context)
       const memberRows = await sql`
-        SELECT wm.role, w.plan_tier, w.name AS workspace_name
+        SELECT wm.role, w.name AS workspace_name
         FROM workspace_members wm
         INNER JOIN workspaces w ON w.id = wm.workspace_id
         WHERE wm.workspace_id = ${workspaceId}::uuid
@@ -67,27 +62,7 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "Admin access required" })
       }
 
-      const planTier = (memberRows[0] as { plan_tier: string }).plan_tier
       const workspaceName = (memberRows[0] as { workspace_name: string }).workspace_name
-
-      // Editor seat cap — only for free tier and editor role
-      if (role === "editor" && planTier === "free") {
-        const countRows = await sql`
-          SELECT COUNT(*) AS n
-          FROM workspace_members
-          WHERE workspace_id = ${workspaceId}::uuid
-            AND role = 'editor'
-            AND is_active = true
-        `
-        const editorCount = parseInt((countRows[0] as { n: string }).n ?? "0")
-        if (editorCount >= FREE_TIER_LIMITS.max_editors) {
-          return reply.status(403).send({
-            error: `Free tier allows ${FREE_TIER_LIMITS.max_editors} editors. Upgrade to Starter to invite more.`,
-            code: "TIER_LIMIT_EXCEEDED",
-            limit: "max_editors",
-          })
-        }
-      }
 
       // Check if email is already an active member
       const existingMember = await sql`
@@ -315,18 +290,15 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Admin guard — use bare sql (pre-RLS context)
       const memberRows = await sql`
-        SELECT wm.role, w.plan_tier
-        FROM workspace_members wm
-        INNER JOIN workspaces w ON w.id = wm.workspace_id
-        WHERE wm.workspace_id = ${workspaceId}::uuid
-          AND wm.user_id = ${callerId}::uuid
-          AND wm.is_active = true
+        SELECT role
+        FROM workspace_members
+        WHERE workspace_id = ${workspaceId}::uuid
+          AND user_id = ${callerId}::uuid
+          AND is_active = true
       `
       if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
         return reply.status(403).send({ error: "Admin access required" })
       }
-
-      const planTier = (memberRows[0] as { plan_tier: string }).plan_tier
 
       // Prevent removing the last admin — demoting the sole active admin (incl.
       // self-demotion) would leave the workspace with no one who can manage it.
@@ -337,25 +309,6 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
         ` as unknown as Array<{ user_id: string }>
         if (admins.length === 1 && admins[0]?.user_id === targetUserId) {
           return reply.status(400).send({ error: "Cannot remove the last admin. Promote another member to admin first." })
-        }
-      }
-
-      // Editor seat cap — only for free tier upgrading to editor
-      if (role === "editor" && planTier === "free") {
-        const countRows = await sql`
-          SELECT COUNT(*) AS n
-          FROM workspace_members
-          WHERE workspace_id = ${workspaceId}::uuid
-            AND role = 'editor'
-            AND is_active = true
-        `
-        const editorCount = parseInt((countRows[0] as { n: string }).n ?? "0")
-        if (editorCount >= FREE_TIER_LIMITS.max_editors) {
-          return reply.status(403).send({
-            error: `Free tier allows ${FREE_TIER_LIMITS.max_editors} editors. Upgrade to Starter to add more.`,
-            code: "TIER_LIMIT_EXCEEDED",
-            limit: "max_editors",
-          })
         }
       }
 

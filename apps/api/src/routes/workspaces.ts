@@ -11,13 +11,6 @@ import { requireAdmin } from "../plugins/require-admin.js"
 // Cast tx through unknown to postgres.Sql to enable template tag calls inside sql.begin().
 type Sql = postgres.Sql
 
-// Free tier limits (WORK-03)
-const FREE_TIER_LIMITS = {
-  max_editors: 3,
-  max_projects: 1,
-  max_test_cases: 500,
-} as const
-
 // Generate a URL-safe slug from a workspace name
 function slugify(name: string): string {
   return name
@@ -186,7 +179,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // ── POST /api/workspaces/:workspaceId/projects ────────────────────────────
-  // Creates a project within a workspace. Enforces Free tier limit.
+  // Creates a project within a workspace.
   fastify.post<{
     Params: { workspaceId: string }
     Body: { name: string; project_key: string; description?: string; test_format?: string }
@@ -210,30 +203,15 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Verify user is admin or editor in this workspace
     const memberRows = await sql`
-      SELECT wm.role, w.plan_tier FROM workspace_members wm
-      INNER JOIN workspaces w ON w.id = wm.workspace_id
-      WHERE wm.workspace_id = ${workspaceId}::uuid
-        AND wm.user_id = ${userId}::uuid
-        AND wm.is_active = true
+      SELECT role FROM workspace_members
+      WHERE workspace_id = ${workspaceId}::uuid
+        AND user_id = ${userId}::uuid
+        AND is_active = true
     `
 
     if (memberRows.length === 0) return reply.status(403).send({ error: "Access denied" })
     const member = memberRows[0]!
     if (member.role === "viewer") return reply.status(403).send({ error: "Viewers cannot create projects" })
-
-    // WORK-03: Enforce Free tier project limit
-    if (member.plan_tier === "free") {
-      const countRows = await withWorkspace(workspaceId, async (tx) =>
-        tx`SELECT COUNT(*) AS n FROM projects WHERE workspace_id = ${workspaceId}::uuid`
-      )
-      if (parseInt(countRows[0]?.n ?? "0") >= FREE_TIER_LIMITS.max_projects) {
-        return reply.status(403).send({
-          error: `Free tier allows ${FREE_TIER_LIMITS.max_projects} project. Upgrade to Starter to add more.`,
-          code: "TIER_LIMIT_EXCEEDED",
-          limit: "max_projects",
-        })
-      }
-    }
 
     // Check project_key uniqueness within workspace
     const existingKey = await withWorkspace(workspaceId, async (tx) =>
