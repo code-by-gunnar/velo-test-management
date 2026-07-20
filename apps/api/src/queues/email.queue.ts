@@ -7,7 +7,6 @@ export interface EmailJobData {
   type:
     | "otp"
     | "password-reset"
-    | "welcome"
     | "workspace-invite"
     | "workspace-deletion-requested"
     | "workspace-deletion-warning"

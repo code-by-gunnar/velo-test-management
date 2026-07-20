@@ -60,7 +60,7 @@ const NAV_ITEMS = [
 
 export function Sidebar({ slug, projectKey }: SidebarProps) {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const { canEdit, isAdmin } = useUserRole()
 
   const subscribeStorage = useCallback((cb: () => void) => {
@@ -323,6 +323,7 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
         collapsed={collapsed}
         initials={initials}
         displayName={displayName}
+        loading={status === "loading"}
       />
     </aside>
     </>
@@ -336,11 +337,13 @@ function UserMenu({
   collapsed,
   initials,
   displayName,
+  loading,
 }: {
   slug: string
   collapsed: boolean
   initials: string
   displayName: string
+  loading: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -384,6 +387,10 @@ function UserMenu({
     return () => document.removeEventListener("keydown", onKey)
   }, [open])
 
+  // Session resolves a beat after mount; show a neutral placeholder instead of
+  // flashing "Account" / "?" before the real name arrives.
+  const pending = loading && !displayName
+
   const avatar = avatarUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -391,6 +398,8 @@ function UserMenu({
       alt=""
       className="h-6 w-6 shrink-0 rounded-sm object-cover"
     />
+  ) : pending ? (
+    <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-200" />
   ) : (
     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[10px] font-semibold text-white">
       {initials}
@@ -450,7 +459,11 @@ function UserMenu({
         {avatar}
         {!collapsed && (
           <>
-            <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Account"}</span>
+            {pending ? (
+              <span className="h-3 flex-1 animate-pulse rounded bg-gray-200" aria-hidden="true" />
+            ) : (
+              <span className="flex-1 truncate text-left text-xs text-gray-600">{displayName || "Account"}</span>
+            )}
             <ChevronsUpDown size={14} className="shrink-0 text-gray-400" aria-hidden="true" />
           </>
         )}

@@ -2,7 +2,6 @@ import { Worker } from "bullmq"
 import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import { sendMail } from "../lib/mailer.js"
 import {
-  welcomeEmail,
   workspaceInviteEmail,
   workspaceDeletionRequestedEmail,
   workspaceDeletionWarningEmail,
@@ -27,18 +26,6 @@ export const emailWorker = new Worker<EmailJobData>(
         console.log(`[email-worker] type=${type} handled upstream — skipping worker send`)
         break
       }
-      case "welcome": {
-        const { userName } = job.data.payload as { userName: string }
-        const webUrl = process.env.WEB_URL ?? "http://localhost:3000"
-        await sendMail({
-          to,
-          subject,
-          html: welcomeEmail(userName),
-          text: `Hey ${userName.split(" ")[0]},\n\nThanks for joining Velo. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools.\n\nThree things to try first:\n\n1. Create a test case — our keyboard-first editor lets you write a complete case in under 30 seconds.\n2. Import from CSV — drag and drop a CSV file and Velo maps your columns automatically.\n3. Import from Linear — paste a Linear issue ID and our AI converts the spec into structured test cases.\n\nOpen Velo: ${webUrl}\n\nIf you have questions or feedback, just hit reply — I read every email.\n\nGunnar\nFounder, Velo`,
-          ...(process.env.SUPPORT_EMAIL ? { replyTo: process.env.SUPPORT_EMAIL } : {}),
-        })
-        break
-      }
       case "workspace-invite": {
         const { inviteUrl, workspaceName, inviterName } = job.data.payload as {
           inviteUrl: string
@@ -50,6 +37,8 @@ export const emailWorker = new Worker<EmailJobData>(
           subject,
           html: workspaceInviteEmail(inviterName, workspaceName, inviteUrl),
           text: `${inviterName} has invited you to join the ${workspaceName} workspace on Velo.\n\nAccept your invitation:\n${inviteUrl}\n\nThis invitation expires in 7 days.`,
+          // Replies to an invite should reach the instance admin, not the no-reply sender
+          ...(process.env.SUPPORT_EMAIL ? { replyTo: process.env.SUPPORT_EMAIL } : {}),
         })
         break
       }
