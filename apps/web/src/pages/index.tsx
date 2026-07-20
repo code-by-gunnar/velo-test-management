@@ -201,7 +201,7 @@ export default function Home() {
           {/* ── Self-host ────────────────────────────────────────── */}
           <section id="self-host" className="px-4 py-24 sm:px-6 lg:px-8">
             <div className="mx-auto grid max-w-5xl items-center gap-12 lg:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <p className="font-mono text-xs text-primary">{"// self-host"}</p>
                 <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-gray-900">
                   Runs on your machine.
@@ -237,7 +237,7 @@ export default function Home() {
               </div>
 
               {/* Terminal — the one deliberate dark moment */}
-              <div className="rounded-xl bg-gray-900 p-5 shadow-xl">
+              <div className="min-w-0 rounded-xl bg-gray-900 p-5 shadow-xl">
                 <div className="mb-4 flex gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-gray-700" />
                   <span className="h-2.5 w-2.5 rounded-full bg-gray-700" />
