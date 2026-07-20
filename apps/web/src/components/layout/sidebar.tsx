@@ -303,9 +303,11 @@ export function Sidebar({ slug, projectKey }: SidebarProps) {
             {!collapsed && <span>Workspace Settings</span>}
           </span>
         )}
-        {/* Feedback */}
+        {/* Feedback — open-source issue tracker (self-hosted: never routes to a private inbox) */}
         <a
-          href="mailto:support@runvelo.app?subject=Feedback"
+          href="https://github.com/code-by-gunnar/velo-test-management/issues"
+          target="_blank"
+          rel="noopener noreferrer"
           title={collapsed ? "Give Feedback" : undefined}
           className={clsx(
             "flex items-center gap-2.5 rounded-md py-1.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors",
