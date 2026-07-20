@@ -4,13 +4,12 @@ import { clsx } from "clsx"
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
-
 interface SetupGuideProps {
   workspaceId: string
   projectId: string
   slug: string
   hasApiKeys: boolean
+  apiBaseUrl: string
 }
 
 interface CopyButtonProps {
@@ -82,21 +81,21 @@ function CollapsibleSection({ title, defaultOpen = false, children }: { title: s
   )
 }
 
-export function SetupGuide({ workspaceId, projectId, slug, hasApiKeys }: SetupGuideProps) {
+export function SetupGuide({ workspaceId, projectId, slug, hasApiKeys, apiBaseUrl }: SetupGuideProps) {
   const junitCmd = [
-    `curl -X POST ${API_BASE}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/junit \\`,
+    `curl -X POST ${apiBaseUrl}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/junit \\`,
     `  -H "Authorization: Bearer YOUR_API_KEY" \\`,
     `  -F "file=@junit-results.xml"`,
   ].join("\n")
 
   const allureMultipartCmd = [
-    `curl -X POST ${API_BASE}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/allure \\`,
+    `curl -X POST ${apiBaseUrl}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/allure \\`,
     `  -H "Authorization: Bearer YOUR_API_KEY" \\`,
     `  -F "file=@allure-results.json"`,
   ].join("\n")
 
   const allureJsonCmd = [
-    `curl -X POST ${API_BASE}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/allure \\`,
+    `curl -X POST ${apiBaseUrl}/api/workspaces/${workspaceId}/projects/${projectId}/ingest/allure \\`,
     `  -H "Authorization: Bearer YOUR_API_KEY" \\`,
     `  -H "Content-Type: application/json" \\`,
     `  --data-binary @allure-results.json`,
