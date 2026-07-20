@@ -3,7 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { decrypt } from "../lib/encryption.js"
 import { createLinearIssue, createLinearAttachmentLink, getLinearBugLabelId } from "../lib/linear-client.js"
-import { r2Enabled, getR2PresignedUrl } from "../lib/r2.js"
+import { storageEnabled, getPresignedUrl } from "../lib/storage.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { captureEvent } from "../lib/posthog.js"
 
@@ -171,7 +171,7 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           // Sync evidence attachments to Linear issue (best-effort)
-          if (r2Enabled()) {
+          if (storageEnabled()) {
             try {
               const attachments = await withWorkspace(workspaceId, async (tx) => {
                 return tx`
@@ -183,7 +183,7 @@ const defectsRoutes: FastifyPluginAsync = async (fastify) => {
 
               for (const att of attachments as unknown as Array<{ filename: string; r2_key: string }>) {
                 try {
-                  const presignedUrl = await getR2PresignedUrl(att.r2_key)
+                  const presignedUrl = await getPresignedUrl(att.r2_key)
                   await createLinearAttachmentLink(accessToken, issue.id, att.filename, presignedUrl)
                 } catch (attErr) {
                   fastify.log.warn({ attErr, filename: att.filename, defectId }, "Failed to sync attachment to Linear")

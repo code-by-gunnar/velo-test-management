@@ -6,14 +6,14 @@ process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@l
 process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
 process.env.VALKEY_URL = process.env.VALKEY_URL ?? "redis://localhost:6379"
 
-// Mock only deleteR2Objects — path must resolve to the SAME module runs.ts imports
-// (runs.ts: `../lib/r2.js` → src/lib/r2.js; from here: `../../lib/r2.js`).
-const { deleteR2ObjectsMock } = vi.hoisted(() => ({
-  deleteR2ObjectsMock: vi.fn(async (keys: string[]) => keys.length),
+// Mock only deleteObjects — path must resolve to the SAME module runs.ts imports
+// (runs.ts: `../lib/storage.js` → src/lib/storage.js; from here: `../../lib/storage.js`).
+const { deleteObjectsMock } = vi.hoisted(() => ({
+  deleteObjectsMock: vi.fn(async (keys: string[]) => keys.length),
 }))
-vi.mock("../../lib/r2.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/r2.js")>()
-  return { ...actual, deleteR2Objects: deleteR2ObjectsMock }
+vi.mock("../../lib/storage.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/storage.js")>()
+  return { ...actual, deleteObjects: deleteObjectsMock }
 })
 
 const sql = (await import("../../db/client.js")).sql
@@ -61,7 +61,7 @@ describe("Run delete R2 cleanup (VEL-54 batch 2)", () => {
   })
 
   it("soft delete does NOT touch R2; purge is what reclaims evidence objects (VEL-31)", async () => {
-    deleteR2ObjectsMock.mockClear()
+    deleteObjectsMock.mockClear()
 
     const runId = uuidv7()
     const itemId = uuidv7()
@@ -79,7 +79,7 @@ describe("Run delete R2 cleanup (VEL-54 batch 2)", () => {
       url: `/api/workspaces/${workspaceId}/runs/${runId}`,
     })
     expect(delRes.statusCode).toBe(204)
-    expect(deleteR2ObjectsMock).not.toHaveBeenCalled()
+    expect(deleteObjectsMock).not.toHaveBeenCalled()
     expect((await sql`SELECT deleted_at FROM test_runs WHERE id = ${runId}::uuid`)[0]?.deleted_at).not.toBeNull()
     expect((await sql`SELECT id FROM run_item_attachments WHERE run_item_id = ${itemId}::uuid`)).toHaveLength(1)
 
@@ -90,8 +90,8 @@ describe("Run delete R2 cleanup (VEL-54 batch 2)", () => {
       payload: { ids: [runId] },
     })
     expect(purgeRes.statusCode).toBe(204)
-    expect(deleteR2ObjectsMock).toHaveBeenCalledTimes(1)
-    expect(deleteR2ObjectsMock.mock.calls[0]?.[0]).toEqual([r2Key])
+    expect(deleteObjectsMock).toHaveBeenCalledTimes(1)
+    expect(deleteObjectsMock.mock.calls[0]?.[0]).toEqual([r2Key])
     expect(await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`).toHaveLength(0)
   })
 })

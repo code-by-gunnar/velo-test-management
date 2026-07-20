@@ -1,5 +1,5 @@
 import { sql } from "../db/client.js"
-import { r2Enabled, deleteR2Objects } from "./r2.js"
+import { storageEnabled, deleteObjects } from "./storage.js"
 
 // VEL-31: recycle-bin retention. Items soft-deleted longer than this are purged
 // permanently by the daily lifecycle sweep. 30 days matches the workspace/user
@@ -36,7 +36,7 @@ export async function purgeExpiredRecycleBin(
   const runIds = expiredRuns.map((r) => r.id)
   if (runIds.length > 0) {
     let runR2Keys: string[] = []
-    if (r2Enabled()) {
+    if (storageEnabled()) {
       const keyRows = await sql<{ r2_key: string }[]>`
         SELECT r2_key FROM run_item_attachments WHERE run_item_id IN (
           SELECT id FROM run_items WHERE run_id = ANY(${runIds}::uuid[])
@@ -54,7 +54,7 @@ export async function purgeExpiredRecycleBin(
     await sql`DELETE FROM test_runs WHERE id = ANY(${runIds}::uuid[])`
 
     if (runR2Keys.length > 0) {
-      r2ObjectsDeleted = await deleteR2Objects(runR2Keys).catch((err: unknown) => {
+      r2ObjectsDeleted = await deleteObjects(runR2Keys).catch((err: unknown) => {
         console.error("[recycle-bin-sweep] R2 evidence cleanup failed:", err)
         return 0
       })

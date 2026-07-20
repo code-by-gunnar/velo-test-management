@@ -3,7 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { parseJUnitXml } from "../lib/junit-parser.js"
 import { parseAllureJson } from "../lib/allure-parser.js"
-import { uploadToR2, buildR2Key, getR2PresignedUrl, r2Enabled } from "../lib/r2.js"
+import { uploadObject, buildIngestionKey, getPresignedUrl, storageEnabled } from "../lib/storage.js"
 import { verifyApiKey } from "./api-keys.js"
 import { captureEvent } from "../lib/posthog.js"
 
@@ -76,12 +76,12 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const ingestionId = uuidv7()
-      const r2Key = buildR2Key(workspaceId, "junit", ingestionId)
+      const r2Key = buildIngestionKey(workspaceId, "junit", ingestionId)
 
       // Upload to R2 BEFORE parsing (even if parse later fails, we have the raw data)
-      if (r2Enabled()) {
+      if (storageEnabled()) {
         try {
-          await uploadToR2(r2Key, rawBytes, "application/xml")
+          await uploadObject(r2Key, rawBytes, "application/xml")
         } catch {
           // R2 upload failure is non-fatal — log and continue
           fastify.log.warn({ ingestionId }, "R2 upload failed for junit ingestion — continuing without storage")
@@ -281,12 +281,12 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const ingestionId = uuidv7()
-      const r2Key = buildR2Key(workspaceId, "allure", ingestionId)
+      const r2Key = buildIngestionKey(workspaceId, "allure", ingestionId)
 
       // Upload to R2 BEFORE parsing
-      if (r2Enabled()) {
+      if (storageEnabled()) {
         try {
-          await uploadToR2(r2Key, Buffer.from(rawString, "utf8"), "application/json")
+          await uploadObject(r2Key, Buffer.from(rawString, "utf8"), "application/json")
         } catch {
           fastify.log.warn({ ingestionId }, "R2 upload failed for allure ingestion — continuing without storage")
         }
@@ -453,7 +453,7 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        const url = await getR2PresignedUrl(result.r2_key)
+        const url = await getPresignedUrl(result.r2_key)
         return reply.send({ url })
       } catch {
         return reply.status(500).send({ error: "Failed to generate presigned URL" })

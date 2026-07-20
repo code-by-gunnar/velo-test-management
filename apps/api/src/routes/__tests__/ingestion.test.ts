@@ -12,12 +12,12 @@ import ingestionRoutes from "../ingestion.js"
 process.env.DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://velo:velo@localhost:5432/velo_test"
 process.env.WEB_URL = process.env.WEB_URL ?? "http://localhost:3000"
 
-// Mock R2 — no real Cloudflare credentials in tests
-vi.mock("../../lib/r2.js", () => ({
-  r2Enabled: () => false,
-  uploadToR2: vi.fn().mockResolvedValue(undefined),
-  getR2PresignedUrl: vi.fn().mockResolvedValue("https://r2.example.com/presigned-url"),
-  buildR2Key: (_workspaceId: string, format: string, ingestionId: string) =>
+// Mock storage — no real Cloudflare credentials in tests
+vi.mock("../../lib/storage.js", () => ({
+  storageEnabled: () => false,
+  uploadObject: vi.fn().mockResolvedValue(undefined),
+  getPresignedUrl: vi.fn().mockResolvedValue("https://r2.example.com/presigned-url"),
+  buildIngestionKey: (_workspaceId: string, format: string, ingestionId: string) =>
     `ingestion/ws/${format}/${ingestionId}/payload.${format === "junit" ? "xml" : "json"}`,
 }))
 
