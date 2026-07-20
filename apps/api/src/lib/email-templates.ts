@@ -1,30 +1,36 @@
-// Branded HTML email templates — Industrial Notebook design language
-// All styles are inlined for maximum email client compatibility.
+// Branded HTML email templates — "Clean Elevation" design language.
+// All styles are inlined and use a system font stack: email clients (Gmail,
+// Outlook, Yahoo) strip <style>/@font-face, so webfonts and SVG images never
+// render. The logo is therefore a raster PNG, and the type is system fonts.
 
-const COBALT = "#1A56DB"
-const WARM_BG = "#F5F3EF"
-const CARD_BG = "#FAFAF8"
-const TEXT_PRIMARY = "#2D2926"
-const TEXT_SECONDARY = "#6B6560"
-const BORDER = "#E8E4DE"
+const IRIS = "#5B5BD6" // primary brand — matches the app
+const PAGE_BG = "#E8EDF2" // mist
+const CARD_BG = "#FFFFFF"
+const TEXT_PRIMARY = "#2D2926" // brand ink
+const TEXT_SECONDARY = "#6B7280" // gray-500 (meets contrast floor on white)
+const BORDER = "#E5E7EB" // gray-200
+
+const FONT_STACK =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
 // Logo hosted on the web app's public folder — email clients block data URIs
+// and refuse SVG <img>, so this is a transparent PNG.
 const WEB_URL = process.env.WEB_URL ?? "https://runvelo.app"
-const LOGO_URL = `${WEB_URL}/velo-lockup-light.svg`
+const LOGO_URL = `${WEB_URL}/velo-lockup-email.png`
 
 function layout(content: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background-color:${WARM_BG};font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${WARM_BG};padding:40px 0;">
+<body style="margin:0;padding:0;background-color:${PAGE_BG};font-family:${FONT_STACK};-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${PAGE_BG};padding:40px 0;">
     <tr>
       <td align="center">
         <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
           <!-- Logo -->
           <tr>
             <td align="center" style="padding:0 0 32px;">
-              <img src="${LOGO_URL}" alt="Velo" width="120" height="30" style="display:block;" />
+              <img src="${LOGO_URL}" alt="Velo" width="135" height="44" style="display:block;border:0;" />
             </td>
           </tr>
           <!-- Card -->
@@ -37,7 +43,7 @@ function layout(content: string): string {
           <tr>
             <td align="center" style="padding:24px 0 0;">
               <p style="margin:0;font-size:12px;color:${TEXT_SECONDARY};line-height:18px;">
-                Velo — Test management for teams that ship fast
+                Velo — open-source, self-hosted test management
               </p>
             </td>
           </tr>
@@ -63,7 +69,7 @@ function button(text: string, url: string): string {
       <td align="center">
         <table role="presentation" cellpadding="0" cellspacing="0">
           <tr>
-            <td style="background-color:${COBALT};border-radius:6px;">
+            <td style="background-color:${IRIS};border-radius:6px;">
               <a href="${url}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">${text}</a>
             </td>
           </tr>
@@ -74,8 +80,8 @@ function button(text: string, url: string): string {
 }
 
 function codeBlock(code: string): string {
-  return `<div style="margin:24px 0;padding:20px;background-color:${WARM_BG};border:1px solid ${BORDER};border-radius:6px;text-align:center;">
-    <span style="font-family:'JetBrains Mono','SF Mono',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:${COBALT};">${code}</span>
+  return `<div style="margin:24px 0;padding:20px;background-color:${PAGE_BG};border:1px solid ${BORDER};border-radius:6px;text-align:center;">
+    <span style="font-family:'JetBrains Mono','SF Mono',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:${IRIS};">${code}</span>
   </div>`
 }
 
@@ -181,31 +187,6 @@ export function userErasureWarningEmail(
     paragraph(`Your personal data will be permanently erased in <strong style="color:${TEXT_PRIMARY};">${timeRemaining}</strong> (${scheduledDate}).`) +
     paragraph("After this date, your name and email will be replaced with anonymous placeholders. This cannot be undone.") +
     muted("To cancel, log in and visit your profile settings before the scheduled date.")
-  )
-}
-
-// ── Welcome Email (24h after verification) ──────────────────────────────────
-
-export function welcomeEmail(userName: string): string {
-  const firstName = userName.split(" ")[0] ?? userName
-  return layout(
-    heading(`Welcome to Velo, ${firstName}`) +
-    paragraph(`Thanks for joining the beta. I built Velo because QA teams deserve better than spreadsheets and clunky legacy tools — something fast, clean, and built for how modern teams actually work.`) +
-    paragraph("Here are three things to try first:") +
-    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
-      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
-        <strong style="color:${TEXT_PRIMARY};">Create a test case</strong> — our keyboard-first editor lets you write a complete case in under 30 seconds. Use P/F/B/S to mark results without touching the mouse.
-      </td></tr>
-      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
-        <strong style="color:${TEXT_PRIMARY};">Import from CSV</strong> — if you have test cases in spreadsheets, drag and drop a CSV file and Velo maps your columns automatically. No more lost Google Sheets.
-      </td></tr>
-      <tr><td style="padding:0 0 10px;font-size:15px;color:${TEXT_SECONDARY};line-height:24px;">
-        <strong style="color:${TEXT_PRIMARY};">Import from Linear</strong> — paste a Linear issue ID and our AI converts the spec into structured test cases. It's the feature people don't believe until they try it.
-      </td></tr>
-    </table>` +
-    button("Open Velo", WEB_URL) +
-    muted("If you have questions or feedback, just hit reply — I read every email.") +
-    `<p style="margin:16px 0 0;font-size:15px;color:${TEXT_PRIMARY};line-height:24px;">Gunnar<br/><span style="color:${TEXT_SECONDARY};font-size:13px;">Founder, Velo</span></p>`
   )
 }
 
