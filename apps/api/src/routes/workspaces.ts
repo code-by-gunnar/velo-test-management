@@ -1,15 +1,10 @@
 import type { FastifyPluginAsync } from "fastify"
-import type postgres from "postgres"
 import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
-import { withWorkspace } from "../db/tenant.js"
+import { withWorkspace, withUser } from "../db/tenant.js"
 import { captureEvent } from "../lib/posthog.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
-
-// postgres.js TransactionSql has its call signatures omitted by TypeScript's Omit<>.
-// Cast tx through unknown to postgres.Sql to enable template tag calls inside sql.begin().
-type Sql = postgres.Sql
 
 // Generate a URL-safe slug from a workspace name
 function slugify(name: string): string {
@@ -81,8 +76,10 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     const workspaceId = uuidv7()
     const memberId = uuidv7()
 
-    await sql.begin(async (rawTx) => {
-      const tx = rawTx as unknown as Sql
+    // withWorkspace so the workspace_members INSERT satisfies the workspace_isolation
+    // WITH CHECK (workspace_id = app.workspace_id) now that the blanket exemption is
+    // gone (VEL-43). The workspaces INSERT isn't RLS-forced, so it's fine here too.
+    await withWorkspace(workspaceId, async (tx) => {
       await tx`
         INSERT INTO workspaces (id, name, slug, plan_tier)
         VALUES (${workspaceId}::uuid, ${name}, ${slug}, 'free')
@@ -110,14 +107,16 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = request.userId
       const { slug } = request.params
 
-      const rows = await sql`
+      // "Is this user a member of the workspace with this slug?" — user-centric,
+      // so withUser (workspace_members is RLS-scoped now, VEL-43).
+      const rows = await withUser(userId, async (tx) => tx`
         SELECT w.id, w.name, w.slug, w.plan_tier
         FROM workspaces w
         INNER JOIN workspace_members wm ON wm.workspace_id = w.id
         WHERE w.slug = ${slug}
           AND wm.user_id = ${userId}::uuid
           AND wm.is_active = true
-      `
+      `)
 
       if (rows.length === 0) return reply.status(404).send({ error: "Workspace not found" })
 
@@ -145,13 +144,13 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params
     const { slug } = request.body
 
-    // Verify user is admin of this workspace
-    const member = await sql`
+    // Verify user is admin of this workspace (workspace_members RLS-scoped — VEL-43)
+    const member = await withWorkspace(id, async (tx) => tx`
       SELECT wm.role FROM workspace_members wm
       WHERE wm.workspace_id = ${id}::uuid
         AND wm.user_id = ${userId}::uuid
         AND wm.is_active = true
-    `
+    `)
     if (member.length === 0 || member[0]?.role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }
@@ -201,13 +200,13 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
     const { workspaceId } = request.params
     const { name, project_key, description, test_format } = request.body
 
-    // Verify user is admin or editor in this workspace
-    const memberRows = await sql`
+    // Verify user is admin or editor in this workspace (workspace_members RLS-scoped — VEL-43)
+    const memberRows = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
 
     if (memberRows.length === 0) return reply.status(403).send({ error: "Access denied" })
     const member = memberRows[0]!
@@ -250,13 +249,13 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = request.userId
       const { workspaceId } = request.params
 
-      // Verify user is a member of this workspace
-      const member = await sql`
+      // Verify user is a member of this workspace (workspace_members RLS-scoped — VEL-43)
+      const member = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT id FROM workspace_members
         WHERE workspace_id = ${workspaceId}::uuid
           AND user_id = ${userId}::uuid
           AND is_active = true
-      `
+      `)
       if (member.length === 0) return reply.status(403).send({ error: "Access denied" })
 
       // Idempotency check — only seed if no suites exist yet
@@ -455,13 +454,13 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: "Forbidden" })
     }
 
-    // Verify user is admin
-    const member = await sql`
+    // Verify user is admin (workspace_members RLS-scoped — VEL-43)
+    const member = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
     if (member.length === 0 || member[0]?.role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }

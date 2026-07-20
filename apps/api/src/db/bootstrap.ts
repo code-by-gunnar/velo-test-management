@@ -251,19 +251,28 @@ export async function ensureAppRole() {
     await client.unsafe(`GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO velo_app`)
     await client.unsafe(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO velo_app`)
     await client.unsafe(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON SEQUENCES TO velo_app`)
-    // workspace_members is queried by explicit user/workspace predicates from many
-    // pre-context paths (login JWT claims, role checks, member management) that never
-    // set app.workspace_id. Exempt it from RLS for the app role only — content tables
-    // (test_cases, runs, etc.) stay fully RLS-enforced. Follow-up: an app.user_id
-    // policy + withUser() helper to close this exemption (see audit #19 note).
+    // workspace_members RLS (VEL-43 — closes the old app_members_access USING(true)
+    // blanket exemption). Member queries take two shapes and each satisfies exactly
+    // one permissive policy (policies OR together):
+    //   • workspace-scoped (member management, role/admin checks, member listing)
+    //     → withWorkspace sets app.workspace_id; the workspace_isolation policy
+    //       (workspace_id = app.workspace_id, TO public) covers them.
+    //   • user-centric (login "which workspaces am I in?", erasure across all my
+    //     workspaces, "my workspaces" list) → withUser sets app.user_id; the
+    //     user_self_access policy below covers them.
+    // A bare query with NEITHER GUC set now matches zero rows (fail-closed) instead
+    // of everything. All ~20 call sites are wrapped in withWorkspace/withUser.
+    await client.unsafe(`DROP POLICY IF EXISTS app_members_access ON workspace_members`)
     await client.unsafe(`
       DO $$ BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM pg_policies
-          WHERE tablename = 'workspace_members' AND policyname = 'app_members_access'
+          WHERE tablename = 'workspace_members' AND policyname = 'user_self_access'
         ) THEN
-          CREATE POLICY app_members_access ON workspace_members
-            FOR ALL TO velo_app USING (true) WITH CHECK (true);
+          CREATE POLICY user_self_access ON workspace_members
+            FOR ALL TO velo_app
+            USING (user_id = NULLIF(current_setting('app.user_id', true), '')::uuid)
+            WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), '')::uuid);
         END IF;
       END $$
     `)

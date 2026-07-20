@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { hkdfSync } from "crypto"
 import { jwtDecrypt } from "jose"
 import { valkey } from "../lib/valkey.js"
-import { sql } from "../db/client.js"
+import { withWorkspace } from "../db/tenant.js"
 
 // Extend FastifyRequest with session data
 declare module "fastify" {
@@ -101,9 +101,12 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
     // 1. Deactivation blocklist (USR-04: immediate session invalidation)
     // 2. Live role cache (60s TTL — JWT role may be stale after admin change)
     if (id && request.workspaceId) {
+      // Capture while narrowed to string — awaits below widen the mutable
+      // request.workspaceId back to string | null.
+      const workspaceId = request.workspaceId
       try {
-        const blockKey = `deactivated:${request.workspaceId}:${id}`
-        const roleKey = `member_role:${request.workspaceId}:${id}`
+        const blockKey = `deactivated:${workspaceId}:${id}`
+        const roleKey = `member_role:${workspaceId}:${id}`
 
         const results = await valkey.pipeline().get(blockKey).get(roleKey).exec()
 
@@ -122,13 +125,15 @@ const sessionPlugin: FastifyPluginAsync = async (fastify) => {
         if (cachedRole) {
           request.userRole = cachedRole
         } else {
-          // Cache miss — query DB and populate cache
-          const rows = await sql`
+          // Cache miss — query DB and populate cache. workspace_members is
+          // RLS-scoped (VEL-43); run under withWorkspace so workspace_isolation
+          // matches.
+          const rows = await withWorkspace(workspaceId, async (tx) => tx`
             SELECT role FROM workspace_members
-            WHERE workspace_id = ${request.workspaceId}::uuid
+            WHERE workspace_id = ${workspaceId}::uuid
               AND user_id = ${id}::uuid
               AND is_active = true
-          `
+          `)
           if (rows.length > 0) {
             const liveRole = (rows[0] as { role: string }).role
             request.userRole = liveRole

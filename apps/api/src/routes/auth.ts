@@ -5,6 +5,7 @@ import crypto from "node:crypto"
 import { uuidv7 } from "uuidv7"
 import rateLimit from "@fastify/rate-limit"
 import { sql } from "../db/client.js"
+import { withUser } from "../db/tenant.js"
 import { sendOtpEmail, sendPasswordResetEmail } from "../lib/email.js"
 import { emailEnabled, sendMail } from "../lib/mailer.js"
 import { captureEvent } from "../lib/posthog.js"
@@ -216,12 +217,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const { email, password } = request.body
 
+    // Resolve the user first (users isn't RLS-forced), then their membership
+    // under withUser — workspace_members is RLS-scoped (VEL-43) and the user_id
+    // is only known after this lookup, so it can't be a single JOIN.
     const [user] = await sql`
-      SELECT u.id, u.email, u.name, u.password_hash, u.email_verified,
-             wm.workspace_id, wm.role, w.slug AS workspace_slug
+      SELECT u.id, u.email, u.name, u.password_hash, u.email_verified
       FROM users u
-      LEFT JOIN workspace_members wm ON wm.user_id = u.id AND wm.is_active = true
-      LEFT JOIN workspaces w ON w.id = wm.workspace_id
       WHERE u.email = ${email.toLowerCase()}
       LIMIT 1
     `
@@ -239,15 +240,23 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: "Email not verified" })
     }
 
+    const [membership] = await withUser(user.id as string, async (tx) => tx`
+      SELECT wm.workspace_id, wm.role, w.slug AS workspace_slug
+      FROM workspace_members wm
+      LEFT JOIN workspaces w ON w.id = wm.workspace_id
+      WHERE wm.user_id = ${user.id}::uuid AND wm.is_active = true
+      LIMIT 1
+    `)
+
     captureEvent(user.id as string, "user_signed_in", { method: "email" })
 
     return reply.send({
       id: user.id,
       email: user.email,
       name: user.name,
-      workspace_id: user.workspace_id ?? null,
-      workspace_slug: user.workspace_slug ?? null,
-      role: user.role ?? null,
+      workspace_id: membership?.workspace_id ?? null,
+      workspace_slug: membership?.workspace_slug ?? null,
+      role: membership?.role ?? null,
     })
   })
 
@@ -397,14 +406,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     await sql.begin(async (tx: TransactionSql) => {
       const q = tx as unknown as Sql
 
-      // Step 1: Returning user check — look up by provider + providerAccountId
+      // Step 1: Returning user check — look up by provider + providerAccountId.
+      // Membership (workspace_id/role/slug) is resolved after the transaction via
+      // withUser — workspace_members is RLS-scoped now (VEL-43) and this tx has no
+      // app context.
       const [existingOAuth] = await q`
-        SELECT u.id, u.email, u.name,
-               wm.workspace_id, wm.role, w.slug AS workspace_slug
+        SELECT u.id, u.email, u.name
         FROM user_oauth_accounts oa
         JOIN users u ON u.id = oa.user_id
-        LEFT JOIN workspace_members wm ON wm.user_id = u.id AND wm.is_active = true
-        LEFT JOIN workspaces w ON w.id = wm.workspace_id
         WHERE oa.provider = ${provider}
           AND oa.provider_account_id = ${providerAccountId}
         LIMIT 1
@@ -414,9 +423,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           id: existingOAuth.id,
           email: existingOAuth.email,
           name: existingOAuth.name ?? null,
-          workspace_id: existingOAuth.workspace_id ?? null,
-          workspace_slug: existingOAuth.workspace_slug ?? null,
-          role: existingOAuth.role ?? null,
+          workspace_id: null,
+          workspace_slug: null,
+          role: null,
         }
         return
       }
@@ -507,14 +516,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         ON CONFLICT (provider, provider_account_id) DO NOTHING
       `
 
-      // Step 7: Fetch full user with workspace fields for response
+      // Step 7: Fetch the resolved user identity for the response. Membership is
+      // resolved after the transaction via withUser (VEL-43 — see Step 1).
       // fullUser is always defined here — we just inserted or verified the user row exists
       const rows = await q`
-        SELECT u.id, u.email, u.name,
-               wm.workspace_id, wm.role, w.slug AS workspace_slug
+        SELECT u.id, u.email, u.name
         FROM users u
-        LEFT JOIN workspace_members wm ON wm.user_id = u.id AND wm.is_active = true
-        LEFT JOIN workspaces w ON w.id = wm.workspace_id
         WHERE u.id = ${userId}::uuid
         LIMIT 1
       `
@@ -524,9 +531,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           id: fullUser.id as string,
           email: fullUser.email as string,
           name: (fullUser.name as string | null) ?? null,
-          workspace_id: (fullUser.workspace_id as string | null) ?? null,
-          workspace_slug: (fullUser.workspace_slug as string | null) ?? null,
-          role: (fullUser.role as string | null) ?? null,
+          workspace_id: null,
+          workspace_slug: null,
+          role: null,
         }
       }
     })
@@ -549,6 +556,25 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         error: "unverified_provider_email",
         message: "Your sign-in provider hasn't verified this email address. Verify it with the provider and try again.",
       })
+    }
+
+    // Resolve the user's (first) active workspace now — workspace_members is
+    // RLS-scoped (VEL-43), so it's fetched per-user via withUser rather than
+    // JOINed inside the context-less oauth transaction above. resolvedUser is
+    // non-null past the error returns (same assumption as the resolvedUser!
+    // usages below; TS can't see the assignment inside sql.begin).
+    const resolvedUserId = resolvedUser!.id
+    const [membership] = await withUser(resolvedUserId, async (tx) => tx`
+      SELECT wm.workspace_id, wm.role, w.slug AS workspace_slug
+      FROM workspace_members wm
+      LEFT JOIN workspaces w ON w.id = wm.workspace_id
+      WHERE wm.user_id = ${resolvedUserId}::uuid AND wm.is_active = true
+      LIMIT 1
+    `)
+    if (membership) {
+      resolvedUser!.workspace_id = (membership.workspace_id as string | null) ?? null
+      resolvedUser!.workspace_slug = (membership.workspace_slug as string | null) ?? null
+      resolvedUser!.role = (membership.role as string | null) ?? null
     }
 
     if (isNewUser) {

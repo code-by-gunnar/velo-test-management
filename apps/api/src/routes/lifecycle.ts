@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import { sql } from "../db/client.js"
+import { withWorkspace } from "../db/tenant.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { logAuditEvent } from "../lib/audit-log.js"
 import { sendLifecycleEmails } from "../lib/email.js"
@@ -22,13 +23,13 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.userId
     const { workspaceId } = request.params
 
-    // Verify user is admin of this workspace
-    const member = await sql`
+    // Verify user is admin of this workspace (workspace_members is RLS-scoped — VEL-43)
+    const member = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
     if (member.length === 0 || member[0]?.role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }
@@ -87,11 +88,11 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     // Query member emails (fire-and-forget — don't block the response)
     void (async () => {
       try {
-        const members = await sql<{ email: string }[]>`
+        const members = await withWorkspace(workspaceId, async (tx) => tx<{ email: string }[]>`
           SELECT u.email FROM users u
           INNER JOIN workspace_members wm ON wm.user_id = u.id
           WHERE wm.workspace_id = ${workspaceId}::uuid AND wm.is_active = true
-        `
+        `)
         const emails = members.map((m) => m.email)
         if (emails.length === 0) return
 
@@ -132,13 +133,13 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.userId
     const { workspaceId } = request.params
 
-    // Verify user is admin of this workspace
-    const member = await sql`
+    // Verify user is admin of this workspace (workspace_members is RLS-scoped — VEL-43)
+    const member = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
     if (member.length === 0 || member[0]?.role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }
@@ -198,13 +199,13 @@ const lifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.userId
     const { workspaceId } = request.params
 
-    // Verify user is a member of this workspace
-    const member = await sql`
+    // Verify user is a member of this workspace (workspace_members is RLS-scoped — VEL-43)
+    const member = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT id FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
     if (member.length === 0) {
       return reply.status(403).send({ error: "Access denied" })
     }

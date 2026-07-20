@@ -49,30 +49,30 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       const { workspaceId } = request.params
       const { email, role } = request.body
 
-      // Admin guard — use bare sql (pre-RLS context)
-      const memberRows = await sql`
+      // Admin guard — workspace_members is RLS-scoped (VEL-43)
+      const memberRows = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT wm.role, w.name AS workspace_name
         FROM workspace_members wm
         INNER JOIN workspaces w ON w.id = wm.workspace_id
         WHERE wm.workspace_id = ${workspaceId}::uuid
           AND wm.user_id = ${userId}::uuid
           AND wm.is_active = true
-      `
+      `)
       if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
         return reply.status(403).send({ error: "Admin access required" })
       }
 
       const workspaceName = (memberRows[0] as { workspace_name: string }).workspace_name
 
-      // Check if email is already an active member
-      const existingMember = await sql`
+      // Check if email is already an active member (workspace_members RLS-scoped — VEL-43)
+      const existingMember = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT wm.id
         FROM workspace_members wm
         INNER JOIN users u ON u.id = wm.user_id
         WHERE wm.workspace_id = ${workspaceId}::uuid
           AND u.email = ${email}
           AND wm.is_active = true
-      `
+      `)
       if (existingMember.length > 0) {
         return reply.status(409).send({ error: "User is already an active member of this workspace" })
       }
@@ -288,14 +288,14 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       const { workspaceId, userId: targetUserId } = request.params
       const { role } = request.body
 
-      // Admin guard — use bare sql (pre-RLS context)
-      const memberRows = await sql`
+      // Admin guard — workspace_members is RLS-scoped (VEL-43)
+      const memberRows = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT role
         FROM workspace_members
         WHERE workspace_id = ${workspaceId}::uuid
           AND user_id = ${callerId}::uuid
           AND is_active = true
-      `
+      `)
       if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
         return reply.status(403).send({ error: "Admin access required" })
       }
@@ -303,24 +303,24 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       // Prevent removing the last admin — demoting the sole active admin (incl.
       // self-demotion) would leave the workspace with no one who can manage it.
       if (role !== "admin") {
-        const admins = await sql`
+        const admins = await withWorkspace(workspaceId, async (tx) => tx`
           SELECT user_id FROM workspace_members
           WHERE workspace_id = ${workspaceId}::uuid AND role = 'admin' AND is_active = true
-        ` as unknown as Array<{ user_id: string }>
+        `) as unknown as Array<{ user_id: string }>
         if (admins.length === 1 && admins[0]?.user_id === targetUserId) {
           return reply.status(400).send({ error: "Cannot remove the last admin. Promote another member to admin first." })
         }
       }
 
-      // Update role in DB (bare sql — admin operation on workspace_members directly)
-      const updated = await sql`
+      // Update role in DB — workspace_members is RLS-scoped (VEL-43)
+      const updated = await withWorkspace(workspaceId, async (tx) => tx`
         UPDATE workspace_members
         SET role = ${role}, updated_at = NOW()
         WHERE workspace_id = ${workspaceId}::uuid
           AND user_id = ${targetUserId}::uuid
           AND is_active = true
         RETURNING user_id, role
-      `
+      `)
 
       if (updated.length === 0) {
         return reply.status(404).send({ error: "Member not found or inactive" })
@@ -344,13 +344,13 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       const callerId = request.userId
       const { workspaceId, userId: targetUserId } = request.params
 
-      // Admin guard — use bare sql (pre-RLS context)
-      const memberRows = await sql`
+      // Admin guard — workspace_members is RLS-scoped (VEL-43)
+      const memberRows = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT role FROM workspace_members
         WHERE workspace_id = ${workspaceId}::uuid
           AND user_id = ${callerId}::uuid
           AND is_active = true
-      `
+      `)
       if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
         return reply.status(403).send({ error: "Admin access required" })
       }
@@ -362,10 +362,10 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Prevent deactivating the last admin (defence-in-depth alongside the
       // self-deactivation guard above).
-      const activeAdmins = await sql`
+      const activeAdmins = await withWorkspace(workspaceId, async (tx) => tx`
         SELECT user_id FROM workspace_members
         WHERE workspace_id = ${workspaceId}::uuid AND role = 'admin' AND is_active = true
-      ` as unknown as Array<{ user_id: string }>
+      `) as unknown as Array<{ user_id: string }>
       if (activeAdmins.length === 1 && activeAdmins[0]?.user_id === targetUserId) {
         return reply.status(400).send({ error: "Cannot deactivate the last admin." })
       }
@@ -379,13 +379,13 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
         60 * 60 * 24 * 30
       )
 
-      // Update is_active in DB
-      await sql`
+      // Update is_active in DB — workspace_members is RLS-scoped (VEL-43)
+      await withWorkspace(workspaceId, async (tx) => tx`
         UPDATE workspace_members
         SET is_active = false, updated_at = NOW()
         WHERE workspace_id = ${workspaceId}::uuid
           AND user_id = ${targetUserId}::uuid
-      `
+      `)
 
       // Bust Valkey role cache
       await valkey.del(`member_role:${workspaceId}:${targetUserId}`)
@@ -404,13 +404,13 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.userId
     const { workspaceId } = request.params
 
-    // Admin guard
-    const memberRows = await sql`
+    // Admin guard — workspace_members is RLS-scoped (VEL-43)
+    const memberRows = await withWorkspace(workspaceId, async (tx) => tx`
       SELECT role FROM workspace_members
       WHERE workspace_id = ${workspaceId}::uuid
         AND user_id = ${userId}::uuid
         AND is_active = true
-    `
+    `)
     if (memberRows.length === 0 || (memberRows[0] as { role: string }).role !== "admin") {
       return reply.status(403).send({ error: "Admin access required" })
     }
