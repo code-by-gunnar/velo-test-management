@@ -10,12 +10,12 @@ function env(name: string): string | undefined {
 }
 
 export interface StorageConfig {
-  endpoint?: string
-  publicEndpoint?: string
+  endpoint?: string | undefined
+  publicEndpoint?: string | undefined
   region: string
-  accessKeyId?: string
-  secretAccessKey?: string
-  bucket?: string
+  accessKeyId?: string | undefined
+  secretAccessKey?: string | undefined
+  bucket?: string | undefined
 }
 
 // Canonical S3_* config with legacy R2_* fallback. R2 is just S3 with a
