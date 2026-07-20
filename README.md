@@ -1,179 +1,92 @@
-<p align="center">
-  <img src="apps/web/public/velo-lockup-dark.svg" alt="Velo" height="48" />
-</p>
-
-<p align="center">
-  Lean test management for teams that ship fast.
-</p>
-
-<p align="center">
-  <a href="https://runvelo.app">Live App</a> &middot;
-  <a href="https://runvelo.app/features">Features</a> &middot;
-  <a href="#stack">Stack</a> &middot;
-  <a href="#getting-started">Getting Started</a>
-</p>
+<div align="center">
+  <img src="apps/web/public/velo-mark.svg" alt="Velo" width="56" height="56" />
+  <h1>Velo</h1>
+  <p><strong>Open-source, self-hosted test management that does less, on purpose.</strong></p>
+  <p>Write test scenarios, run them, see where you stand — without the bloat of enterprise QA suites.</p>
+</div>
 
 ---
 
-## What is Velo?
+Velo is a focused test-management tool you host yourself. It covers the core of manual QA — writing cases, running them, tracking defects, reporting — and deliberately stops there. No per-seat billing, no sprawling integration marketplace, no sales call to try it. Clone it and go.
 
-Velo is a QA test management platform built for startups and scale-ups (20-200 people). It gives QA engineers one clean place to write, run, and track tests — with a keyboard-first UI, real-time dashboards, and CI/CD integrations that work out of the box.
+## What it does
 
-Built by a QA engineer, for QA engineers.
+- **Write cases fast.** A keyboard-first editor. Traditional steps or native Given-When-Then, set per project.
+- **Run them live.** Execution updates over SSE, not polling. Pass, fail, or block with one key; attach evidence; file a Linear defect with the screenshots already on it.
+- **See where you stand.** Pass rates and trends the moment someone records a verdict.
+- **Bring your own AI.** Paste a Linear issue and your own key — Claude, OpenAI, or a local model — turns the acceptance criteria into cases. JUnit and Allure ingest from any CI.
 
-## Features
+Everything runs on your infrastructure. Analytics, error tracking, and email stay off until you switch them on; nothing phones home by default.
 
-**Test Cases**
-- Keyboard-first editor — create a complete test case in under 30 seconds without touching the mouse
-- Supports traditional (step/expected) and GWT/BDD (Given-When-Then) formats
-- Nested suite hierarchy with drag-and-drop reordering
-- Bulk move, copy, and delete across suites
-- CSV import with auto-suite creation and keyword column mapping
-- AI-powered import from Linear issues — paste a spec, get structured test cases
+## Quickstart
 
-**Test Runs**
-- Create runs from suites, filters, or full projects
-- Execute with P/F/B/S keyboard shortcuts and arrow key navigation
-- Inline step comments and case-level notes during execution
-- Evidence upload (screenshots, videos, PDFs) stored in Cloudflare R2
-- One-click defect filing to Linear with template, auto-synced evidence, and Bug label
-
-**Reports Dashboard**
-- Pass rate trend chart (SVG, zero dependencies)
-- Fragile cases table (most-failed in last 30 days)
-- Recent runs overview with status breakdown
-- 60-second Valkey cache, parallel queries
-
-**CI Ingestion**
-- POST JUnit XML or Allure JSON from any CI pipeline
-- Auto-maps results to test cases by name or external ID
-- Supports pytest, Maven Surefire, Gradle, Jest-junit, and Go gotestsum
-- Raw payloads stored in Cloudflare R2 for debugging
-
-**Integrations**
-- Linear OAuth + persistent API key — file defects, AI import, webhook status sync
-- Outbound webhooks with HMAC-SHA256 signing and exponential backoff
-- Full REST API (v1) with rate limiting via API keys
-
-**Observability**
-- Sentry error tracking — frontend (Next.js) + API (Fastify)
-- PostHog product analytics — 19 server-side events across all routes
-- Session replay on errors
-
-**Multi-tenancy & Security**
-- Workspace isolation enforced at app layer + PostgreSQL RLS (runtime runs as a non-superuser role so RLS actually binds)
-- Free tier: 3 editors, 1 project, 500 test cases
-- Viewers always free
-- RBAC (admin/editor/viewer) with invite flow and deactivation
-- GDPR lifecycle: workspace deletion (30-day grace), user erasure (7-day grace)
-- SSRF protection on webhook URLs, fail-closed session management
-
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 16 (Pages Router), TypeScript, Tailwind CSS |
-| Backend | Node.js 22, Fastify 5, postgres.js (raw SQL) |
-| Database | PostgreSQL 16 with RLS, Drizzle Kit (migrations only) |
-| Cache / Queue | Valkey (Redis fork), BullMQ |
-| Auth | Auth.js v5 (PKCE, Google + GitHub OAuth) |
-| Storage | Cloudflare R2 |
-| Real-time | SSE + Valkey pub/sub |
-| AI | Anthropic Claude API (spec-to-test conversion) |
-| Analytics | PostHog (server-side, EU region) |
-| Error Tracking | Sentry (frontend + API) |
-| Email | nodemailer over SMTP (optional — console mode without it) |
-| Hosting | Self-hosted Docker Compose (web + API + PostgreSQL + Valkey, optional Caddy TLS) |
-
-## Project Structure
-
-```
-velo-test-management/
-├── apps/
-│   ├── api/          Fastify 5 API server (17 route files, 192+ tests)
-│   └── web/          Next.js 16 frontend (Pages Router)
-├── packages/
-│   └── types/        Shared TypeScript types
-├── docs/             Design docs, market positioning, pricing strategy
-└── .planning/        Roadmap, requirements, phase plans
-```
-
-## Getting Started
-
-### Self-hosted (Docker Compose) — recommended
-
-Prerequisites: Docker with Compose v2.
+You need [Docker](https://docs.docker.com/get-docker/) with Compose v2. That's it.
 
 ```bash
-# Configure — fill in the three required secrets (generation commands are in the file)
+git clone https://github.com/code-by-gunnar/velo-test-management.git
+cd velo-test-management
 cp .env.example .env
+```
 
-# Full stack: web :3000, API :3001, PostgreSQL, Valkey
+Set the three required secrets in `.env` — the stack won't start without them:
+
+```bash
+AUTH_SECRET=          # openssl rand -base64 32   shared web+api session secret
+INTERNAL_API_SECRET=  # openssl rand -hex 32      web→api server-to-server auth
+APP_DB_PASSWORD=      # openssl rand -hex 16      non-superuser app DB role
+```
+
+Then bring up the full stack:
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
 ```
 
-Migrations run automatically on API start. **No email account required**: without
-SMTP configured, signup OTPs and reset links print to `docker compose logs api`,
-and team-invite links appear in the UI for copy-paste. To send real email, set the
-`SMTP_*` variables in `.env` — any provider works (Gmail app password, SES,
-Mailgun, smtp.resend.com).
+- Web → http://localhost:3000
+- API → http://localhost:3001
 
-For a server deploy with TLS, layer `docker-compose.prod.yml` (Caddy, `app.`/`api.`
-subdomains) — the deploy checklist is in that file's header.
+Migrations run automatically on API boot. Open the web app, create the first account, and you're in. With no SMTP set, Velo runs in **console mode**: one-time codes and reset links print to `docker compose logs api`, and workspace invite links show up in the members UI for copy-paste.
 
-### Local development
+## Configuration
 
-Prerequisites: Node.js 22+, pnpm 9+, Docker (for backing services).
+The three secrets above are all that's required. Everything else is optional and lives in [`.env.example`](.env.example):
+
+| What | Env | Notes |
+|---|---|---|
+| Email | `SMTP_HOST`, … | Any SMTP provider. Omit for console mode. |
+| Linear + AI-key encryption | `ENCRYPTION_KEY` | `openssl rand -hex 32`. Needed to connect Linear or store AI keys at rest. |
+| AI (env fallback) | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Or add per-workspace keys in Settings → Integrations. |
+| Evidence attachments | Cloudflare R2 credentials | For screenshot/log uploads during execution. |
+| Error tracking / analytics | `SENTRY_DSN`, `POSTHOG_KEY` | Off (no phone-home) when unset. |
+
+### Production
+
+Layer the production overlay for TLS and public subdomains via Caddy:
 
 ```bash
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d --build
+```
+
+The production checklist — DNS, public URLs, OAuth callbacks — is in the header of `docker-compose.prod.yml`.
+
+## Local development
+
+To work on Velo itself, run the databases in Docker and the apps on your machine:
+
+```bash
+docker compose up -d                        # bare postgres + valkey
 pnpm install
-
-# Backing services only (PostgreSQL + Valkey)
-docker compose up -d
-
-# Set up environment variables
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
-
-# API (:3001) + web (:3000), migrations run on API start
-pnpm dev
+pnpm dev                                     # web :3000, api :3001
 ```
 
-### Running Tests
+Requires Node 22 and pnpm. Run the checks with `pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test`.
 
-```bash
-# All checks (lint + typecheck + tests)
-pnpm --recursive lint && pnpm --recursive typecheck && cd apps/api && pnpm test
-```
+## Stack
 
-## Environments
-
-| Service | URL |
-|---------|-----|
-| Self-hosted (web) | http://localhost:3000 (or `https://app.<your-domain>` via prod overlay) |
-| Self-hosted (API) | http://localhost:3001 (or `https://api.<your-domain>` via prod overlay) |
-| Marketing site | https://runvelo.app |
-
-## Roadmap
-
-- [x] **v1 Foundation** — CI/CD, schema, auth, workspace isolation, design system
-- [x] **Test Cases** — Keyboard editor, suites, drag-drop, CSV import
-- [x] **Test Runs & Dashboard** — Execution, live SSE dashboard
-- [x] **CI Ingestion** — JUnit XML, Allure JSON, R2 storage
-- [x] **Integrations & API** — Linear, REST API, webhooks
-- [x] **Team & Access Control** — RBAC, invites, plan tiers
-- [x] **GWT/BDD** — Given-When-Then format, keyword editor, CSV keyword import
-- [x] **AI Import** — Linear spec-to-test via Claude API
-- [x] **Test Evidence** — File upload, R2 storage, Linear sync
-- [x] **Reports Dashboard** — Trend chart, fragile cases, recent runs
-- [x] **Security & Performance** — Audit (8 findings fixed), indexes, caching
-- [x] **Observability** — Sentry error tracking, PostHog analytics (19 events)
-- [x] **Self-Hosting** — Docker Compose stack, non-superuser DB role, Caddy prod overlay
-- [ ] **Tagging & Filtering** — Custom tags on test cases
-- [ ] **Bulk Actions** — Multi-select operations
-- [ ] **Slack Integration** — Run notifications
-- [ ] **GitHub Actions Integration** — Native CI connector
+Next.js 16 (Pages Router) · Fastify 5 · PostgreSQL 16 (RLS) · Valkey · Auth.js v5 · Cloudflare R2 · BullMQ · pnpm workspaces.
 
 ## License
 
-Proprietary. All rights reserved.
+[MIT](LICENSE) © Gunnar Finkeldeh
