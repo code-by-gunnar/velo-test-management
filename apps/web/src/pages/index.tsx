@@ -43,6 +43,7 @@ const capabilities = [
 
 const selfHostPoints = [
   "One Docker command. Prebuilt images, amd64 or arm64 — runs on a NAS too.",
+  "Evidence storage built in. Screenshots and CI payloads land in a bundled store — no cloud bucket to wire up.",
   "Your own AI keys — Claude, OpenAI, or a model on your LAN.",
   "Analytics, error tracking, email: off until you switch them on. Nothing phones home.",
   "Free. MIT-licensed. Fork it if you want.",

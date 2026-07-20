@@ -1,17 +1,39 @@
-# Opt-in object storage — a self-contained MinIO (S3-compatible) server for
-# self-hosters who don't want a cloud storage account.
+# Bundled object storage — a self-contained MinIO (S3-compatible) server so
+# evidence, avatars, and CI payloads work out of the box with NO cloud account.
+#
+# This overlay is part of the DEFAULT self-hosted stack — the quick-start command
+# includes it:
 #
 #   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.storage.yml up -d
 #
-# In .env set:
-#   S3_ENDPOINT=http://minio:9000            # api -> minio (internal)
-#   S3_PUBLIC_ENDPOINT=http://localhost:9000 # browser -> minio (host-reachable)
-#   S3_REGION=us-east-1
-#   S3_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-#   S3_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
-#   S3_BUCKET=velo
+# It does two things: (1) runs the `minio` container, and (2) points the api's
+# S3_* config at it. Zero config needed — the defaults below just work.
+#
+# PREFER CLOUD INSTEAD? Drop this `-f docker-compose.storage.yml` and set S3_*
+# (or legacy R2_*) in .env — the api then talks to R2 / AWS S3 / B2 / Wasabi and
+# no MinIO container runs. Storage is defined in exactly one place: here.
+#
+# REMOTE HOST (browser on a different machine, e.g. a server or NAS)? The
+# presigned download URLs are signed with S3_PUBLIC_ENDPOINT, which the browser
+# fetches directly — so it must be host-reachable. Override it in .env:
+#   S3_PUBLIC_ENDPOINT=http://<host-ip-or-domain>:9000
+# (Single-file NAS panels use docker-compose.nas.yml, which bakes this in.)
 
 services:
+  # The api lives in docker-compose.app.yml; this block is merged onto it and
+  # only sets the storage wiring — so S3_* is on iff the MinIO container exists.
+  api:
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_ENDPOINT: http://minio:9000                              # api -> minio (internal docker network)
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}  # browser -> minio (override on remote hosts)
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-velo}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
+      S3_BUCKET: ${S3_BUCKET:-velo}
+
   minio:
     # Pinned for reproducible self-host installs (a floating :latest could pull a breaking change).
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
@@ -19,10 +41,11 @@ services:
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"   # S3 API
-      - "9001:9001"   # web console
+      - "9001:9001"   # web console (browse uploaded objects at http://localhost:9001)
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in .env — openssl rand -hex 16}
+      # Change these for any internet-exposed deployment (openssl rand -hex 16).
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-velo}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
     volumes:
       - minio-data:/data
     healthcheck:
@@ -40,12 +63,12 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/$${S3_BUCKET:-velo} &&
+      mc mb --ignore-existing local/$${S3_BUCKET} &&
       echo 'bucket ready';
       "
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-velo}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-velo-minio-secret}
       S3_BUCKET: ${S3_BUCKET:-velo}
     restart: "no"
 
