@@ -9,9 +9,6 @@ import { decrypt } from "../lib/encryption.js"
 import { getLinearIssueDetail } from "../lib/linear-client.js"
 import { captureEvent } from "../lib/posthog.js"
 
-// Free tier limit (shared with workspaces.ts)
-const FREE_TIER_MAX_TEST_CASES = 500
-
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -140,18 +137,6 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const result = await withWorkspace(workspaceId, async (tx) => {
-        const countRows = await tx`
-          SELECT COUNT(*)::int AS n
-          FROM test_cases
-          WHERE project_id = ${projectId}::uuid
-            AND deleted_at IS NULL
-        `
-        const count = parseInt(String((countRows[0] as unknown as { n: number }).n ?? "0"))
-
-        if (count >= FREE_TIER_MAX_TEST_CASES) {
-          return null
-        }
-
         const suiteFilter = suite_id ? tx`AND suite_id = ${suite_id}::uuid` : tx`AND suite_id IS NULL`
         const maxRows = await tx`
           SELECT COALESCE(MAX(position), 0) AS max_pos
@@ -201,14 +186,6 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
 
         return { caseId, stepCount: steps.length, position }
       })
-
-      if (result === null) {
-        return reply.status(403).send({
-          error: `Free tier allows ${FREE_TIER_MAX_TEST_CASES} test cases. Upgrade to add more.`,
-          code: "TIER_LIMIT_EXCEEDED",
-          limit: "max_test_cases",
-        })
-      }
 
       captureEvent(request.userId as string, "test_case_created", { workspace_id: workspaceId, project_id: projectId })
 
@@ -852,25 +829,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         // Suite name → UUID cache (find-or-create during import)
         const suiteCache = new Map<string, string>()
 
-        // Pre-check tier limit once (not per row)
-        const countRows = await tx`
-          SELECT COUNT(*)::int AS n
-          FROM test_cases
-          WHERE project_id = ${projectId}::uuid
-            AND deleted_at IS NULL
-        `
-        let currentCount = parseInt(
-          String((countRows[0] as unknown as { n: number }).n ?? "0")
-        )
-
         // Track max position per suite to avoid repeated MAX queries
         const positionCache = new Map<string, number>()
 
         const caseRows: Array<Record<string, unknown>> = []
         const stepRows: Array<Record<string, unknown>> = []
         for (const tc of parsed) {
-          if (currentCount >= FREE_TIER_MAX_TEST_CASES) break
-
           // Resolve suite_id from suite name (find-or-create)
           let suiteId: string | null = null
           if (tc.suite) {
@@ -963,7 +927,6 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
           importedCount++
-          currentCount++
         }
 
         // Cases first (steps FK-reference them), then steps — two inserts total.

@@ -334,7 +334,7 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
 
   // ── Tier limit ──────────────────────────────────────────────────────────────
 
-  it("returns 403 TIER_LIMIT_EXCEEDED when test_cases count >= 500 (Free tier limit)", async () => {
+  it("creates a case past the old 500-case cap (limits removed VEL-59)", async () => {
     const limitWsId = uuidv7()
     const limitProjId = uuidv7()
 
@@ -364,15 +364,13 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
       method: "POST",
       url: `/api/workspaces/${limitWsId}/projects/${limitProjId}/cases`,
       payload: {
-        title: "Case that exceeds limit",
+        title: "Case past the old cap",
         priority: "medium",
         steps: [],
       },
     })
 
-    expect(res.statusCode).toBe(403)
-    const body = res.json() as { code: string }
-    expect(body.code).toBe("TIER_LIMIT_EXCEEDED")
+    expect(res.statusCode).toBe(201)
 
     // Cleanup
     await limitApp.close()

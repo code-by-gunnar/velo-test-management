@@ -137,13 +137,8 @@ export function TeamPanel({ workspaceId, userRole, userId }: TeamPanelProps) {
         body: JSON.stringify({ email, role: inviteRole }),
       })
       if (!res.ok) {
-        const body = await res.json() as { message?: string; code?: string }
-        if (body.code === "TIER_LIMIT_EXCEEDED") {
-          setInviteError("You've reached the member limit on the free tier. Upgrade to add more members.")
-        } else {
-          throw new Error(body.message ?? `Failed to send invite (${res.status})`)
-        }
-        return
+        const body = await res.json() as { message?: string }
+        throw new Error(body.message ?? `Failed to send invite (${res.status})`)
       }
       const body = await res.json() as { invite_url?: string; email_sent?: boolean }
       if (body.email_sent) {
