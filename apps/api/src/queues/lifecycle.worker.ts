@@ -3,7 +3,7 @@ import { getBullMQWorkerConnectionOptions } from "../lib/valkey.js"
 import { valkey, scanKeys } from "../lib/valkey.js"
 import { sql } from "../db/client.js"
 import { logAuditEvent } from "../lib/audit-log.js"
-import { r2Enabled, listR2Objects, deleteR2Objects } from "../lib/r2.js"
+import { storageEnabled, listObjects, deleteObjects } from "../lib/storage.js"
 import { sendLifecycleEmails } from "../lib/email.js"
 import { purgeExpiredRecycleBin } from "../lib/recycle-bin-sweep.js"
 import type { LifecycleJobData } from "./lifecycle.queue.js"
@@ -32,7 +32,7 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
 
         let r2ObjectsDeleted = 0
 
-        if (r2Enabled()) {
+        if (storageEnabled()) {
           // Avatar keys for users who ONLY belong to this workspace
           const avatarRows = await sql<{ avatar_url: string }[]>`
             SELECT u.avatar_url FROM users u
@@ -51,10 +51,10 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
           const avatarKeys = avatarRows.map((r) => r.avatar_url)
 
           // Ingestion payload keys
-          const ingestionKeys = await listR2Objects(`ingestion/${workspaceId}/`)
+          const ingestionKeys = await listObjects(`ingestion/${workspaceId}/`)
 
           const allKeys = [...avatarKeys, ...ingestionKeys]
-          r2ObjectsDeleted = await deleteR2Objects(allKeys)
+          r2ObjectsDeleted = await deleteObjects(allKeys)
         }
 
         // Valkey cleanup — remove cached role and deactivation keys
@@ -122,13 +122,13 @@ export const lifecycleWorker = new Worker<LifecycleJobData>(
         await logAuditEvent("user", userId, "processing")
 
         // R2 avatar cleanup
-        if (r2Enabled()) {
+        if (storageEnabled()) {
           const userRow = await sql<{ avatar_url: string | null }[]>`
             SELECT avatar_url FROM users WHERE id = ${userId}::uuid
           `
           const avatar = userRow[0]?.avatar_url
           if (avatar) {
-            await deleteR2Objects([avatar])
+            await deleteObjects([avatar])
           }
         }
 

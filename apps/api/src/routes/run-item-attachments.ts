@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { requireEditor } from "../plugins/require-editor.js"
-import { r2Enabled, uploadToR2, getR2PresignedUrl, deleteR2Objects } from "../lib/r2.js"
+import { storageEnabled, uploadObject, getPresignedUrl, deleteObjects } from "../lib/storage.js"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
 import { captureEvent } from "../lib/posthog.js"
@@ -48,7 +48,7 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid itemId" })
       }
 
-      if (!r2Enabled()) {
+      if (!storageEnabled()) {
         return reply.status(503).send({ error: "File uploads not available in this environment" })
       }
 
@@ -87,7 +87,7 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
       const fileId = randomUUID()
       const r2Key = `evidence/${workspaceId}/${itemId}/${fileId}.${ext}`
 
-      await uploadToR2(r2Key, buffer, data.mimetype)
+      await uploadObject(r2Key, buffer, data.mimetype)
 
       const attachment = await withWorkspace(workspaceId, async (tx) => {
         const rows = await tx`
@@ -145,9 +145,9 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
         (attachments as Array<Record<string, unknown>>).map(async (att) => {
           const r2Key = att.r2_key as string
           let url = ""
-          if (r2Enabled()) {
+          if (storageEnabled()) {
             try {
-              url = await getR2PresignedUrl(r2Key)
+              url = await getPresignedUrl(r2Key)
             } catch {
               // URL generation failed — return empty
             }
@@ -199,9 +199,9 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Best-effort R2 cleanup
-      if (r2Enabled()) {
+      if (storageEnabled()) {
         try {
-          await deleteR2Objects([r2Key])
+          await deleteObjects([r2Key])
         } catch {
           fastify.log.warn({ r2Key }, "Failed to delete R2 object")
         }

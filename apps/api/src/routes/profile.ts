@@ -5,7 +5,7 @@ import bcrypt from "bcrypt"
 import crypto from "node:crypto"
 import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
-import { uploadToR2, getR2PresignedUrl, r2Enabled } from "../lib/r2.js"
+import { uploadObject, getPresignedUrl, storageEnabled } from "../lib/storage.js"
 import { sendOtpEmail } from "../lib/email.js"
 
 const OTP_EXPIRY_MINUTES = 15
@@ -237,7 +237,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
   // ── POST /api/me/avatar ───────────────────────────────────────────────────
   // Upload avatar image to R2 and store the key in users.avatar_url.
   fastify.post("/api/me/avatar", async (request, reply) => {
-    if (!r2Enabled()) {
+    if (!storageEnabled()) {
       return reply.status(503).send({ error: "File storage is not configured" })
     }
 
@@ -267,7 +267,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const ext = extFromMime(data.mimetype)
     const key = `avatars/${request.userId}/${Date.now()}.${ext}`
 
-    await uploadToR2(key, buffer, data.mimetype)
+    await uploadObject(key, buffer, data.mimetype)
 
     await sql`
       UPDATE users
@@ -299,7 +299,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // R2 keys are presigned for 1-hour access
-    const url = await getR2PresignedUrl(avatarKey)
+    const url = await getPresignedUrl(avatarKey)
     return reply.send({ url })
   })
 }

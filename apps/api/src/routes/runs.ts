@@ -10,7 +10,7 @@ import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 import { captureEvent } from "../lib/posthog.js"
-import { deleteR2Objects } from "../lib/r2.js"
+import { deleteObjects } from "../lib/storage.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -795,7 +795,7 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       // Best-effort R2 cleanup AFTER the transaction commits — orphaned objects are
       // wasteful but non-fatal, so a storage failure must not fail the purge.
       if (attachmentKeys.length > 0) {
-        await deleteR2Objects(attachmentKeys).catch((err) => {
+        await deleteObjects(attachmentKeys).catch((err) => {
           fastify.log.error({ err, ids }, "run purge: R2 evidence cleanup failed")
         })
       }
