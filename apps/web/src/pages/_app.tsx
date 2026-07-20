@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import type { AppProps } from "next/app"
 import { SessionProvider, signOut } from "next-auth/react"
-import { DM_Sans, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google"
+import { Bricolage_Grotesque, Public_Sans, JetBrains_Mono } from "next/font/google"
 import { ToastProvider } from "@/components/ui/toast"
 import { RouteProgress } from "@/components/layout/RouteProgress"
 import { clearVeloCache } from "@/hooks/useCachedState"
@@ -70,14 +70,14 @@ if (typeof window !== "undefined") {
   }
 }
 
-const dmSans = DM_Sans({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "600", "700"],
+  weight: ["600", "700", "800"],
   display: "swap",
 })
 
-const ibmPlexSans = IBM_Plex_Sans({
+const publicSans = Public_Sans({
   subsets: ["latin"],
   variable: "--font-body",
   weight: ["400", "500", "600"],
@@ -94,7 +94,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
   return (
     <SessionProvider session={session}>
       <ToastProvider>
-        <div className={`${dmSans.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable} font-body`}>
+        <div className={`${bricolage.variable} ${publicSans.variable} ${jetbrainsMono.variable} font-body`}>
           <RouteProgress />
           <Component {...pageProps} />
         </div>
