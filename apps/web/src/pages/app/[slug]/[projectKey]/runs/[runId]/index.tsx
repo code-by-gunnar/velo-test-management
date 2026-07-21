@@ -8,7 +8,6 @@ import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
-import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
 import { useRunSSE } from "@/hooks/useRunSSE"
 import { DefectBadge } from "@/components/runs/DefectBadge"
@@ -42,7 +41,6 @@ interface RunDetailPageProps {
   workspaceId: string
   runId: string
   run: RunDetail | null
-  apiUrl: string
 }
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -74,7 +72,6 @@ export default function RunDetailPage({
   workspaceId,
   runId,
   run: initialRun,
-  apiUrl,
 }: RunDetailPageProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -100,7 +97,6 @@ export default function RunDetailPage({
   // Subscribe to SSE for live updates
   const liveStatsMap = useRunSSE(
     run ? [runId] : [],
-    apiUrl,
     workspaceId,
     { onDefectStatusUpdate: handleDefectStatusUpdate }
   )
@@ -531,10 +527,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId,
       runId,
       run,
-      // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
-      // gateway). Resolved from runtime env (PUBLIC_API_URL) so the prebuilt
-      // image can be pointed at a public HTTPS API without a rebuild.
-      apiUrl: resolveBrowserApiUrl(),
     },
   }
 }

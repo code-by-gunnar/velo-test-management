@@ -33,22 +33,22 @@ export interface UseRunSSEOptions {
 
 /**
  * Subscribes to SSE streams for one or more runs, returning a Map from runId to
- * the latest stats. Connects directly to the API (NOT through the /api/backend
- * gateway) because EventSource can't set headers.
+ * the latest stats. Connects through the same-origin /api/backend gateway (which
+ * streams the event-stream through — VEL-77), so live updates work on any host
+ * (LAN IP or reverse proxy) with no absolute API URL and no cross-origin CORS.
  *
- * Auth (VEL-42): instead of putting the long-lived session token in the URL,
- * each connection first mints a short-lived single-use ticket via the gateway
- * (POST .../stream-ticket), then passes that ticket to the stream. Because a
- * ticket is single-use, this hook manages reconnection itself (mint a fresh
- * ticket each attempt) rather than relying on EventSource's built-in retry.
+ * Auth (VEL-42): the gateway forwards the session cookie as a Bearer, so the
+ * token never appears in the URL. A short-lived single-use ticket is still minted
+ * (POST .../stream-ticket) and passed to the stream as a belt-and-suspenders
+ * credential. Because a ticket is single-use, this hook manages reconnection
+ * itself (mint a fresh ticket each attempt) rather than relying on EventSource's
+ * built-in retry.
  *
  * @param runIds       - Run IDs to subscribe to
- * @param apiUrl       - Browser-facing API base URL (for EventSource)
  * @param workspaceId  - Workspace the runs belong to
  */
 export function useRunSSE(
   runIds: string[],
-  apiUrl: string,
   workspaceId: string,
   options?: UseRunSSEOptions | undefined
 ): Map<string, RunStats> {
@@ -59,7 +59,7 @@ export function useRunSSE(
   optionsRef.current = options
 
   useEffect(() => {
-    if (runIds.length === 0 || !apiUrl || !workspaceId) return
+    if (runIds.length === 0 || !workspaceId) return
 
     // One self-managed connection per run. `closed` guards against reconnecting
     // after cleanup; `backoff` grows on repeated failures.
@@ -91,7 +91,7 @@ export function useRunSSE(
           if (conn.closed) return
 
           const es = new EventSource(
-            `${apiUrl}/api/workspaces/${workspaceId}/runs/${runId}/stream?ticket=${encodeURIComponent(ticket)}`
+            `/api/backend/workspaces/${workspaceId}/runs/${runId}/stream?ticket=${encodeURIComponent(ticket)}`
           )
           conn.es = es
 
@@ -140,7 +140,7 @@ export function useRunSSE(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runIds.join(","), apiUrl, workspaceId])
+  }, [runIds.join(","), workspaceId])
 
   return statsMap
 }

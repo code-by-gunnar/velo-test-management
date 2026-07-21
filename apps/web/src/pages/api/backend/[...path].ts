@@ -1,8 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next"
+import { Readable } from "node:stream"
 import { readBodyWithLimit, BODY_TOO_LARGE } from "@/lib/read-body-limit"
 
 // Disable body parsing — we forward the raw body upstream unchanged.
-export const config = { api: { bodyParser: false } }
+// responseLimit:false + externalResolver:true let us stream long-lived / large
+// responses (SSE, evidence) through the gateway instead of buffering them.
+export const config = { api: { bodyParser: false, responseLimit: false, externalResolver: true } }
 
 // Hard cap on the buffered request body (VEL-64). Above the largest legitimate
 // upload — 10 MB evidence attachments plus multipart envelope — while bounding
@@ -56,16 +59,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     forwardHeaders["x-token-secure"] = isSecureCookie ? "1" : "0"
   }
 
+  // SSE requests (EventSource sets Accept: text/event-stream) are long-lived
+  // streams — they must NOT get the 30s timeout, and the body is piped through
+  // rather than buffered. Routing SSE through this same-origin gateway (instead
+  // of a browser→API cross-origin connection to an absolute PUBLIC_API_URL) is
+  // what lets live updates work on ANY host — LAN IP or reverse proxy — with no
+  // per-origin config (VEL-77). The session cookie is forwarded as Bearer, so
+  // the token never appears in the URL.
+  const isEventStream = (req.headers.accept ?? "").includes("text/event-stream")
+
   // Bounded upstream call — a hung API connection must return 504, never hold
-  // the browser's request open indefinitely
+  // the browser's request open indefinitely. For SSE, tie the lifetime to the
+  // client instead: abort upstream when the browser disconnects.
   let fetchRes: Response
   try {
-    fetchRes = await fetch(apiUrl, {
-      method: req.method ?? "GET",
-      headers: forwardHeaders,
-      signal: AbortSignal.timeout(30_000),
-      ...(rawBody.length > 0 ? { body: new Uint8Array(rawBody) } : {}),
-    })
+    if (isEventStream) {
+      const ac = new AbortController()
+      req.on("close", () => ac.abort())
+      fetchRes = await fetch(apiUrl, {
+        method: req.method ?? "GET",
+        headers: forwardHeaders,
+        signal: ac.signal,
+      })
+    } else {
+      fetchRes = await fetch(apiUrl, {
+        method: req.method ?? "GET",
+        headers: forwardHeaders,
+        signal: AbortSignal.timeout(30_000),
+        ...(rawBody.length > 0 ? { body: new Uint8Array(rawBody) } : {}),
+      })
+    }
   } catch (err) {
     const timedOut = (err as { name?: string } | null)?.name === "TimeoutError"
     res.status(timedOut ? 504 : 502).json({ error: timedOut ? "API timeout" : "API unreachable" })
@@ -89,6 +112,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   fetchRes.headers.forEach((value, key) => {
     if (!skip.has(key)) res.setHeader(key, value)
   })
+
+  // SSE (or any streamed response): pipe the body straight through instead of
+  // buffering, so events flush in real time and the connection stays open.
+  if (isEventStream && fetchRes.body) {
+    res.flushHeaders?.()
+    Readable.fromWeb(fetchRes.body as import("node:stream/web").ReadableStream).pipe(res)
+    return
+  }
 
   // Use arrayBuffer for binary responses (ZIP, etc.), text for everything else
   const contentType = fetchRes.headers.get("content-type") ?? ""
