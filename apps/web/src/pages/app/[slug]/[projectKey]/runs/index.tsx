@@ -3,7 +3,6 @@ import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
 import { resolveProject } from "@/lib/project-cache"
-import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { useCachedState } from "@/hooks/useCachedState"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui"
@@ -19,7 +18,6 @@ interface RunsDashboardProps {
   projectKey: string
   workspaceId: string
   projectId: string
-  apiUrl: string
 }
 
 export default function RunsDashboard({
@@ -27,7 +25,6 @@ export default function RunsDashboard({
   projectKey,
   workspaceId,
   projectId,
-  apiUrl,
 }: RunsDashboardProps) {
   const router = useRouter()
   const { canEdit } = useUserRole()
@@ -48,7 +45,7 @@ export default function RunsDashboard({
     .filter((r) => r.status === "active")
     .map((r) => r.id)
 
-  const liveStatsMap = useRunSSE(activeRunIds, apiUrl, workspaceId)
+  const liveStatsMap = useRunSSE(activeRunIds, workspaceId)
 
   const abortRef = useRef<AbortController | null>(null)
 
@@ -237,10 +234,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       projectKey,
       workspaceId,
       projectId: project?.id ?? "",
-      // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
-      // gateway). Resolved from runtime env (PUBLIC_API_URL) so the prebuilt
-      // image can be pointed at a public HTTPS API without a rebuild.
-      apiUrl: resolveBrowserApiUrl(),
     },
   }
 }
