@@ -9,15 +9,18 @@ export interface RunStats {
   total: number
 }
 
+export interface RunItemUpdate {
+  id: string
+  status: string
+  caseTitle: string | null
+  executedAt: string | null
+}
+
 interface RunUpdateEvent {
   type: "run_update"
   runId: string
   stats: RunStats
-  updatedItem?: {
-    id: string
-    status: string
-    caseTitle: string | null
-  }
+  updatedItem?: RunItemUpdate
 }
 
 interface DefectStatusUpdateEvent {
@@ -29,6 +32,12 @@ interface DefectStatusUpdateEvent {
 
 export interface UseRunSSEOptions {
   onDefectStatusUpdate?: (runItemId: string, externalStatus: string) => void
+  /**
+   * Fired when a run_update carries the specific item that changed, so a
+   * subscriber can update that row's status badge live instead of only the
+   * aggregate stats (VEL-74 follow-up). `statsMap` still drives the summary.
+   */
+  onItemUpdate?: (item: RunItemUpdate) => void
 }
 
 /**
@@ -108,6 +117,9 @@ export function useRunSSE(
                   next.set(runId, data.stats)
                   return next
                 })
+                // Surface the changed item so the per-row badge updates live,
+                // not just the aggregate stats (VEL-74 follow-up).
+                if (data.updatedItem) optionsRef.current?.onItemUpdate?.(data.updatedItem)
               } else if (data.type === "defect_status_update" && optionsRef.current?.onDefectStatusUpdate) {
                 optionsRef.current.onDefectStatusUpdate(data.runItemId, data.externalStatus)
               }

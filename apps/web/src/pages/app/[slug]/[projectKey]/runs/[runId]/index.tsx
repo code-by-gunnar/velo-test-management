@@ -9,7 +9,7 @@ import { StatusBadge, type TestStatus } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
-import { useRunSSE } from "@/hooks/useRunSSE"
+import { useRunSSE, type RunItemUpdate } from "@/hooks/useRunSSE"
 import { DefectBadge } from "@/components/runs/DefectBadge"
 import type { RunListItem } from "@/components/runs/RunCard"
 
@@ -94,11 +94,25 @@ export default function RunDetailPage({
     )
   }, [])
 
+  // Update the specific row's status badge + executed time when another user
+  // (or tab) marks a verdict — the SSE run_update carries the changed item
+  // (VEL-74 follow-up). Without this, only the aggregate summary updated live
+  // and the per-row badge stayed stale until a manual refresh.
+  const handleItemUpdate = useCallback((updated: RunItemUpdate) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === updated.id
+          ? { ...item, status: updated.status, executed_at: updated.executedAt }
+          : item
+      )
+    )
+  }, [])
+
   // Subscribe to SSE for live updates
   const liveStatsMap = useRunSSE(
     run ? [runId] : [],
     workspaceId,
-    { onDefectStatusUpdate: handleDefectStatusUpdate }
+    { onDefectStatusUpdate: handleDefectStatusUpdate, onItemUpdate: handleItemUpdate }
   )
 
   const liveStats = liveStatsMap.get(runId)
@@ -111,10 +125,6 @@ export default function RunDetailPage({
     untested: run?.untested_count ?? 0,
     total: run?.total_items ?? 0,
   }
-
-  // Update item status when SSE event arrives with updatedItem
-  // (liveStats change triggers re-render; items update from SSE via effect would need
-  // additional message parsing — kept simple: full stats update only)
 
   const passRate = stats.total > 0
     ? Math.round((stats.pass / stats.total) * 100)

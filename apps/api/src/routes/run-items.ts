@@ -85,14 +85,15 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
               updated_at = NOW()
           WHERE id = ${itemId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-          RETURNING run_id, case_title
-        ` as unknown as { run_id: string; case_title: string | null }[]
+          RETURNING run_id, case_title, executed_at
+        ` as unknown as { run_id: string; case_title: string | null; executed_at: string | null }[]
 
         if (updateRows.length === 0) return null
 
         const updated = updateRows[0]!
         const runId = updated.run_id
         const caseTitle = updated.case_title
+        const executedAt = updated.executed_at
 
         // 2. Lock the parent run row FOR UPDATE (VEL-44 / audit #7). This
         // serializes concurrent item verdicts on the same run through the
@@ -144,7 +145,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
           WHERE id = ${runId}::uuid
         `
 
-        return { itemId, status, runId, caseTitle, stats, projectId: run.project_id, runName: run.name, isComplete }
+        return { itemId, status, runId, caseTitle, executedAt, stats, projectId: run.project_id, runName: run.name, isComplete }
       })
 
       if (result === null) {
@@ -168,6 +169,7 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
               id: result.itemId,
               status: result.status,
               caseTitle: result.caseTitle,
+              executedAt: result.executedAt,
             },
           })
         )

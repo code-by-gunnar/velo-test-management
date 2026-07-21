@@ -267,9 +267,21 @@ describe("Run item routes integration (TR-02, TR-04)", () => {
       string,
     ]
     expect(lastCall[0]).toMatch(/^run:/)
-    const payload = JSON.parse(lastCall[1]) as { type: string; runId: string }
+    const payload = JSON.parse(lastCall[1]) as {
+      type: string
+      runId: string
+      updatedItem?: { id: string; status: string; caseTitle: string | null; executedAt: string | null }
+    }
     expect(payload.type).toBe("run_update")
     expect(payload.runId).toBeDefined()
+    // The live event must carry the changed item so subscribers can update the
+    // per-row status badge without a refetch (VEL-74 follow-up). executedAt is
+    // the server's real timestamp (SSOT) — not a client-side guess.
+    expect(payload.updatedItem).toBeDefined()
+    expect(payload.updatedItem!.id).toBeDefined()
+    expect(["pass", "fail", "blocked", "skipped"]).toContain(payload.updatedItem!.status)
+    expect(payload.updatedItem).toHaveProperty("caseTitle")
+    expect(payload.updatedItem!.executedAt).toBeTruthy()
   })
 
   // ── TR-04: Case-level comment ───────────────────────────────────────────────
