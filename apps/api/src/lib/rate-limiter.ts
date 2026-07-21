@@ -8,6 +8,54 @@ interface RateLimiterOptions {
   max?: number
 }
 
+export interface RateLimitResult {
+  /** false once the window count exceeds `max` */
+  allowed: boolean
+  /** current count in this window */
+  count: number
+  /** requests left before throttling (0 when over) */
+  remaining: number
+  /** seconds until the current window resets */
+  retryAfter: number
+}
+
+/**
+ * Fixed-window counter in Valkey — the shared core behind both the V1 API
+ * limiter and the ingestion throttle (VEL-60). `bucket` is the identity being
+ * limited (e.g. an apiKeyId or `ingest:{keyId}`); it is namespaced under
+ * `ratelimit:`. Throws on Valkey failure so callers can decide how to fail
+ * (both current callers fail CLOSED).
+ */
+export async function enforceRateLimit(
+  valkey: Redis,
+  bucket: string,
+  opts: RateLimiterOptions = {}
+): Promise<RateLimitResult> {
+  const windowMs = opts.windowMs ?? 60_000
+  const max = opts.max ?? 100
+  const windowSec = Math.ceil(windowMs / 1000)
+
+  const windowId = Math.floor(Date.now() / windowMs)
+  const key = `ratelimit:${bucket}:${windowId}`
+
+  const count = await valkey.incr(key)
+  if (count === 1) {
+    // Set expiry on first increment (TTL = window size + 1s buffer)
+    await valkey.expire(key, windowSec + 1)
+  }
+
+  const windowStart = windowId * windowMs
+  const windowEnd = windowStart + windowMs
+  const retryAfter = Math.max(1, Math.ceil((windowEnd - Date.now()) / 1000))
+
+  return {
+    allowed: count <= max,
+    count,
+    remaining: Math.max(0, max - count),
+    retryAfter,
+  }
+}
+
 /**
  * Creates a Fastify preHandler that rate-limits API key requests using a
  * fixed-window counter in Valkey.
@@ -24,39 +72,23 @@ export function createRateLimiter(
 ): (request: FastifyRequest, reply: FastifyReply) => Promise<void> {
   const windowMs = opts.windowMs ?? 60_000
   const max = opts.max ?? 100
-  const windowSec = Math.ceil(windowMs / 1000)
 
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     // Only rate-limit API key requests
     if (!request.apiKeyId) return
 
-    const windowId = Math.floor(Date.now() / windowMs)
-    const key = `ratelimit:${request.apiKeyId}:${windowId}`
-
     try {
-      const count = await valkey.incr(key)
-
-      // Set expiry on first increment (TTL = window size + 1s buffer)
-      if (count === 1) {
-        await valkey.expire(key, windowSec + 1)
-      }
-
-      const remaining = Math.max(0, max - count)
+      const rl = await enforceRateLimit(valkey, request.apiKeyId, { windowMs, max })
 
       // Always set rate limit headers on API key responses
       reply.header("X-RateLimit-Limit", String(max))
-      reply.header("X-RateLimit-Remaining", String(remaining))
+      reply.header("X-RateLimit-Remaining", String(rl.remaining))
 
-      if (count > max) {
-        // Calculate seconds until current window resets
-        const windowStart = windowId * windowMs
-        const windowEnd = windowStart + windowMs
-        const retryAfter = Math.ceil((windowEnd - Date.now()) / 1000)
-
-        reply.header("Retry-After", String(Math.max(1, retryAfter)))
+      if (!rl.allowed) {
+        reply.header("Retry-After", String(rl.retryAfter))
         return reply.status(429).send({
           error: "Rate limit exceeded",
-          retry_after: Math.max(1, retryAfter),
+          retry_after: rl.retryAfter,
         })
       }
     } catch (err) {
