@@ -1,0 +1,56 @@
+# Production overlay — Cloudflare Tunnel (cloudflared). Alternative to the Caddy
+# overlay (docker-compose.prod.yml) for self-hosters who'd rather not open ports
+# or manage TLS certs: cloudflared dials OUT to Cloudflare, so nothing is
+# published on the host and Cloudflare terminates TLS at the edge.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml \
+#     -f docker-compose.storage.yml -f docker-compose.cloudflared.yml up -d
+#
+# Full walkthrough: docs/deploy-cloudflare-tunnel.md
+#
+# Quick checklist:
+#   1. Cloudflare Zero Trust → Networks → Tunnels → create a tunnel → copy its token
+#      into CLOUDFLARE_TUNNEL_TOKEN in .env
+#   2. In that tunnel, add Public Hostnames:
+#        app.DOMAIN     → http://web:3000
+#        api.DOMAIN     → http://api:3001
+#        storage.DOMAIN → http://minio:9000   (only if using bundled MinIO; R2 users skip this)
+#   3. .env: WEB_URL=https://app.DOMAIN, PUBLIC_API_URL=https://api.DOMAIN
+#      (PUBLIC_API_URL is baked into the web image — rebuild, or re-pull, after changing it)
+#   4. Storage: either point S3_* at Cloudflare R2 (recommended — no third hostname), or
+#      keep bundled MinIO and set S3_PUBLIC_ENDPOINT=https://storage.DOMAIN
+#   5. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
+#   6. Strong POSTGRES_PASSWORD; verify merged config first:
+#        docker compose -f docker-compose.yml -f docker-compose.app.yml \
+#          -f docker-compose.cloudflared.yml config
+#      (confirm postgres/valkey/api/web publish no host ports — !override below)
+#
+# SSE (live run updates) survives the tunnel with no extra config: the stream
+# emits a heartbeat every 20s, well under Cloudflare's ~100s idle timeout.
+
+services:
+  postgres:
+    ports: !override []
+  valkey:
+    ports: !override []
+  api:
+    ports: !override []
+  web:
+    ports: !override []
+    environment:
+      # Same origin-pool race as the Caddy overlay: the Node keep-alive must
+      # outlast cloudflared's origin idle timeout (~90s) so cloudflared never
+      # reuses a socket the server just closed.
+      KEEP_ALIVE_TIMEOUT: "95000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # Remotely-managed tunnel: routing (public hostnames → services) lives in the
+    # Cloudflare dashboard; the container only needs the tunnel token.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env for the cloudflared overlay}
+    depends_on:
+      - web
+      - api
