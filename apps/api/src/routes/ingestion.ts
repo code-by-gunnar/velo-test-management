@@ -7,6 +7,7 @@ import { uploadObject, buildIngestionKey, getPresignedUrl, storageEnabled } from
 import { verifyApiKey } from "./api-keys.js"
 import { captureEvent } from "../lib/posthog.js"
 import { enforceRateLimit } from "../lib/rate-limiter.js"
+import { invalidateReportsCache } from "../lib/reports-cache.js"
 import type { FastifyInstance, FastifyReply } from "fastify"
 
 // UUID validation (any version)
@@ -257,6 +258,9 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       totalTests = txResult.total
       matchedTests = txResult.matched
 
+      // CI results feed the reports — bust the cache (VEL-75)
+      void invalidateReportsCache(fastify.valkey, workspaceId, projectId)
+
       captureEvent(workspaceId, "ci_results_ingested", {
         format: "junit",
         workspace_id: workspaceId,
@@ -450,6 +454,9 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
         return { newRunId, total, matched }
       })
+
+      // CI results feed the reports — bust the cache (VEL-75)
+      void invalidateReportsCache(fastify.valkey, workspaceId, projectId)
 
       captureEvent(workspaceId, "ci_results_ingested", {
         format: "allure",

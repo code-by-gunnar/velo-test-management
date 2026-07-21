@@ -4,6 +4,7 @@ import { withWorkspace } from "../db/tenant.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { captureEvent } from "../lib/posthog.js"
+import { invalidateReportsCache } from "../lib/reports-cache.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -149,6 +150,10 @@ const runItemsRoutes: FastifyPluginAsync = async (fastify) => {
       if (result === null) {
         return reply.status(404).send({ error: "Run item not found" })
       }
+
+      // Bust the reports cache so the Reports view reflects this verdict on the
+      // next load instead of waiting out the 60s TTL (VEL-75). Fire-and-forget.
+      void invalidateReportsCache(fastify.valkey, workspaceId, result.projectId)
 
       // 4. Fire-and-forget Valkey publish after transaction commits
       // Do NOT await — client response must not be blocked by Valkey
