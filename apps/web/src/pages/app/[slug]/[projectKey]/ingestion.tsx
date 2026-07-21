@@ -1,6 +1,7 @@
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
 import { resolveProject } from "@/lib/project-cache"
+import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { AppLayout } from "@/components/layout/app-layout"
 import { SetupGuide } from "@/components/ingestion/SetupGuide"
 import { IngestionHistory } from "@/components/ingestion/IngestionHistory"
@@ -65,7 +66,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const { slug, projectKey } = context.params as { slug: string; projectKey: string }
   const workspaceId = session.user.workspace_id ?? ""
   const apiUrl = process.env.API_URL ?? ""
-  const publicApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? ""
+  // Browser-facing URL shown in the CI ingestion command — runtime-resolved.
+  const publicApiUrl = resolveBrowserApiUrl()
 
   const token =
     context.req.cookies["__Secure-authjs.session-token"] ??

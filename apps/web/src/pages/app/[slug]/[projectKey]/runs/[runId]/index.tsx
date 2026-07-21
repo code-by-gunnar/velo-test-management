@@ -8,6 +8,7 @@ import { Button } from "@/components/ui"
 import { StatusBadge, type TestStatus } from "@/components/ui"
 import { useToast } from "@/components/ui/toast"
 import { notifyRecycleBinChanged } from "@/lib/recycle-bin-events"
+import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { SegmentedBar } from "@/components/runs/SegmentedBar"
 import { useRunSSE } from "@/hooks/useRunSSE"
 import { DefectBadge } from "@/components/runs/DefectBadge"
@@ -531,8 +532,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       runId,
       run,
       // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
-      // gateway). Falls back to API_URL when both resolve to the same public host.
-      apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,
+      // gateway). Resolved from runtime env (PUBLIC_API_URL) so the prebuilt
+      // image can be pointed at a public HTTPS API without a rebuild.
+      apiUrl: resolveBrowserApiUrl(),
     },
   }
 }
