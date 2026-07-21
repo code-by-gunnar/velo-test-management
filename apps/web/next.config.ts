@@ -8,6 +8,16 @@ const config: NextConfig = {
   // Monorepo root so the standalone trace includes hoisted pnpm deps
   outputFileTracingRoot: path.join(process.cwd(), "../../"),
   reactStrictMode: true,
+  // Disable Next's gzip layer (VEL-77 SSE fix). Its compression wraps `res` and
+  // buffers the whole response until it can decide an encoding — for the SSE
+  // gateway (`/api/backend/.../stream`) that means tiny event-stream chunks sit
+  // in the gzip buffer forever, so NOTHING flushes (not even headers, defeating
+  // res.flushHeaders()) and live updates silently break on every host. Every
+  // reverse-proxy deployment (Caddy/Cloudflare/NPM) compresses independently, and
+  // on bare LAN the cost is negligible — so turning it off here makes streaming
+  // work everywhere with zero config instead of subtly failing. Never re-enable
+  // without a per-route opt-out for text/event-stream.
+  compress: false,
   // App Router is disabled — Pages Router only (CVE-2025-55182)
   experimental: {},
   // next-auth@beta imports next/server without .js extension — Next.js 16 ESM requires transpilation
