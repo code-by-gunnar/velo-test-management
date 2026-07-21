@@ -7,6 +7,7 @@ import { withWorkspace } from "../db/tenant.js"
 import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
+import { invalidateReportsCache } from "../lib/reports-cache.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 import { captureEvent } from "../lib/posthog.js"
@@ -176,6 +177,9 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       if (result === null) {
         return reply.status(400).send({ error: "No test cases match the selected scope" })
       }
+
+      // New run shows in the reports "recent runs" list — bust the cache (VEL-75)
+      void invalidateReportsCache(fastify.valkey, workspaceId, project_id)
 
       captureEvent(request.userId as string, "test_run_created", {
         workspace_id: workspaceId,
@@ -368,6 +372,9 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
       if (result.outcome === "not_found") return reply.status(404).send({ error: "Run not found" })
       if (result.outcome === "not_active") return reply.status(400).send({ error: "Run is not active" })
 
+      // Aborted run enters the reports trend — bust the cache (VEL-75)
+      void invalidateReportsCache(fastify.valkey, workspaceId, result.projectId)
+
       // Fire run.completed webhook on abort (fire-and-forget)
       if (result.outcome === "ok") {
         fireWebhookEvent(workspaceId, result.projectId, "run.completed", {
@@ -458,12 +465,15 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         }))
         await tx`INSERT INTO run_items ${tx(rerunRows, "id", "workspace_id", "run_id", "test_case_id", "case_title", "case_snapshot", "status")}`
 
-        return { newRunId, item_count: failedItems.length }
+        return { newRunId, item_count: failedItems.length, projectId: sourceRun.project_id }
       })
 
       if (result === null) {
         return reply.status(400).send({ error: "No failed items to rerun" })
       }
+
+      // New rerun shows in the reports "recent runs" list — bust the cache (VEL-75)
+      void invalidateReportsCache(fastify.valkey, workspaceId, result.projectId)
 
       return reply.status(201).send({
         id: result.newRunId,
@@ -689,14 +699,18 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid runId" })
       }
 
-      await withWorkspace(workspaceId, async (tx) => {
-        await tx`
+      const deleted = await withWorkspace(workspaceId, async (tx) => {
+        return tx`
           UPDATE test_runs SET deleted_at = NOW(), deleted_by = ${request.userId}::uuid
           WHERE id = ${runId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
             AND deleted_at IS NULL
-        `
+          RETURNING project_id
+        ` as unknown as Array<{ project_id: string }>
       })
+
+      // Recycling a run removes it from reports — bust the cache (VEL-75)
+      if (deleted[0]) void invalidateReportsCache(fastify.valkey, workspaceId, deleted[0].project_id)
 
       return reply.status(204).send()
     }
@@ -725,13 +739,19 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid run id in array" })
       }
 
-      await withWorkspace(workspaceId, async (tx) => {
-        await tx`
+      const restored = await withWorkspace(workspaceId, async (tx) => {
+        return tx`
           UPDATE test_runs SET deleted_at = NULL
           WHERE id = ANY(${ids}::uuid[])
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
-        `
+          RETURNING project_id
+        ` as unknown as Array<{ project_id: string }>
       })
+
+      // Restored runs reappear in reports — bust each affected project (VEL-75)
+      for (const p of new Set(restored.map((r) => r.project_id))) {
+        void invalidateReportsCache(fastify.valkey, workspaceId, p)
+      }
 
       return reply.status(204).send()
     }

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { captureEvent } from "../lib/posthog.js"
+import { reportsCacheKey } from "../lib/reports-cache.js"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -36,8 +37,9 @@ const reportsRoutes: FastifyPluginAsync = async (fastify) => {
         project_id: projectId,
       })
 
-      // Check Valkey cache first (60-second TTL — reports are stale-tolerant)
-      const cacheKey = `reports:${workspaceId}:${projectId}`
+      // Check Valkey cache first (60-second TTL — reports are stale-tolerant).
+      // Busted on every result-changing mutation via invalidateReportsCache (VEL-75).
+      const cacheKey = reportsCacheKey(workspaceId, projectId)
       const cached = await fastify.valkey.get(cacheKey)
       if (cached) {
         return reply.send(JSON.parse(cached))

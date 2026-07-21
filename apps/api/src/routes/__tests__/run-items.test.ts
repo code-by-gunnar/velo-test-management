@@ -24,9 +24,13 @@ function buildApp(userId: string, workspaceId: string) {
     request.workspaceId = workspaceId
     request.userRole = "editor"
   })
-  // Mock valkey.publish so run-items route can fire-and-forget without a real Valkey
-  // Cast through unknown: the mock only needs publish(); full Redis type not required in tests
-  app.decorate("valkey", { publish: vi.fn().mockResolvedValue(1) } as unknown as Redis)
+  // Mock valkey.publish (SSE) + del (reports cache bust, VEL-75) so the route can
+  // fire-and-forget without a real Valkey. Cast through unknown — the route needs
+  // only these; full Redis type not required in tests.
+  app.decorate("valkey", {
+    publish: vi.fn().mockResolvedValue(1),
+    del: vi.fn().mockResolvedValue(1),
+  } as unknown as Redis)
   return app
 }
 
@@ -134,6 +138,19 @@ describe("Run item routes integration (TR-02, TR-04)", () => {
     // Verify executed_at is set in DB
     const rows = await sql`SELECT executed_at FROM run_items WHERE id = ${itemId1}::uuid`
     expect((rows[0] as unknown as { executed_at: Date | null }).executed_at).not.toBeNull()
+  })
+
+  it("VEL-75: PATCH busts the project's reports cache so a refresh is fresh", async () => {
+    const del = (app as unknown as { valkey: { del: ReturnType<typeof vi.fn> } }).valkey.del
+    del.mockClear()
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/workspaces/${workspaceId}/run-items/${itemId2}`,
+      payload: { status: "pass" },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(del).toHaveBeenCalledWith(`reports:${workspaceId}:${projectId}`)
   })
 
   it("TR-02: PATCH run-items/:id with status=fail returns 200", async () => {
