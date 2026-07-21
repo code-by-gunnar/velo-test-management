@@ -98,7 +98,12 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid signature" })
       }
 
-      // Idempotency check — prevent duplicate processing
+      // Idempotency check — prevent duplicate processing. The "seen" marker is
+      // written AFTER processing succeeds (see end of handler), NOT here (VEL-69):
+      // marking before processing meant a transient failure mid-update left the
+      // delivery flagged, so Linear's retries were silently dropped and the
+      // status sync was lost. Now a failed delivery throws → 500 → Linear retries
+      // → the retry re-processes because the marker was never set.
       const deliveryKey = payload.webhookId && payload.deliveryId
         ? `linear:webhook:${payload.webhookId}:${payload.deliveryId}`
         : null
@@ -108,8 +113,6 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         if (alreadySeen) {
           return reply.status(200).send({ ok: true })
         }
-        // Mark as seen with 24h TTL
-        await fastify.valkey.set(deliveryKey, "1", "EX", 86400)
       }
 
       // Handle Issue updates
@@ -171,6 +174,13 @@ const linearWebhookRoutes: FastifyPluginAsync = async (fastify) => {
               AND workspace_id = ${connection.workspace_id}::uuid
           `
         }
+      }
+
+      // Processing succeeded — NOW mark the delivery seen (24h TTL) so genuine
+      // Linear retries are deduplicated, while a delivery that threw above never
+      // reaches here and stays eligible for reprocessing (VEL-69).
+      if (deliveryKey) {
+        await fastify.valkey.set(deliveryKey, "1", "EX", 86400)
       }
 
       return reply.status(200).send({ ok: true })
