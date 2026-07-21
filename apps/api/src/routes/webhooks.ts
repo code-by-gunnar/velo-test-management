@@ -4,6 +4,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { captureEvent } from "../lib/posthog.js"
 import { safeFetch, SsrfError } from "../lib/ssrf.js"
+import { requireAdmin } from "../plugins/require-admin.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -61,6 +62,10 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/webhooks",
     {
+      // Webhooks exfiltrate run/defect data to an external URL — managing them
+      // is admin-only (VEL-67). Outbound delivery is already SSRF-guarded; this
+      // closes the RBAC gap that let viewers create/change/test webhooks.
+      preHandler: [requireAdmin],
       schema: {
         body: {
           type: "object",
@@ -170,6 +175,7 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/webhooks/:webhookId",
     {
+      preHandler: [requireAdmin], // admin-only (VEL-67)
       schema: {
         body: {
           type: "object",
@@ -240,6 +246,7 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; projectId: string; webhookId: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/webhooks/:webhookId",
+    { preHandler: [requireAdmin] }, // admin-only (VEL-67)
     async (request, reply) => {
       const { workspaceId, projectId, webhookId } = request.params
 
@@ -275,6 +282,7 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { workspaceId: string; projectId: string; webhookId: string }
   }>(
     "/api/workspaces/:workspaceId/projects/:projectId/webhooks/:webhookId/test",
+    { preHandler: [requireAdmin] }, // admin-only (VEL-67)
     async (request, reply) => {
       const { workspaceId, projectId, webhookId } = request.params
 
