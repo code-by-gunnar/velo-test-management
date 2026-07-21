@@ -6,8 +6,8 @@
 # Deploy checklist (any host — EC2, Hetzner, etc.):
 #   1. DNS: A records for app.DOMAIN and api.DOMAIN → server IP
 #   2. .env: DOMAIN=yourdomain, WEB_URL=https://app.DOMAIN, PUBLIC_API_URL=https://api.DOMAIN
-#   3. REBUILD the web image (PUBLIC_API_URL is a build ARG) — --build handles it
-#   4. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
+#      (PUBLIC_API_URL is resolved at RUNTIME — no web image rebuild needed)
+#   3. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
 #   5. Strong POSTGRES_PASSWORD
 #   6. Verify merged config first: docker compose -f docker-compose.yml \
 #        -f docker-compose.app.yml -f docker-compose.prod.yml config

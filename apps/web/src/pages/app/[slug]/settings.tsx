@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { GetServerSideProps } from "next"
 import { auth } from "@/auth"
+import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { AppLayout } from "@/components/layout/app-layout"
 import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel"
 import { ApiReference } from "@/components/settings/ApiReference"
@@ -133,7 +134,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId: session.user.workspace_id ?? "",
       userRole: session.user.role ?? null,
       userId: session.user.id ?? null,
-      apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_URL ?? "",
+      apiBaseUrl: resolveBrowserApiUrl(),
     },
   }
 }

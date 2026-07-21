@@ -3,6 +3,7 @@ import type { GetServerSideProps } from "next"
 import { useRouter } from "next/router"
 import { auth } from "@/auth"
 import { resolveProject } from "@/lib/project-cache"
+import { resolveBrowserApiUrl } from "@/lib/browser-api-url"
 import { useCachedState } from "@/hooks/useCachedState"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Button } from "@/components/ui"
@@ -220,7 +221,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const { slug, projectKey } = context.params as { slug: string; projectKey: string }
   const workspaceId = session.user.workspace_id ?? ""
-  const apiUrl = process.env.API_URL ?? ""
 
   const token =
     context.req.cookies["__Secure-authjs.session-token"] ??
@@ -238,8 +238,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       workspaceId,
       projectId: project?.id ?? "",
       // Browser-facing base URL for EventSource (SSE bypasses the /api/backend
-      // gateway). Falls back to API_URL when both resolve to the same public host.
-      apiUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? apiUrl,
+      // gateway). Resolved from runtime env (PUBLIC_API_URL) so the prebuilt
+      // image can be pointed at a public HTTPS API without a rebuild.
+      apiUrl: resolveBrowserApiUrl(),
     },
   }
 }

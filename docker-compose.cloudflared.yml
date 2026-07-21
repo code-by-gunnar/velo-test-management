@@ -16,7 +16,7 @@
 #        api.DOMAIN     → http://api:3001
 #        storage.DOMAIN → http://minio:9000   (only if using bundled MinIO; R2 users skip this)
 #   3. .env: WEB_URL=https://app.DOMAIN, PUBLIC_API_URL=https://api.DOMAIN
-#      (PUBLIC_API_URL is baked into the web image — rebuild, or re-pull, after changing it)
+#      (PUBLIC_API_URL is resolved at RUNTIME — no web image rebuild needed)
 #   4. Storage: either point S3_* at Cloudflare R2 (recommended — no third hostname), or
 #      keep bundled MinIO and set S3_PUBLIC_ENDPOINT=https://storage.DOMAIN
 #   5. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
