@@ -238,3 +238,34 @@ h1, h2, h3, h4, h5, h6 {
 .animate-route-progress {
   animation: route-progress 1.1s ease-in-out infinite;
 }
+
+/* Marketing hero entrance — a single, staggered settle (was a styled-jsx
+   `<style jsx global>` in index.tsx). Moved to plain global CSS because
+   Turbopack externalizes styled-jsx/style.js and Vercel's serverless bundle
+   doesn't trace it into the lambda → the marketing SSR 500'd with
+   "Cannot find module 'styled-jsx/style.js'" (VEL-74). No styled-jsx means
+   nothing to externalize, so this renders on any bundler/host. */
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.rise-1 { animation-delay: 0.08s; }
+.rise-2 { animation-delay: 0.16s; }
+.rise-3 { animation-delay: 0.26s; }
+.rise-4 { animation-delay: 0.36s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}

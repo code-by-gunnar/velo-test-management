@@ -289,25 +289,6 @@ export default function Home() {
 
         <MarketingFooter />
       </div>
-
-      {/* Quiet hero settle — a single, staggered entrance. Honors reduced-motion. */}
-      <style jsx global>{`
-        .rise {
-          opacity: 0;
-          transform: translateY(14px);
-          animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .rise-1 { animation-delay: 0.08s; }
-        .rise-2 { animation-delay: 0.16s; }
-        .rise-3 { animation-delay: 0.26s; }
-        .rise-4 { animation-delay: 0.36s; }
-        @keyframes rise {
-          to { opacity: 1; transform: none; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .rise { opacity: 1; transform: none; animation: none; }
-        }
-      `}</style>
     </>
   )
 }
