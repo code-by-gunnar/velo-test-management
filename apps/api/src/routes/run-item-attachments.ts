@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { requireEditor } from "../plugins/require-editor.js"
-import { storageEnabled, uploadObject, getPresignedUrl, deleteObjects } from "../lib/storage.js"
+import { storageEnabled, uploadObject, getPresignedUrl, deleteObjects, shouldProxyDownloads, getObjectStream } from "../lib/storage.js"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
 import { captureEvent } from "../lib/posthog.js"
@@ -140,16 +140,24 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
         `
       })
 
-      // Generate presigned URLs
+      // Resolve each attachment's browser URL (VEL-77): a same-origin proxy path
+      // for private/bundled storage (works on any host, no config), or a presigned
+      // URL for a public cloud endpoint. The `url` contract is unchanged, so the
+      // frontend is untouched.
+      const proxy = shouldProxyDownloads()
       const result = await Promise.all(
         (attachments as Array<Record<string, unknown>>).map(async (att) => {
           const r2Key = att.r2_key as string
           let url = ""
           if (storageEnabled()) {
-            try {
-              url = await getPresignedUrl(r2Key)
-            } catch {
-              // URL generation failed — return empty
+            if (proxy) {
+              url = `/api/backend/workspaces/${workspaceId}/run-items/${itemId}/attachments/${att.id as string}/download`
+            } else {
+              try {
+                url = await getPresignedUrl(r2Key)
+              } catch {
+                // URL generation failed — return empty
+              }
             }
           }
           return {
@@ -164,6 +172,65 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
       )
 
       return reply.send(result)
+    }
+  )
+
+  // ── GET /run-items/:itemId/attachments/:attachmentId/download ────────────
+  // Same-origin evidence proxy (VEL-77): streams the object from internal storage
+  // so the browser never needs a reachable storage host. Used when storage is
+  // private/bundled (MinIO); public-cloud setups get a presigned URL from the
+  // listing instead and never hit this. Session-authed (the plugin preHandler)
+  // + tenant-scoped (the attachment must belong to this item AND workspace).
+  fastify.get<{
+    Params: { workspaceId: string; itemId: string; attachmentId: string }
+  }>(
+    "/api/workspaces/:workspaceId/run-items/:itemId/attachments/:attachmentId/download",
+    async (request, reply) => {
+      const { workspaceId, itemId, attachmentId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!UUID_RE.test(itemId) || !UUID_RE.test(attachmentId)) {
+        return reply.status(400).send({ error: "Invalid ID" })
+      }
+
+      if (!storageEnabled()) {
+        return reply.status(503).send({ error: "File storage not available" })
+      }
+
+      const att = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT r2_key, content_type, filename FROM run_item_attachments
+          WHERE id = ${attachmentId}::uuid
+            AND run_item_id = ${itemId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+        return rows.length > 0
+          ? (rows[0] as unknown as { r2_key: string; content_type: string | null; filename: string })
+          : null
+      })
+
+      if (!att) {
+        return reply.status(404).send({ error: "Attachment not found" })
+      }
+
+      let stream
+      try {
+        stream = await getObjectStream(att.r2_key)
+      } catch {
+        return reply.status(404).send({ error: "Object not found in storage" })
+      }
+
+      reply.header("Content-Type", att.content_type ?? stream.contentType ?? "application/octet-stream")
+      if (stream.contentLength) reply.header("Content-Length", String(stream.contentLength))
+      // inline so images/PDFs render in the tab (matches the old presigned behavior);
+      // the filename is sanitized to a safe token to avoid header injection.
+      const safeName = att.filename.replace(/[^\w.\-]/g, "_")
+      reply.header("Content-Disposition", `inline; filename="${safeName}"`)
+      reply.header("Cache-Control", "private, max-age=300")
+      return reply.send(stream.body)
     }
   )
 

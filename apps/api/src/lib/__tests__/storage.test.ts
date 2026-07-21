@@ -4,6 +4,7 @@ import {
   resolveStorageConfig,
   buildIngestionKey,
   warnIfMisconfigured,
+  shouldProxyDownloads,
 } from "../storage.js"
 
 const KEYS = [
@@ -91,5 +92,41 @@ describe("storage config resolution", () => {
     const msgs: string[] = []
     warnIfMisconfigured((m) => msgs.push(m))
     expect(msgs).toHaveLength(0)
+  })
+
+  // VEL-77: proxy vs presign delivery decision.
+  describe("shouldProxyDownloads", () => {
+    it("proxies bundled MinIO (internal endpoint, no public endpoint)", () => {
+      process.env.S3_ENDPOINT = "http://minio:9000"
+      expect(shouldProxyDownloads()).toBe(true)
+    })
+
+    it("proxies a LAN-IP public endpoint (the NAS default)", () => {
+      process.env.S3_ENDPOINT = "http://minio:9000"
+      process.env.S3_PUBLIC_ENDPOINT = "http://192.168.1.50:9000"
+      expect(shouldProxyDownloads()).toBe(true)
+    })
+
+    it("proxies a localhost public endpoint", () => {
+      process.env.S3_ENDPOINT = "http://minio:9000"
+      process.env.S3_PUBLIC_ENDPOINT = "http://localhost:9000"
+      expect(shouldProxyDownloads()).toBe(true)
+    })
+
+    it("presigns when an explicit public HTTPS endpoint is configured (opt-in)", () => {
+      process.env.S3_ENDPOINT = "http://minio:9000"
+      process.env.S3_PUBLIC_ENDPOINT = "https://minio.example.com"
+      expect(shouldProxyDownloads()).toBe(false)
+    })
+
+    it("presigns cloud R2 (public endpoint, no public override needed)", () => {
+      process.env.R2_ACCOUNT_ID = "acct123"
+      expect(shouldProxyDownloads()).toBe(false)
+    })
+
+    it("presigns cloud S3", () => {
+      process.env.S3_ENDPOINT = "https://s3.us-east-1.amazonaws.com"
+      expect(shouldProxyDownloads()).toBe(false)
+    })
   })
 })
