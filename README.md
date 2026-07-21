@@ -90,13 +90,22 @@ The three secrets above are all that's required. Everything else is optional and
 
 ### Production
 
-Layer the production overlay for TLS and public subdomains via Caddy (still pulls the prebuilt images by default):
+Two overlays put Velo on a public HTTPS domain — pick whichever fits your host (both still pull the prebuilt images by default):
+
+**Cloudflare Tunnel** — no open ports, no TLS certs to manage; `cloudflared` dials out to Cloudflare. Ideal for a home NAS, a box behind CGNAT, or anywhere you can't port-forward. Full walkthrough: [`docs/deploy-cloudflare-tunnel.md`](docs/deploy-cloudflare-tunnel.md).
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.app.yml \
+  -f docker-compose.storage.yml -f docker-compose.cloudflared.yml up -d
+```
+
+**Caddy** — a classic reverse proxy you control end-to-end with automatic Let's Encrypt TLS. Needs a public IP and DNS A records for `app.`/`api.` subdomains. Checklist is in the header of [`docker-compose.prod.yml`](docker-compose.prod.yml).
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d
 ```
 
-The production checklist — DNS, public URLs, OAuth callbacks — is in the header of `docker-compose.prod.yml`.
+Both paths need the same public-URL wiring (`WEB_URL`, `PUBLIC_API_URL`), OAuth callback re-registration, and — for remote browsers reaching bundled MinIO — a public `S3_PUBLIC_ENDPOINT` (or use Cloudflare R2). SSE live-updates survive either proxy out of the box (20s heartbeat).
 
 ## Build from source (contributors)
 
