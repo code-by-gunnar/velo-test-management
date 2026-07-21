@@ -6,12 +6,58 @@ import { parseAllureJson } from "../lib/allure-parser.js"
 import { uploadObject, buildIngestionKey, getPresignedUrl, storageEnabled } from "../lib/storage.js"
 import { verifyApiKey } from "./api-keys.js"
 import { captureEvent } from "../lib/posthog.js"
+import { enforceRateLimit } from "../lib/rate-limiter.js"
+import type { FastifyInstance, FastifyReply } from "fastify"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function isUuid(value: string): boolean {
   return UUID_ANY_RE.test(value)
+}
+
+// Per-API-key throttle for CI ingestion (VEL-60). The v1-prefixed routes get the
+// 100/min v1 limiter, but the documented standalone /ingest/* path is registered
+// in server.ts with no limiter, so a compromised/looping CI key could flood raw
+// XML/JSON uploads (each = storage write + parse). Tunable via env; defaults to a
+// generous 30/min per key — well above real pipeline cadence, low enough to cap
+// abuse.
+const INGEST_RATE_MAX = Math.max(1, parseInt(process.env.INGEST_RATE_LIMIT ?? "30", 10) || 30)
+
+/**
+ * Throttle an ingestion request by API key. Returns true if the request was
+ * throttled AND a response (429/503) was already sent — the caller must return
+ * immediately. Fails CLOSED on Valkey error (503), matching the v1 limiter: an
+ * attacker must not be able to bypass the limit by disrupting Valkey. Skips
+ * silently only when no Valkey decorator is present (unit apps that omit it) —
+ * in a real deploy the plugin is always registered.
+ */
+async function ingestThrottled(
+  fastify: FastifyInstance,
+  reply: FastifyReply,
+  keyId: string
+): Promise<boolean> {
+  const valkey = (fastify as FastifyInstance & { valkey?: import("iovalkey").Redis }).valkey
+  if (!valkey) return false
+
+  let rl
+  try {
+    rl = await enforceRateLimit(valkey, `ingest:${keyId}`, { windowMs: 60_000, max: INGEST_RATE_MAX })
+  } catch (err) {
+    fastify.log.error({ err }, "Ingestion rate limiter Valkey error — failing closed (503)")
+    reply.header("Retry-After", "5")
+    await reply.status(503).send({ error: "Rate limiter temporarily unavailable", retry_after: 5 })
+    return true
+  }
+
+  reply.header("X-RateLimit-Limit", String(INGEST_RATE_MAX))
+  reply.header("X-RateLimit-Remaining", String(rl.remaining))
+  if (!rl.allowed) {
+    reply.header("Retry-After", String(rl.retryAfter))
+    await reply.status(429).send({ error: "Ingestion rate limit exceeded", retry_after: rl.retryAfter })
+    return true
+  }
+  return false
 }
 
 // Map NormalizedTestCase status to testStatusEnum values
@@ -54,6 +100,9 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "API key does not belong to this workspace" })
       }
       const keyId = verified.keyId
+
+      // Per-key ingestion throttle (VEL-60)
+      if (await ingestThrottled(fastify, reply, keyId)) return
 
       if (!isUuid(projectId)) {
         return reply.status(400).send({ error: "Invalid projectId" })
@@ -247,6 +296,9 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "API key does not belong to this workspace" })
       }
       const keyId = verified.keyId
+
+      // Per-key ingestion throttle (VEL-60)
+      if (await ingestThrottled(fastify, reply, keyId)) return
 
       if (!isUuid(projectId)) {
         return reply.status(400).send({ error: "Invalid projectId" })
