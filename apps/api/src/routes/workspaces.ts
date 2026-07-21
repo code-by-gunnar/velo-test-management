@@ -245,6 +245,7 @@ const workspaceRoutes: FastifyPluginAsync = async (fastify) => {
   // Idempotent — if sample data already exists for this workspace, returns 200 without re-seeding.
   fastify.post<{ Params: { workspaceId: string } }>(
     "/api/workspaces/:workspaceId/seed",
+    { preHandler: [requireEditor] }, // writes sample data — editor+ only (VEL-68)
     async (request, reply) => {
       const userId = request.userId
       const { workspaceId } = request.params

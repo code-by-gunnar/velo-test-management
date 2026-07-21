@@ -29,7 +29,11 @@ const junitParser = new XMLParser({
   attributeNamePrefix: "@_",
   allowBooleanAttributes: true,
   cdataPropName: "__cdata",
-  isArray: (_name: string, jpath: string) => ALWAYS_ARRAY_PATHS.includes(jpath),
+  // fast-xml-parser 5.10 widened the isArray jPath arg to `string | MatcherView`.
+  // jPath:true keeps the backward-compatible string form (the default); String()
+  // normalizes it to satisfy the union without changing runtime behavior.
+  jPath: true,
+  isArray: (_name, jpath) => ALWAYS_ARRAY_PATHS.includes(String(jpath)),
 })
 
 interface ParsedSuite {

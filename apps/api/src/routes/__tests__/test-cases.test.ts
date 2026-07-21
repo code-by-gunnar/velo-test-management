@@ -379,6 +379,42 @@ describe("Test case routes integration (TC-01, TC-03)", () => {
     await sql`DELETE FROM workspaces WHERE id = ${limitWsId}::uuid`
   })
 
+  it("GET /cases returns ALL cases past 500 — no silent truncation (VEL-66)", async () => {
+    const wsId = uuidv7()
+    const projId = uuidv7()
+
+    await sql`INSERT INTO workspaces (id, name, slug, plan_tier)
+      VALUES (${wsId}::uuid, 'Big WS', ${`big-ws-${Date.now()}`}, 'free')`
+    await sql`INSERT INTO projects (id, workspace_id, name, project_key)
+      VALUES (${projId}::uuid, ${wsId}::uuid, 'Big Project', 'bp1')`
+
+    // Bulk-insert 501 cases in one statement (generate_series) — fast, and
+    // sidesteps the per-row N+1 create path (VEL-52) that timed out the auditor.
+    await sql`
+      INSERT INTO test_cases (id, workspace_id, project_id, title, priority, position)
+      SELECT gen_random_uuid(), ${wsId}::uuid, ${projId}::uuid, 'Bulk ' || g, 'low', g
+      FROM generate_series(1, 501) AS g
+    `
+
+    const bigApp = buildApp(userId, wsId)
+    await bigApp.register(testCasesRoutes)
+    await bigApp.ready()
+
+    const res = await bigApp.inject({
+      method: "GET",
+      url: `/api/workspaces/${wsId}/projects/${projId}/cases`,
+    })
+    expect(res.statusCode).toBe(200)
+    const cases = res.json() as Array<{ id: string }>
+    // The old hardcoded LIMIT 500 silently dropped case 501+. All must be returned.
+    expect(cases.length).toBe(501)
+
+    await bigApp.close()
+    await sql`DELETE FROM test_cases WHERE workspace_id = ${wsId}::uuid`
+    await sql`DELETE FROM projects WHERE id = ${projId}::uuid`
+    await sql`DELETE FROM workspaces WHERE id = ${wsId}::uuid`
+  })
+
   // ── Auth guard ─────────────────────────────────────────────────────────────
 
   it("GET /cases returns 401 when no session (userId empty)", async () => {

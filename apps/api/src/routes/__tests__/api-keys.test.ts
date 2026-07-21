@@ -103,6 +103,35 @@ describe("API Keys routes (IN-01)", () => {
     expect(res.statusCode).toBe(403)
   })
 
+  it("POST returns 403 for a viewer — key management is admin-only (VEL-63)", async () => {
+    const viewerApp = buildApp(userId, workspaceId, "viewer")
+    await viewerApp.register(apiKeyRoutes)
+    await viewerApp.ready()
+
+    const res = await viewerApp.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/api-keys`,
+      payload: { name: "Viewer Key" },
+    })
+    expect(res.statusCode).toBe(403)
+    expect((res.json() as { code?: string }).code).toBe("ADMIN_REQUIRED")
+    await viewerApp.close()
+  })
+
+  it("POST returns 403 for an editor — key management is admin-only (VEL-63)", async () => {
+    const editorApp = buildApp(userId, workspaceId, "editor")
+    await editorApp.register(apiKeyRoutes)
+    await editorApp.ready()
+
+    const res = await editorApp.inject({
+      method: "POST",
+      url: `/api/workspaces/${workspaceId}/api-keys`,
+      payload: { name: "Editor Key" },
+    })
+    expect(res.statusCode).toBe(403)
+    await editorApp.close()
+  })
+
   // ── GET /api-keys — list keys ──────────────────────────────────────────────
 
   it("GET lists keys without exposing key_hash", async () => {
