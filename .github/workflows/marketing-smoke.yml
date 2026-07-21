@@ -1,0 +1,64 @@
+name: Marketing Smoke
+
+# Vercel hosts the marketing site (runvelo.app). A build can go fully green and
+# still 500 at runtime: a Next/transitive bump once made Turbopack externalize
+# `styled-jsx/style.js`, which Vercel's serverless tracer didn't pack into the
+# lambda — SSR of `/` threw `Cannot find module` on every request, and it did
+# NOT reproduce in a local standalone build (that bug lives only in Vercel's
+# serverless packaging). This job hits the live site right after each production
+# deploy and fails loudly if it doesn't actually render — so an SSR-packaging
+# regression can't silently take the landing page down again.
+#
+# Trigger: Vercel reports each deploy as a GitHub deployment_status. We act only
+# on the Production deploy once it reports success. (deployment_status workflows
+# always run from the default branch's copy of this file.)
+
+on:
+  deployment_status
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      contains(github.event.deployment_status.environment, 'Production')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert runvelo.app renders (HTTP 200, not the Next _error page)
+        env:
+          # Prefer the just-deployed URL (tests this exact build, no alias race);
+          # fall back to the public alias.
+          TARGET_URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          set -uo pipefail
+          # target_url is the immutable deployment URL for this build; the alias
+          # is what users actually hit. Check both — either being unhealthy fails.
+          urls="https://runvelo.app/"
+          if [ -n "${TARGET_URL:-}" ]; then urls="$TARGET_URL $urls"; fi
+
+          check() {
+            local url="$1" code
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl -sS -o /tmp/body.html -w '%{http_code}' --max-time 20 "$url" || echo "000")
+              echo "  $url — attempt $attempt: HTTP $code"
+              if [ "$code" = "200" ] \
+                && ! grep -q "An unexpected error has occurred" /tmp/body.html \
+                && ! grep -q '"page":"/_error"' /tmp/body.html; then
+                echo "  ✓ healthy: $url"
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::$url did not render a healthy page (last HTTP $code)."
+            echo "----- first 60 lines of response -----"
+            head -60 /tmp/body.html || true
+            return 1
+          }
+
+          rc=0
+          for u in $urls; do
+            check "$u" || rc=1
+          done
+          exit $rc
