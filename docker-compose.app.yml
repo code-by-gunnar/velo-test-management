@@ -82,7 +82,12 @@ services:
     environment:
       # Internal URL for SSR fetches, the /api/backend gateway, and Auth.js callbacks
       API_URL: http://api:3001
-      # Browser-facing API URL (SSE); also read at runtime in getServerSideProps
+      # Browser-facing API URL (SSE EventSource + the CI ingestion command shown in
+      # the UI). Resolved at RUNTIME in getServerSideProps (resolveBrowserApiUrl),
+      # so remote/reverse-proxied hosts set PUBLIC_API_URL to their public HTTPS API
+      # origin with NO image rebuild. NEXT_PUBLIC_API_BASE_URL is kept as a
+      # build-baked fallback for images built from source.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3001}
       NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_API_URL:-http://localhost:3001}
       AUTH_SECRET: ${AUTH_SECRET}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}

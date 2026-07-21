@@ -105,7 +105,9 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml \
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d
 ```
 
-Both paths need the same public-URL wiring (`WEB_URL`, `PUBLIC_API_URL`), OAuth callback re-registration, and — for remote browsers reaching bundled MinIO — a public `S3_PUBLIC_ENDPOINT` (or use Cloudflare R2). SSE live-updates survive either proxy out of the box (20s heartbeat).
+**Already run your own reverse proxy?** (Nginx Proxy Manager on a NAS, nginx, Traefik…) Keep your stack as-is and just wire the public URLs — see [`docs/deploy-reverse-proxy.md`](docs/deploy-reverse-proxy.md). The key gotcha: point one hostname at `web` and login/nav work, but **SSE live-updates and evidence downloads each need their own public host** (`api.` and `minio.`) because the browser fetches those directly, bypassing the app's gateway.
+
+All paths need the same public-URL wiring (`WEB_URL`, `PUBLIC_API_URL` — both resolved at runtime, no rebuild), OAuth callback re-registration, and — for remote browsers reaching bundled MinIO — a public `S3_PUBLIC_ENDPOINT` (or use Cloudflare R2). SSE survives any of these proxies out of the box (20s heartbeat).
 
 ## Build from source (contributors)
 

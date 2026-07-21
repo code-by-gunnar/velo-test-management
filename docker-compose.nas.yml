@@ -102,7 +102,8 @@ services:
         condition: service_healthy
     environment:
       API_URL: http://api:3001
-      NEXT_PUBLIC_API_BASE_URL: http://NAS_IP:3001    # browser → api (SSE)
+      PUBLIC_API_URL: http://NAS_IP:3001              # browser → api (SSE). Runtime-read; behind a
+      NEXT_PUBLIC_API_BASE_URL: http://NAS_IP:3001    # reverse proxy set BOTH to https://api.yourdomain
       AUTH_SECRET: REPLACE_AUTH_SECRET                # must match api
       INTERNAL_API_SECRET: REPLACE_INTERNAL_SEC       # must match api
       AUTH_URL: http://NAS_IP:3000
