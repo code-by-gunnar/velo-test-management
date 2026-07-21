@@ -6,6 +6,7 @@ import crypto from "node:crypto"
 import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { uploadObject, getPresignedUrl, storageEnabled, shouldProxyDownloads, getObjectStream } from "../lib/storage.js"
+import { setSafeDownloadHeaders } from "../lib/safe-download.js"
 import { sendOtpEmail } from "../lib/email.js"
 
 const OTP_EXPIRY_MINUTES = 15
@@ -330,8 +331,13 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     } catch {
       return reply.status(404).send({ error: "Avatar not found in storage" })
     }
-    reply.header("Content-Type", stream.contentType ?? "image/png")
-    if (stream.contentLength) reply.header("Content-Length", String(stream.contentLength))
+    // Same-origin serve hardening (VEL-77): avatars are images (inline-safe);
+    // any non-image bytes are forced to an octet-stream download. nosniff + CSP.
+    setSafeDownloadHeaders(reply, {
+      contentType: stream.contentType,
+      filename: "avatar",
+      contentLength: stream.contentLength,
+    })
     reply.header("Cache-Control", "private, max-age=60")
     return reply.send(stream.body)
   })
