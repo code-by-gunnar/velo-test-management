@@ -3,7 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
 import { parseJUnitXml } from "../lib/junit-parser.js"
 import { parseAllureJson } from "../lib/allure-parser.js"
-import { uploadObject, buildIngestionKey, getPresignedUrl, storageEnabled } from "../lib/storage.js"
+import { uploadObject, buildIngestionKey, getPresignedUrl, storageEnabled, shouldProxyDownloads, getObjectStream } from "../lib/storage.js"
 import { verifyApiKey } from "./api-keys.js"
 import { captureEvent } from "../lib/posthog.js"
 import { enforceRateLimit } from "../lib/rate-limiter.js"
@@ -511,12 +511,70 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(404).send({ error: "Ingestion run not found" })
       }
 
+      // Private/bundled storage → same-origin proxy (VEL-77); public cloud → presign.
+      if (shouldProxyDownloads()) {
+        return reply.send({
+          url: `/api/backend/workspaces/${workspaceId}/ingestion-runs/${ingestionId}/payload/download`,
+        })
+      }
       try {
         const url = await getPresignedUrl(result.r2_key)
         return reply.send({ url })
       } catch {
         return reply.status(500).send({ error: "Failed to generate presigned URL" })
       }
+    }
+  )
+
+  // ── GET /ingestion-runs/:ingestionId/payload/download — same-origin proxy ────
+  // Streams the raw CI payload from internal storage (VEL-77) so it downloads on
+  // any host without a browser-reachable storage endpoint. Session-authed +
+  // workspace-scoped.
+  fastify.get<{
+    Params: { workspaceId: string; ingestionId: string }
+  }>(
+    "/api/workspaces/:workspaceId/ingestion-runs/:ingestionId/payload/download",
+    async (request, reply) => {
+      if (!request.userId) {
+        return reply.status(401).send({ error: "Unauthorized" })
+      }
+
+      const { workspaceId, ingestionId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      if (!isUuid(ingestionId)) {
+        return reply.status(400).send({ error: "Invalid ingestionId" })
+      }
+
+      const result = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          SELECT r2_key, format FROM ci_ingestion_runs
+          WHERE id = ${ingestionId}::uuid
+            AND workspace_id = current_setting('app.workspace_id', true)::uuid
+        `
+        return rows.length > 0
+          ? (rows[0] as unknown as { r2_key: string; format: string })
+          : null
+      })
+
+      if (!result) {
+        return reply.status(404).send({ error: "Ingestion run not found" })
+      }
+
+      let stream
+      try {
+        stream = await getObjectStream(result.r2_key)
+      } catch {
+        return reply.status(404).send({ error: "Payload not found in storage" })
+      }
+      const ext = result.format === "junit" ? "xml" : "json"
+      reply.header("Content-Type", result.format === "junit" ? "application/xml" : "application/json")
+      if (stream.contentLength) reply.header("Content-Length", String(stream.contentLength))
+      reply.header("Content-Disposition", `inline; filename="payload.${ext}"`)
+      return reply.send(stream.body)
     }
   )
 

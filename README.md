@@ -105,9 +105,9 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml \
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d
 ```
 
-**Already run your own reverse proxy?** (Nginx Proxy Manager on a NAS, nginx, Traefik…) Keep your stack as-is and just wire the public URLs — see [`docs/deploy-reverse-proxy.md`](docs/deploy-reverse-proxy.md). The key gotcha: point one hostname at `web` and login/nav work, but **SSE live-updates and evidence downloads each need their own public host** (`api.` and `minio.`) because the browser fetches those directly, bypassing the app's gateway.
+**Already run your own reverse proxy?** (Nginx Proxy Manager on a NAS, nginx, Traefik…) It's **one proxy host and two env vars** — see [`docs/deploy-reverse-proxy.md`](docs/deploy-reverse-proxy.md). Point `velo.DOMAIN` at the `web` service and set `WEB_URL`/`AUTH_URL`; everything the browser needs — including live SSE updates and evidence images from bundled MinIO — is served same-origin through the app, so you need **no `api.`/`minio.` subdomains, no `PUBLIC_API_URL`, no `S3_PUBLIC_ENDPOINT`**. The same setup works over the LAN IP and the public domain simultaneously.
 
-All paths need the same public-URL wiring (`WEB_URL`, `PUBLIC_API_URL` — both resolved at runtime, no rebuild), OAuth callback re-registration, and — for remote browsers reaching bundled MinIO — a public `S3_PUBLIC_ENDPOINT` (or use Cloudflare R2). SSE survives any of these proxies out of the box (20s heartbeat).
+Cloud storage (R2/S3/…) is served via presigned URLs (proper, offloads bytes); bundled MinIO streams through the app. Either way, no storage proxy host is needed.
 
 ## Build from source (contributors)
 

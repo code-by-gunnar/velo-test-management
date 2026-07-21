@@ -121,9 +121,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
-  // Use arrayBuffer for binary responses (ZIP, etc.), text for everything else
+  // Binary responses (ZIP export, and proxied evidence — images/video/PDF, VEL-77)
+  // must go through arrayBuffer; res.text() would corrupt the bytes. Everything
+  // else (JSON/text) uses text.
   const contentType = fetchRes.headers.get("content-type") ?? ""
-  if (contentType.includes("application/zip") || contentType.includes("application/octet-stream")) {
+  const isBinary =
+    contentType.includes("application/zip") ||
+    contentType.includes("application/octet-stream") ||
+    contentType.includes("application/pdf") ||
+    contentType.startsWith("image/") ||
+    contentType.startsWith("video/") ||
+    contentType.startsWith("audio/")
+  if (isBinary) {
     const buf = Buffer.from(await fetchRes.arrayBuffer())
     res.end(buf)
   } else {

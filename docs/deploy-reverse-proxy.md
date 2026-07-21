@@ -1,101 +1,83 @@
 # Deploy Velo behind your own reverse proxy (Nginx Proxy Manager, nginx, Traefik…)
 
-For self-hosters who already run a reverse proxy — a NAS with **Nginx Proxy Manager**, an nginx box, Traefik, etc. — and want Velo on a public HTTPS domain with their existing TLS setup. This is the manual counterpart to the batteries-included [Caddy](../docker-compose.prod.yml) and [Cloudflare Tunnel](deploy-cloudflare-tunnel.md) overlays: you bring the proxy, Velo just needs the right URLs.
+For self-hosters who already run a reverse proxy — a NAS with **Nginx Proxy Manager**, an nginx box, Traefik, etc. — and want Velo on a public HTTPS domain with their existing TLS setup.
 
-> **The one thing that trips everyone up:** the web app funnels almost all traffic through a single origin (the browser calls the web app, which proxies to the API server-side via the `/api/backend` gateway). But **two things the browser fetches _directly_, bypassing that gateway, need their own browser-reachable public HTTPS host**:
-> 1. **SSE live-update streams** (`EventSource` can't send auth headers, so it connects straight to the API).
-> 2. **Evidence/attachment downloads** (presigned S3/MinIO URLs are fetched straight from the storage host).
->
-> Point one hostname at `web` and login + navigation work — but live run updates and evidence images silently fail until the API and storage each get a public host too. This guide sets all three up.
+**It's one proxy host and two env vars.** Velo serves everything the browser needs — including live SSE updates and evidence images — through its **own single origin**, so you don't need separate `api.`/`minio.` subdomains, a `PUBLIC_API_URL`, or an `S3_PUBLIC_ENDPOINT`. The same setup works whether you reach Velo by its **LAN IP at home** or the **public domain from anywhere** — no split config.
+
+> This wasn't always true. Earlier versions connected SSE and evidence straight to fixed hosts, which forced per-origin config and broke on whichever origin wasn't configured. That's fixed (VEL-77): both now ride the same-origin `/api/backend` gateway.
 
 ---
 
-## Topology: three proxy hosts, one per service
+## Setup
 
-| Public hostname | Proxy target (container:port) | Serves |
-|---|---|---|
-| `velo.DOMAIN` | `web:3000` | the app (UI, gateway, auth) |
-| `api.DOMAIN` | `api:3001` | direct browser→API: **SSE**, plus the CI ingestion endpoint |
-| `minio.DOMAIN` | `minio:9000` | **evidence downloads** (presigned URLs) — only if using bundled MinIO |
+### 1. One proxy host
 
-If your reverse proxy runs **on the same host** as the Docker stack, target the published ports on the host IP (`NAS_IP:3000`, `:3001`, `:9000`) instead of container names. If it runs **in the same Docker network**, use the service names above.
+Point `velo.DOMAIN` at your proxy and forward it to the **web** service:
 
-> Why three hosts instead of subpaths on one? S3 presigned URLs are **path-style** (`/bucket/key`) and the SigV4 signature covers the host + path — proxying MinIO under a subpath (`velo.DOMAIN/storage/…`) breaks the signature. Subdomains keep each service at a clean origin. It's the same 2-minute "add a proxy host" step three times.
+| Public hostname | Proxy target |
+|---|---|
+| `velo.DOMAIN` | `web:3000` (service name if same Docker network) or `NAS_IP:3000` (if the proxy is on the host) |
 
----
+**Nginx Proxy Manager:** *Proxy Hosts → Add* → Scheme `http`, forward host/port as above, **SSL → request a Let's Encrypt cert + Force SSL**. Enable **Websockets Support** (harmless, and future-proofs streaming). Leave header handling at the default (NPM forwards the original `Host`).
 
-## 1. DNS + proxy hosts
-
-Point `velo.`, `api.`, and (if using MinIO) `minio.` `DOMAIN` at your proxy, and create a proxy host for each with its own TLS cert (Let's Encrypt in NPM, a `server {}` block in nginx, etc.).
-
-**Nginx Proxy Manager:** for each, *Proxy Hosts → Add* → Scheme `http`, Forward host/port as above, **SSL tab → request a Let's Encrypt cert + Force SSL**. Leave "Preserve host header" behaviour at NPM's default (it forwards the requested `Host`) — **MinIO needs this**: it validates the presign signature against the incoming `Host`, so `minio.DOMAIN` must reach MinIO as `minio.DOMAIN`, not rewritten to the upstream. A `403 SignatureDoesNotMatch` on images is the tell that the Host header is being rewritten.
-
-**nginx:** for the API and MinIO hosts, disable response buffering so SSE streams flush immediately and presigned downloads stream cleanly:
+**nginx:** a standard proxy block works; for snappy live updates make sure SSE isn't buffered:
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:3001;   # api  (use :9000 for the minio host)
-    proxy_set_header Host $host;         # preserve Host (required by MinIO presign)
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_http_version 1.1;
-    proxy_buffering off;                 # SSE: don't buffer the event stream
-    proxy_read_timeout 3600s;            # SSE: allow long-lived connections
+    proxy_buffering off;          # let SSE events flush immediately
+    proxy_read_timeout 3600s;     # allow long-lived SSE connections
 }
 ```
 
-## 2. `.env` — public URLs
+### 2. Two env vars
 
 ```dotenv
-WEB_URL=https://velo.DOMAIN            # app origin — Auth.js origin AND the API CORS allow-list
-PUBLIC_API_URL=https://api.DOMAIN      # browser-facing API (SSE + CI command). Runtime-read — no image rebuild.
+WEB_URL=https://velo.DOMAIN     # app origin — used for OAuth callbacks + email links
+AUTH_URL=https://velo.DOMAIN    # (and NEXTAUTH_URL) — Auth.js canonical origin
 ```
 
-- `WEB_URL` **must** be the public app origin. The API only allows CORS from `WEB_URL`, and the SSE stream is cross-origin (`velo.` → `api.`), so a wrong `WEB_URL` blocks live updates with a CORS error even when everything else is right.
-- `PUBLIC_API_URL` is resolved at request time (`getServerSideProps` → `resolveBrowserApiUrl`), so the **prebuilt image just works** — no rebuild needed. (Older builds baked this as `NEXT_PUBLIC_API_BASE_URL` and it couldn't be changed at runtime; that's fixed.)
+That's it for URLs. **You do not need `PUBLIC_API_URL` or `S3_PUBLIC_ENDPOINT`** — SSE and evidence are same-origin. (`AUTH_TRUST_HOST=true`, already set, also lets credential logins work from the raw LAN IP simultaneously; OAuth sign-in works on whichever origin you registered the callback for.)
 
-The compose files already set `AUTH_URL`/`NEXTAUTH_URL` from `WEB_URL`. If you edited the NAS single-file (`docker-compose.nas.yml`), set `AUTH_URL`/`NEXTAUTH_URL` to `https://velo.DOMAIN` and both `PUBLIC_API_URL` + `NEXT_PUBLIC_API_BASE_URL` to `https://api.DOMAIN`.
-
-## 3. Storage (bundled MinIO)
-
-```dotenv
-S3_PUBLIC_ENDPOINT=https://minio.DOMAIN   # presigned download URLs are signed for this host — MUST be the public one
-MINIO_ROOT_PASSWORD=...                     # openssl rand -hex 16
-```
-
-Presigned URLs are signed with `S3_PUBLIC_ENDPOINT` and fetched by the browser directly, so it has to be the public `minio.DOMAIN` — never `NAS_IP:9000` (LAN-only + mixed content on an HTTPS page) or `localhost`. Restart `api` after changing it (presigning is API-side; plain runtime env, no rebuild).
-
-Prefer not to expose MinIO at all? Point `S3_*` at **Cloudflare R2 / AWS S3 / B2 / Wasabi** instead and drop `docker-compose.storage.yml` — presigned URLs are then already on a public host and you skip the `minio.` proxy entirely.
-
-## 4. OAuth callbacks (if using Google/GitHub sign-in)
-
-Re-register each provider's callback to the public origin:
+### 3. OAuth callbacks (only if you use Google/GitHub sign-in)
 
 ```
 https://velo.DOMAIN/api/auth/callback/google
 https://velo.DOMAIN/api/auth/callback/github
 ```
 
-## 5. Restart and verify
+### 4. Restart
 
-Recreate the stack so the new env applies (`docker compose ... up -d`), then check:
+```bash
+docker compose ... up -d
+```
 
-1. **Login + navigation** at `https://velo.DOMAIN`. (These work off the single origin — if they don't, the base proxy host or `WEB_URL` is wrong.)
-2. **Live run updates (SSE).** Open a run's execution screen in one tab, mark a case pass/fail, and confirm the run list/detail update **without a manual refresh**. DevTools → Network → filter `stream`: the request should go to `https://api.DOMAIN/...` and stay open (status 200, pending). If it's hitting `localhost:3001` or a LAN IP, `PUBLIC_API_URL` isn't set/applied; a CORS error means `WEB_URL` doesn't match the app origin.
-3. **Evidence images.** Upload an attachment and re-open it. A blocked/`403`/mixed-content image means `S3_PUBLIC_ENDPOINT` is wrong or the `minio.` Host header is being rewritten.
+Sign in at `https://velo.DOMAIN` and you're done — live run updates and evidence images work over the proxy **and** over the LAN IP with the same config.
+
+---
+
+## Storage: bundled MinIO vs cloud
+
+- **Bundled MinIO (default):** evidence is **streamed through the app** (same-origin), so it works everywhere with zero storage config. Nothing to set up. `MINIO_ROOT_PASSWORD` is the only required storage secret.
+- **Cloud R2 / S3 / B2 / Wasabi:** set `S3_*` (drop the storage overlay). These endpoints are already public, so Velo hands the browser a **presigned URL** directly — proper, and it offloads evidence bytes from the app. No proxy host needed for storage either way.
+
+You can force direct/presigned delivery for a self-hosted MinIO by setting `S3_PUBLIC_ENDPOINT` to a **public HTTPS** host you've proxied (e.g. `https://minio.DOMAIN`) — but that's now an optional optimization, not a requirement.
 
 ---
 
 ## Known behaviours (not proxy bugs)
 
-- **Reports don't update live, and lag ~60s even after a manual refresh.** The reports page doesn't subscribe to SSE (by design), and report data is cached in Valkey for 60s. A just-recorded result can take up to a minute to appear on the Reports page. The execution screen and run list/detail *do* update live via SSE.
-- **Navigation keep-alive.** The split compose files set `KEEP_ALIVE_TIMEOUT` for their environment; behind a reverse proxy the Node keep-alive should outlast your proxy's upstream idle timeout (see the [Caddy overlay](../docker-compose.prod.yml) note, which uses `95000`). If you get periodic multi-second nav stalls, that's the knob.
+- **Reports lag ~a minute:** report data is cached 60s and the Reports page doesn't live-stream (the execution screen and run list/detail do). A just-recorded result appears on Reports within the TTL. The cache is busted on every result change, so a refresh is immediately fresh.
+- **Navigation keep-alive:** behind a proxy, the Node keep-alive should outlast your proxy's upstream idle timeout (the Caddy overlay uses `95000`). Periodic multi-second nav stalls = tune `KEEP_ALIVE_TIMEOUT`.
 
 ## Quick reference
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Evidence images blocked / mixed-content / CORS | `S3_PUBLIC_ENDPOINT=http://NAS_IP:9000` | Set it to `https://minio.DOMAIN` + add the `minio.` proxy host |
-| `403 SignatureDoesNotMatch` on images | proxy rewrites the `Host` header to the upstream | Preserve the original `Host` (`proxy_set_header Host $host;`) |
-| Live updates never arrive; `stream` request hits `localhost`/LAN IP | `PUBLIC_API_URL` unset/not applied | Set `PUBLIC_API_URL=https://api.DOMAIN`, recreate the web container |
-| Live updates blocked by CORS | `WEB_URL` ≠ the app origin | Set `WEB_URL=https://velo.DOMAIN` |
-| Reports stale for ~a minute | 60s Valkey reports cache + no SSE on reports | Expected; wait or hard-refresh after the TTL |
+| Live updates never arrive | proxy buffering the SSE stream | `proxy_buffering off` (nginx) / Websockets support (NPM) |
+| OAuth sign-in fails | callback URL ≠ public origin | register `https://velo.DOMAIN/api/auth/callback/{google,github}` and set `WEB_URL` |
+| Evidence images 404 (cloud storage only) | wrong `S3_*` creds/endpoint | verify the cloud bucket config; MinIO needs no storage URL config |
+| Reports stale for ~a minute | 60s reports cache | expected; refresh after the TTL |

@@ -2,6 +2,7 @@ import {
   S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand,
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import type { Readable } from "node:stream"
 
 // Read env lazily (ESM hoisting) — never capture at module top level.
 function env(name: string): string | undefined {
@@ -103,6 +104,35 @@ export async function getPresignedUrl(key: string): Promise<string> {
     new GetObjectCommand({ Bucket: bucketOrThrow(), Key: key }),
     { expiresIn: 3600 }
   )
+}
+
+// Stream an object straight from the internal (I/O) client — used by the
+// same-origin download proxy (VEL-77) so the browser never needs a
+// browser-reachable storage host.
+export async function getObjectStream(
+  key: string
+): Promise<{ body: Readable; contentType?: string | undefined; contentLength?: number | undefined }> {
+  const res = await ioClient().send(new GetObjectCommand({ Bucket: bucketOrThrow(), Key: key }))
+  if (!res.Body) throw new Error(`Storage object not found: ${key}`)
+  return {
+    body: res.Body as Readable,
+    contentType: res.ContentType,
+    contentLength: res.ContentLength,
+  }
+}
+
+// Decide how the browser gets an object (VEL-77):
+//  - PROXY (stream through the app) when the storage's browser-facing endpoint is
+//    private/internal — bundled MinIO (minio:9000), or a LAN-IP S3_PUBLIC_ENDPOINT
+//    like the NAS default. Works on localhost AND any reverse proxy with zero
+//    config: the browser only ever talks to the app's own origin.
+//  - PRESIGN (browser fetches storage directly) when a genuinely public endpoint
+//    is configured — R2/S3/B2/Wasabi, or an explicit public S3_PUBLIC_ENDPOINT.
+//    Proper for cloud; offloads bytes from the app.
+export function shouldProxyDownloads(): boolean {
+  const c = resolveStorageConfig()
+  if (!c.publicEndpoint) return true
+  return isPrivateHost(c.publicEndpoint)
 }
 
 export function buildIngestionKey(
