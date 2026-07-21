@@ -2,6 +2,13 @@ import type { FastifyPluginAsync } from "fastify"
 import archiver from "archiver"
 import { withWorkspace } from "../db/tenant.js"
 
+// Cap the number of rows a single synchronous export may materialize (VEL-70).
+// The export buffers every row in memory and compresses in-process, so a very
+// large tenant could exhaust memory/CPU. Above this, return 413 and point at the
+// (future) async/background export. Tunable via env. Counted across the heaviest
+// tables (cases + steps + runs + run_items).
+const EXPORT_MAX_ROWS = Math.max(1000, parseInt(process.env.EXPORT_MAX_ROWS ?? "100000", 10) || 100_000)
+
 const exportRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.addHook("preHandler", async (request, reply) => {
@@ -95,8 +102,25 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
       return { workspace, suites, cases, steps, runs, runItems }
     })
 
-    // Build ZIP
-    const archive = archiver("zip", { zlib: { level: 9 } })
+    // Guard against unbounded in-process work (VEL-70): a very large tenant would
+    // otherwise buffer every row and compress it synchronously, exhausting
+    // memory/CPU and blocking the event loop. Above the cap, refuse rather than
+    // risk an OOM; a streaming/background export is the follow-up (VEL-70b).
+    const totalRows =
+      data.cases.length + data.steps.length + data.runs.length + data.runItems.length
+    if (totalRows > EXPORT_MAX_ROWS) {
+      return reply.status(413).send({
+        error: "Workspace too large for synchronous export",
+        code: "EXPORT_TOO_LARGE",
+        total_rows: totalRows,
+        max_rows: EXPORT_MAX_ROWS,
+      })
+    }
+
+    // Build ZIP. Compression level 6 (zlib default) instead of 9 — level 9 costs
+    // markedly more CPU for a marginal size gain and blocks the event loop longer
+    // on big exports (VEL-70).
+    const archive = archiver("zip", { zlib: { level: 6 } })
     const ext = format === "json" ? "json" : "csv"
 
     reply.raw.setHeader("Content-Type", "application/zip")
