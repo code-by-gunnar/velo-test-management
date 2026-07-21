@@ -106,13 +106,31 @@ describe("Run-item attachment download proxy (VEL-77)", () => {
     storage.shouldProxyDownloads.mockReturnValue(true)
   })
 
-  it("download streams the object with its content-type", async () => {
+  it("download streams an image inline with nosniff + sandbox CSP", async () => {
     const res = await app.inject({ method: "GET", url: `${base()}/${attachmentId}/download` })
     expect(res.statusCode).toBe(200)
     expect(res.headers["content-type"]).toContain("image/png")
     expect(res.headers["content-disposition"]).toContain("inline")
+    expect(res.headers["x-content-type-options"]).toBe("nosniff")
+    expect(res.headers["content-security-policy"]).toContain("sandbox")
     expect(res.body).toBe("PNGBYTES")
     expect(storage.getObjectStream).toHaveBeenCalled()
+  })
+
+  it("download forces a dangerous stored content-type to an octet-stream download (XSS defense)", async () => {
+    // An attachment whose stored content_type is text/html must NOT be served
+    // inline same-origin — that would execute in the app origin. VEL-77.
+    const evilId = uuidv7()
+    await sql`INSERT INTO run_item_attachments (id, workspace_id, run_item_id, filename, r2_key, content_type, size_bytes)
+      VALUES (${evilId}::uuid, ${workspaceId}::uuid, ${itemId}::uuid, 'evil.html', ${`evidence/${workspaceId}/${itemId}/evil.html`}, 'text/html', 8)`
+
+    const res = await app.inject({ method: "GET", url: `${base()}/${evilId}/download` })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers["content-type"]).toBe("application/octet-stream")
+    expect(res.headers["content-disposition"]).toContain("attachment")
+    expect(res.headers["x-content-type-options"]).toBe("nosniff")
+
+    await sql`DELETE FROM run_item_attachments WHERE id = ${evilId}::uuid`
   })
 
   it("download 404s for an attachment not in this item/workspace", async () => {

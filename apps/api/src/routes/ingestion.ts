@@ -8,6 +8,7 @@ import { verifyApiKey } from "./api-keys.js"
 import { captureEvent } from "../lib/posthog.js"
 import { enforceRateLimit } from "../lib/rate-limiter.js"
 import { invalidateReportsCache } from "../lib/reports-cache.js"
+import { setSafeDownloadHeaders } from "../lib/safe-download.js"
 import type { FastifyInstance, FastifyReply } from "fastify"
 
 // UUID validation (any version)
@@ -571,9 +572,13 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(404).send({ error: "Payload not found in storage" })
       }
       const ext = result.format === "junit" ? "xml" : "json"
-      reply.header("Content-Type", result.format === "junit" ? "application/xml" : "application/json")
-      if (stream.contentLength) reply.header("Content-Length", String(stream.contentLength))
-      reply.header("Content-Disposition", `inline; filename="payload.${ext}"`)
+      // XML/JSON are not inline-safe from our own origin — served as an
+      // octet-stream download (VEL-77). nosniff + sandbox CSP.
+      setSafeDownloadHeaders(reply, {
+        contentType: result.format === "junit" ? "application/xml" : "application/json",
+        filename: `payload.${ext}`,
+        contentLength: stream.contentLength,
+      })
       return reply.send(stream.body)
     }
   )

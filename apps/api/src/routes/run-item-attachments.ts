@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { storageEnabled, uploadObject, getPresignedUrl, deleteObjects, shouldProxyDownloads, getObjectStream } from "../lib/storage.js"
+import { setSafeDownloadHeaders } from "../lib/safe-download.js"
 import { randomUUID } from "node:crypto"
 import path from "node:path"
 import { captureEvent } from "../lib/posthog.js"
@@ -223,12 +224,15 @@ const attachmentRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(404).send({ error: "Object not found in storage" })
       }
 
-      reply.header("Content-Type", att.content_type ?? stream.contentType ?? "application/octet-stream")
-      if (stream.contentLength) reply.header("Content-Length", String(stream.contentLength))
-      // inline so images/PDFs render in the tab (matches the old presigned behavior);
-      // the filename is sanitized to a safe token to avoid header injection.
-      const safeName = att.filename.replace(/[^\w.\-]/g, "_")
-      reply.header("Content-Disposition", `inline; filename="${safeName}"`)
+      // Same-origin serve hardening (VEL-77): only passive media renders inline;
+      // anything else downloads as opaque octet-stream. nosniff + sandbox CSP.
+      // The stored content_type is client-declared at upload, so it is NOT
+      // trusted for rendering — it's normalized against the inline-safe allowlist.
+      setSafeDownloadHeaders(reply, {
+        contentType: att.content_type ?? stream.contentType,
+        filename: att.filename,
+        contentLength: stream.contentLength,
+      })
       reply.header("Cache-Control", "private, max-age=300")
       return reply.send(stream.body)
     }
