@@ -48,6 +48,8 @@ export function useLinearImport({ workspaceId, projectId, onSuccess }: UseLinear
     setState((prev) => ({ ...prev, status: "fetching", error: null }))
 
     try {
+      // 1. Enqueue the import job — the slow Linear+AI work runs server-side so a
+      //    slow local model can't time out the request (VEL-61).
       const res = await fetch(
         `/api/backend/workspaces/${workspaceId}/projects/${projectId}/linear-import`,
         {
@@ -62,31 +64,67 @@ export function useLinearImport({ workspaceId, projectId, onSuccess }: UseLinear
         throw new Error(data.error ?? `Server error: ${res.status}`)
       }
 
-      const data = await res.json() as {
-        issue: LinearIssue
-        suggested_cases: SuggestedCase[]
-        parse_failed?: boolean
-      }
+      const { job_id: jobId } = await res.json() as { job_id: string }
 
-      // The model returned structured output we couldn't parse (more common with
-      // local LLMs). Show a retry prompt rather than a misleading empty preview.
-      if (data.parse_failed && data.suggested_cases.length === 0) {
-        setState((prev) => ({
-          ...prev,
-          status: "error",
-          issue: data.issue,
-          error: "The AI response couldn't be parsed. This can happen with local models — please try again.",
-        }))
+      // 2. Poll the job until the worker finishes (done/error) or we give up.
+      const POLL_INTERVAL_MS = 1500
+      const MAX_POLLS = 80 // ~2 min ceiling — comfortably past the 60s AI timeout
+      for (let i = 0; i < MAX_POLLS; i++) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+
+        const pollRes = await fetch(
+          `/api/backend/workspaces/${workspaceId}/projects/${projectId}/linear-import/${jobId}`
+        )
+        if (!pollRes.ok) {
+          const data = await pollRes.json().catch(() => ({})) as { error?: string }
+          throw new Error(data.error ?? `Server error: ${pollRes.status}`)
+        }
+
+        const job = await pollRes.json() as {
+          status: "processing" | "done" | "error"
+          issue?: LinearIssue
+          suggested_cases?: SuggestedCase[]
+          parse_failed?: boolean
+          error?: string
+        }
+
+        if (job.status === "processing") continue
+
+        if (job.status === "error") {
+          setState((prev) => ({
+            ...prev,
+            status: "error",
+            issue: job.issue ?? prev.issue,
+            error: job.error ?? "Import failed. Please try again.",
+          }))
+          return
+        }
+
+        // status === "done"
+        const cases = job.suggested_cases ?? []
+        // The model returned structured output we couldn't parse (more common with
+        // local LLMs). Show a retry prompt rather than a misleading empty preview.
+        if (job.parse_failed && cases.length === 0) {
+          setState((prev) => ({
+            ...prev,
+            status: "error",
+            issue: job.issue ?? null,
+            error: "The AI response couldn't be parsed. This can happen with local models — please try again.",
+          }))
+          return
+        }
+
+        setState({
+          status: "preview",
+          issue: job.issue ?? null,
+          suggestedCases: cases,
+          error: null,
+          savedCount: 0,
+        })
         return
       }
 
-      setState({
-        status: "preview",
-        issue: data.issue,
-        suggestedCases: data.suggested_cases,
-        error: null,
-        savedCount: 0,
-      })
+      throw new Error("The import is taking longer than expected. Please try again.")
     } catch (err) {
       setState((prev) => ({
         ...prev,

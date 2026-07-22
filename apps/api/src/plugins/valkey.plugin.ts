@@ -7,6 +7,8 @@ import { webhookQueue } from "../queues/webhook.queue.js"
 import { webhookWorker } from "../queues/webhook.worker.js"
 import { lifecycleQueue } from "../queues/lifecycle.queue.js"
 import { lifecycleWorker } from "../queues/lifecycle.worker.js"
+import { aiImportQueue } from "../queues/ai-import.queue.js"
+import { aiImportWorker } from "../queues/ai-import.worker.js"
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -14,6 +16,7 @@ declare module "fastify" {
     emailQueue: typeof emailQueue
     webhookQueue: typeof webhookQueue
     lifecycleQueue: typeof lifecycleQueue
+    aiImportQueue: typeof aiImportQueue
   }
 }
 
@@ -23,9 +26,12 @@ const valkeyPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate("emailQueue", emailQueue)
   fastify.decorate("webhookQueue", webhookQueue)
   fastify.decorate("lifecycleQueue", lifecycleQueue)
+  fastify.decorate("aiImportQueue", aiImportQueue)
 
   // Graceful shutdown: close Valkey connections and BullMQ workers when server closes
   fastify.addHook("onClose", async () => {
+    await aiImportWorker.close()
+    await aiImportQueue.close()
     await lifecycleWorker.close()
     await lifecycleQueue.close()
     await webhookWorker.close()

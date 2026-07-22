@@ -1,14 +1,12 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
-import { getAiClientForWorkspace, getActiveProvider } from "../lib/ai.js"
-import { parseAiTestCases } from "../lib/parse-ai-cases.js"
+import { getAiClientForWorkspace } from "../lib/ai.js"
 import { withWorkspace } from "../db/tenant.js"
 import { recordAudit } from "../lib/audit-log.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
-import { decrypt } from "../lib/encryption.js"
-import { getLinearIssueDetail } from "../lib/linear-client.js"
 import { captureEvent } from "../lib/posthog.js"
+import { aiImportQueue, initAiImportJob, getAiImportJob } from "../queues/ai-import.queue.js"
 
 // UUID validation (any version)
 const UUID_ANY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -964,7 +962,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(201).send({ imported: importedCount })
     }
   )
-  // ── POST /linear-import — AI-powered test case generation from Linear issue ──
+  // ── POST /linear-import — enqueue AI test-case generation from a Linear issue ──
+  // Async (VEL-61): the slow part (Linear fetch + up-to-60s AI call) runs in the
+  // ai-import worker so a slow local model can't hit a proxy/gateway idle timeout.
+  // Returns a job id the client polls via GET below. We keep only the cheap
+  // "AI configured?" check synchronous so the user fails fast instead of polling a
+  // job that can only error.
 
   fastify.post<{
     Params: { workspaceId: string; projectId: string }
@@ -991,124 +994,49 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: "Forbidden" })
       }
 
-      // Resolve the AI client for this workspace's active provider (workspace key →
-      // env fallback). Held nowhere during the later long AI call — quick lookup only.
       const ai = await getAiClientForWorkspace(workspaceId)
       if (!ai) {
         return reply.status(503).send({ error: "No AI provider configured. Add a key in Settings → Integrations." })
       }
 
-      // 1. Get Linear connection + project format in one transaction
-      const { connection, testFormat } = await withWorkspace(workspaceId, async (tx) => {
-        const [connRows, projRows] = await Promise.all([
-          tx`SELECT access_token_enc, api_key_enc FROM linear_connections
-             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid`,
-          tx`SELECT test_format FROM projects WHERE id = ${projectId}::uuid LIMIT 1`,
-        ])
-        return {
-          connection: connRows.length > 0 ? connRows[0] as unknown as { access_token_enc: string; api_key_enc: string | null } : null,
-          testFormat: (projRows[0] as unknown as { test_format: string } | undefined)?.test_format ?? "steps",
-        }
+      const jobId = uuidv7()
+      await initAiImportJob(jobId, workspaceId)
+      await aiImportQueue.add("linear-import", {
+        jobId,
+        workspaceId,
+        projectId,
+        issueId: issue_id,
+        userId: request.userId as string,
       })
 
-      if (!connection) {
-        return reply.status(400).send({ error: "No Linear connection. Connect Linear in Workspace Settings." })
+      return reply.status(202).send({ job_id: jobId })
+    }
+  )
+
+  // ── GET /linear-import/:jobId — poll an AI import job (VEL-61) ─────────────────
+  // Returns { status: "processing" | "done" | "error", ... }. Workspace-scoped: a
+  // job is only visible to the workspace that created it.
+  fastify.get<{
+    Params: { workspaceId: string; projectId: string; jobId: string }
+  }>(
+    "/api/workspaces/:workspaceId/projects/:projectId/linear-import/:jobId",
+    { preHandler: [requireEditor] },
+    async (request, reply) => {
+      const { workspaceId, jobId } = request.params
+
+      if (request.workspaceId !== workspaceId) {
+        return reply.status(403).send({ error: "Forbidden" })
       }
 
-      // 3. Fetch the Linear issue (prefer API key over OAuth token)
-      let issue: { id: string; identifier: string; title: string; description: string | null; url: string }
-      try {
-        const accessToken = connection.api_key_enc
-          ? decrypt(connection.api_key_enc)
-          : decrypt(connection.access_token_enc)
-        issue = await getLinearIssueDetail(accessToken, issue_id)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error"
-        if (msg.includes("Entity not found")) {
-          return reply.status(404).send({ error: `Issue ${issue_id} not found. Check the identifier and try again.` })
-        }
-        return reply.status(502).send({ error: "Failed to fetch issue from Linear. The connection may have expired." })
+      const job = await getAiImportJob(jobId)
+      if (!job || job.workspaceId !== workspaceId) {
+        return reply.status(404).send({ error: "Import job not found or expired. Please try again." })
       }
 
-      if (!issue.description || issue.description.trim().length === 0) {
-        return reply.status(422).send({
-          error: "This issue has no description to extract test cases from.",
-          issue: { id: issue.id, identifier: issue.identifier, title: issue.title, url: issue.url, description: "" },
-        })
-      }
-
-      // 4. Truncate description to ~4000 chars for Claude
-      const description = issue.description.length > 4000
-        ? issue.description.slice(0, 4000) + "\n\n[description truncated]"
-        : issue.description
-
-      // 5. Call Claude to extract test cases
-      const formatInstructions = testFormat === "gwt"
-        ? `For "gwt" format: each step must have a "step_type" field (one of: "given", "when", "then", "and", "but") and an "action" field (the step description text). Do NOT include an "expected_result" field.`
-        : `For "steps" format: each step must have an "action" field (what the tester does) and an "expected_result" field (what should happen).`
-
-      const prompt = `You are a senior QA engineer extracting test cases from a feature specification.
-
-Project test format: ${testFormat}
-
-Feature specification:
----
-Title: ${issue.title}
-
-${description}
----
-
-Extract test cases from the acceptance criteria, requirements, or behavioral descriptions above. Each test case should be a realistic, specific scenario a QA engineer would execute.
-
-Rules:
-- Each test case needs a clear, descriptive title
-- ${formatInstructions}
-- Include both positive (happy path) and negative (error/edge) scenarios when the spec implies them
-- Do NOT invent requirements not present in the spec
-- If no testable criteria are found, return an empty array
-
-Return ONLY a JSON array. No markdown, no code fences, no explanation. Example structure:
-${testFormat === "gwt"
-  ? `[{"title":"User can log in with valid credentials","steps":[{"step_type":"given","action":"the user is on the login page"},{"step_type":"when","action":"they enter valid credentials"},{"step_type":"then","action":"they are redirected to the dashboard"}]}]`
-  : `[{"title":"User can log in with valid credentials","steps":[{"action":"Navigate to login page","expected_result":"Login form is displayed"},{"action":"Enter valid email and password","expected_result":"Credentials accepted"},{"action":"Click Sign In","expected_result":"User redirected to dashboard"}]}]`
-}`
-
-      try {
-        let { cases: suggestedCases, parseFailed } = parseAiTestCases(await ai.complete(prompt))
-
-        // A parse failure means the model produced structured-looking output we
-        // couldn't parse (small local models occasionally garble JSON). Retry
-        // once — it's usually transient — before giving up.
-        if (parseFailed) {
-          ;({ cases: suggestedCases, parseFailed } = parseAiTestCases(await ai.complete(prompt)))
-          if (parseFailed) {
-            const provider = await getActiveProvider(workspaceId)
-            fastify.log.warn({ provider, workspaceId, projectId, issue_id }, "AI returned unparseable JSON for linear-import after retry")
-          }
-        }
-
-        captureEvent(request.userId as string, "test_cases_imported_linear_ai", {
-          workspace_id: workspaceId,
-          project_id: projectId,
-          suggested_count: suggestedCases.length,
-          parse_failed: parseFailed,
-        })
-
-        return reply.send({
-          issue: {
-            id: issue.id,
-            identifier: issue.identifier,
-            title: issue.title,
-            description: issue.description,
-            url: issue.url,
-          },
-          suggested_cases: suggestedCases,
-          parse_failed: parseFailed,
-        })
-      } catch (err) {
-        fastify.log.error({ err, workspaceId, projectId, issue_id }, "AI completion failed for linear-import")
-        return reply.status(502).send({ error: "AI service temporarily unavailable. Please try again." })
-      }
+      // Strip the internal workspaceId; return the poll-facing shape only.
+      const body: Record<string, unknown> = { ...job }
+      delete body.workspaceId
+      return reply.send(body)
     }
   )
 }
