@@ -231,10 +231,14 @@ export function ApiReference({ workspaceId, apiBaseUrl }: ApiReferenceProps) {
 
       {/* Ingestion */}
       <Section title="CI Ingestion">
+        <p className="mb-3 text-sm text-gray-500">
+          Send an optional <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-gray-700">Idempotency-Key</code> (e.g. your CI run ID) so a
+          retried upload of the same pipeline run replays the first result instead of creating a duplicate run.
+        </p>
         <Endpoint method="POST" path={`/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit`} description="Ingest JUnit XML"
-          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@junit-results.xml" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit"`} />
+          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Idempotency-Key: $CI_RUN_ID" \\\n  -F "file=@junit-results.xml" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/junit"`} />
         <Endpoint method="POST" path={`/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure`} description="Ingest Allure JSON"
-          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -F "file=@allure-results.json" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure"`} />
+          curl={`curl -X POST \\\n  -H "Authorization: Bearer YOUR_API_KEY" \\\n  -H "Idempotency-Key: $CI_RUN_ID" \\\n  -F "file=@allure-results.json" \\\n  "${apiBaseUrl}/api/v1/workspaces/${wid}/projects/${pid}/ingest/allure"`} />
       </Section>
     </div>
   )

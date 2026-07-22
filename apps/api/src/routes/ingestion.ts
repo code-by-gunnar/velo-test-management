@@ -9,6 +9,12 @@ import { captureEvent } from "../lib/posthog.js"
 import { enforceRateLimit } from "../lib/rate-limiter.js"
 import { invalidateReportsCache } from "../lib/reports-cache.js"
 import { setSafeDownloadHeaders } from "../lib/safe-download.js"
+import {
+  idempotencyKeyFromHeader,
+  idempotencyCacheKey,
+  lookupIdempotentResult,
+  storeIdempotentResult,
+} from "../lib/ingest-idempotency.js"
 import type { FastifyInstance, FastifyReply } from "fastify"
 
 // UUID validation (any version)
@@ -108,6 +114,21 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!isUuid(projectId)) {
         return reply.status(400).send({ error: "Invalid projectId" })
+      }
+
+      // Idempotency (VEL-79): a retried upload carrying the same Idempotency-Key
+      // replays the first response instead of ingesting again. Checked before we
+      // read the file / touch the DB so a retry is a cheap no-op.
+      const idemValkey = fastify.valkey
+      const idemKey = idempotencyKeyFromHeader(request.headers["idempotency-key"])
+      const idemCacheKey =
+        idemKey && idemValkey ? idempotencyCacheKey(workspaceId, projectId, idemKey) : null
+      if (idemCacheKey && idemValkey) {
+        const cached = await lookupIdempotentResult(idemValkey, idemCacheKey)
+        if (cached) {
+          reply.header("Idempotency-Replayed", "true")
+          return reply.status(201).send(cached)
+        }
       }
 
       // Read multipart file
@@ -270,13 +291,16 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         matched_tests: matchedTests,
       })
 
-      return reply.status(201).send({
+      const responseBody = {
         ingestion_id: ingestionId,
         run_id: runId,
         total_tests: totalTests,
         matched_tests: matchedTests,
         unmatched_tests: totalTests - matchedTests,
-      })
+      }
+      // Persist for idempotent replay of a retried upload (VEL-79).
+      if (idemCacheKey && idemValkey) await storeIdempotentResult(idemValkey, idemCacheKey, responseBody)
+      return reply.status(201).send(responseBody)
     }
   )
 
@@ -307,6 +331,19 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!isUuid(projectId)) {
         return reply.status(400).send({ error: "Invalid projectId" })
+      }
+
+      // Idempotency (VEL-79): replay a retried upload instead of re-ingesting.
+      const idemValkey = fastify.valkey
+      const idemKey = idempotencyKeyFromHeader(request.headers["idempotency-key"])
+      const idemCacheKey =
+        idemKey && idemValkey ? idempotencyCacheKey(workspaceId, projectId, idemKey) : null
+      if (idemCacheKey && idemValkey) {
+        const cached = await lookupIdempotentResult(idemValkey, idemCacheKey)
+        if (cached) {
+          reply.header("Idempotency-Replayed", "true")
+          return reply.status(201).send(cached)
+        }
       }
 
       // Accept application/json body OR multipart file
@@ -467,13 +504,16 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         matched_tests: txResult.matched,
       })
 
-      return reply.status(201).send({
+      const responseBody = {
         ingestion_id: ingestionId,
         run_id: txResult.newRunId,
         total_tests: txResult.total,
         matched_tests: txResult.matched,
         unmatched_tests: txResult.total - txResult.matched,
-      })
+      }
+      // Persist for idempotent replay of a retried upload (VEL-79).
+      if (idemCacheKey && idemValkey) await storeIdempotentResult(idemValkey, idemCacheKey, responseBody)
+      return reply.status(201).send(responseBody)
     }
   )
 
