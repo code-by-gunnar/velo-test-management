@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { sql } from "../db/client.js"
 import { captureEvent } from "../lib/posthog.js"
 import { requireAdmin } from "../plugins/require-admin.js"
@@ -104,6 +105,13 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
             ${request.userId ?? null}::uuid
           )
         `
+        await recordAudit(tx, {
+          action: "api_key.created",
+          actorUserId: request.userId ?? null,
+          targetType: "api_key",
+          targetId: keyId,
+          metadata: { name },
+        })
       })
 
       captureEvent(request.userId as string, "api_key_created", { workspace_id: workspaceId })
@@ -174,6 +182,12 @@ const apiKeyRoutes: FastifyPluginAsync = async (fastify) => {
           WHERE id = ${keyId}::uuid
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
         `
+        await recordAudit(tx, {
+          action: "api_key.revoked",
+          actorUserId: request.userId ?? null,
+          targetType: "api_key",
+          targetId: keyId,
+        })
         return "ok"
       })
 

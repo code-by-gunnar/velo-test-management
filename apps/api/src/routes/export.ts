@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import archiver from "archiver"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 
 // Cap the number of rows a single synchronous export may materialize (VEL-70).
 // The export buffers every row in memory and compresses in-process, so a very
@@ -116,6 +117,20 @@ const exportRoutes: FastifyPluginAsync = async (fastify) => {
         max_rows: EXPORT_MAX_ROWS,
       })
     }
+
+    // Record the export in the security audit trail (VEL-72): an admin pulling a
+    // full copy of tenant data is exactly the kind of action worth a durable log.
+    // Placed past the size guard (the export is now committed) and before the
+    // stream starts.
+    await withWorkspace(workspaceId, async (tx) => {
+      await recordAudit(tx, {
+        action: "workspace.exported",
+        actorUserId: request.userId ?? null,
+        targetType: "workspace",
+        targetId: workspaceId,
+        metadata: { format, total_rows: totalRows, cases: data.cases.length, runs: data.runs.length },
+      })
+    })
 
     // Build ZIP. Compression level 6 (zlib default) instead of 9 — level 9 costs
     // markedly more CPU for a marginal size gain and blocks the event loop longer

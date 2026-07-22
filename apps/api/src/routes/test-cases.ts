@@ -3,6 +3,7 @@ import { uuidv7 } from "uuidv7"
 import { getAiClientForWorkspace, getActiveProvider } from "../lib/ai.js"
 import { parseAiTestCases } from "../lib/parse-ai-cases.js"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { parseImportBuffer, type TestCaseImport, type ExplicitColumnMapping } from "../lib/import-parser.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { decrypt } from "../lib/encryption.js"
@@ -709,6 +710,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
             WHERE id = ANY(${case_ids}::uuid[])
               AND project_id = ${projectId}::uuid
           `
+          await recordAudit(tx, {
+            action: "recycle.bulk_deleted",
+            actorUserId: request.userId ?? null,
+            targetType: "case",
+            metadata: { count: case_ids.length, project_id: projectId, case_ids },
+          })
         })
         return reply.status(204).send()
       }
@@ -755,6 +762,12 @@ const testCasesRoutes: FastifyPluginAsync = async (fastify) => {
               AND project_id = ${projectId}::uuid
               AND deleted_at IS NOT NULL
           `
+          await recordAudit(tx, {
+            action: "recycle.purged",
+            actorUserId: request.userId ?? null,
+            targetType: "case",
+            metadata: { count: case_ids.length, project_id: projectId, case_ids },
+          })
         })
         return reply.status(204).send()
       }

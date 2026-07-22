@@ -193,6 +193,39 @@ export async function runFixups() {
     await fixupClient.unsafe(`
       CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON erasure_audit_log (entity_type, entity_id)
     `)
+    // VEL-72: workspace-scoped, append-only security audit trail (migration 0025).
+    // Append-only = only SELECT + INSERT policies, so UPDATE/DELETE are denied
+    // under velo_app (no matching policy) despite the table-level grant.
+    await fixupClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id TEXT,
+        metadata JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `)
+    await fixupClient.unsafe(`
+      CREATE INDEX IF NOT EXISTS idx_audit_log_workspace_created ON audit_log (workspace_id, created_at DESC)
+    `)
+    await fixupClient.unsafe(`ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY`)
+    await fixupClient.unsafe(`ALTER TABLE audit_log FORCE ROW LEVEL SECURITY`)
+    await fixupClient.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_log' AND policyname = 'audit_log_select') THEN
+          CREATE POLICY audit_log_select ON audit_log FOR SELECT
+            USING (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_log' AND policyname = 'audit_log_insert') THEN
+          CREATE POLICY audit_log_insert ON audit_log FOR INSERT
+            WITH CHECK (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid);
+        END IF;
+      END $$
+    `)
     await fixupClient.unsafe(`
       CREATE INDEX IF NOT EXISTS idx_workspaces_deletion_status ON workspaces (deletion_status, deletion_scheduled_at) WHERE deletion_status IS NOT NULL
     `)

@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { captureEvent } from "../lib/posthog.js"
 import { safeFetch, SsrfError } from "../lib/ssrf.js"
 import { requireAdmin } from "../plugins/require-admin.js"
@@ -124,6 +125,13 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
           )
           RETURNING id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at
         `
+        await recordAudit(tx, {
+          action: "webhook.created",
+          actorUserId: createdBy ?? null,
+          targetType: "webhook",
+          targetId: webhookId,
+          metadata: { project_id: projectId, endpoint_url, events },
+        })
         return rows[0] as Record<string, unknown>
       })
 
@@ -230,7 +238,22 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id, workspace_id, project_id, endpoint_url, events, active, created_by, created_at, updated_at
         `
-        return rows.length > 0 ? rows[0] as Record<string, unknown> : null
+        const row = rows.length > 0 ? rows[0] as Record<string, unknown> : null
+        if (row) {
+          await recordAudit(tx, {
+            action: "webhook.updated",
+            actorUserId: request.userId ?? null,
+            targetType: "webhook",
+            targetId: webhookId,
+            metadata: {
+              project_id: projectId,
+              ...(endpoint_url !== undefined ? { endpoint_url } : {}),
+              ...(events !== undefined ? { events } : {}),
+              ...(active !== undefined ? { active } : {}),
+            },
+          })
+        }
+        return row
       })
 
       if (!result) {
@@ -266,7 +289,15 @@ const webhookRoutes: FastifyPluginAsync = async (fastify) => {
             AND workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
         `
-        return rows.length > 0 ? "deleted" as const : "not_found" as const
+        if (rows.length === 0) return "not_found" as const
+        await recordAudit(tx, {
+          action: "webhook.deleted",
+          actorUserId: request.userId ?? null,
+          targetType: "webhook",
+          targetId: webhookId,
+          metadata: { project_id: projectId },
+        })
+        return "deleted" as const
       })
 
       if (result === "not_found") {

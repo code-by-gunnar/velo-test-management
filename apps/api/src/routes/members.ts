@@ -4,6 +4,7 @@ import bcrypt from "bcrypt"
 import { uuidv7 } from "uuidv7"
 import { sql } from "../db/client.js"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { emailQueue } from "../queues/email.queue.js"
 import { emailEnabled } from "../lib/mailer.js"
 import { valkey } from "../lib/valkey.js"
@@ -313,14 +314,26 @@ const memberRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Update role in DB — workspace_members is RLS-scoped (VEL-43)
-      const updated = await withWorkspace(workspaceId, async (tx) => tx`
-        UPDATE workspace_members
-        SET role = ${role}, updated_at = NOW()
-        WHERE workspace_id = ${workspaceId}::uuid
-          AND user_id = ${targetUserId}::uuid
-          AND is_active = true
-        RETURNING user_id, role
-      `)
+      const updated = await withWorkspace(workspaceId, async (tx) => {
+        const rows = await tx`
+          UPDATE workspace_members
+          SET role = ${role}, updated_at = NOW()
+          WHERE workspace_id = ${workspaceId}::uuid
+            AND user_id = ${targetUserId}::uuid
+            AND is_active = true
+          RETURNING user_id, role
+        `
+        if (rows.length > 0) {
+          await recordAudit(tx, {
+            action: "role.changed",
+            actorUserId: callerId ?? null,
+            targetType: "user",
+            targetId: targetUserId,
+            metadata: { role },
+          })
+        }
+        return rows
+      })
 
       if (updated.length === 0) {
         return reply.status(404).send({ error: "Member not found or inactive" })

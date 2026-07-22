@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { sql } from "../db/client.js"
 import { encrypt } from "../lib/encryption.js"
 import {
@@ -389,6 +390,13 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
             SET api_key_enc = ${encApiKey}, linear_org_id = ${org.id}, linear_org_name = ${org.name}
             WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           `
+          await recordAudit(tx, {
+            action: "integration.connected",
+            actorUserId: request.userId ?? null,
+            targetType: "integration",
+            targetId: "linear",
+            metadata: { provider: "linear", rotated: true, org: org.name },
+          })
           return { created: false, teamId: (existing[0] as { team_id: string }).team_id }
         }
 
@@ -409,6 +417,13 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
             ${request.userId}::uuid
           )
         `
+        await recordAudit(tx, {
+          action: "integration.connected",
+          actorUserId: request.userId ?? null,
+          targetType: "integration",
+          targetId: "linear",
+          metadata: { provider: "linear", rotated: false, org: org.name },
+        })
         return { created: true, teamId: "pending" }
       })
 
@@ -447,7 +462,15 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
           RETURNING id
         `
-        return rows.length > 0 ? "deleted" as const : "not_found" as const
+        if (rows.length === 0) return "not_found" as const
+        await recordAudit(tx, {
+          action: "integration.disconnected",
+          actorUserId: request.userId ?? null,
+          targetType: "integration",
+          targetId: "linear",
+          metadata: { provider: "linear" },
+        })
+        return "deleted" as const
       })
 
       if (result === "not_found") {

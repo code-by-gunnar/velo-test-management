@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { uuidv7 } from "uuidv7"
 import { withWorkspace, type WorkspaceSql } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { requireEditor } from "../plugins/require-editor.js"
 
 // Recursively soft-delete suites: the given suites, all descendant suites, and
@@ -430,7 +431,15 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suite id in array" })
       }
 
-      await withWorkspace(workspaceId, (tx) => softDeleteSuiteSubtree(tx, projectId, ids, request.userId))
+      await withWorkspace(workspaceId, async (tx) => {
+        await softDeleteSuiteSubtree(tx, projectId, ids, request.userId)
+        await recordAudit(tx, {
+          action: "recycle.bulk_deleted",
+          actorUserId: request.userId ?? null,
+          targetType: "suite",
+          metadata: { count: ids.length, project_id: projectId, suite_ids: ids },
+        })
+      })
 
       return reply.status(204).send()
     }
@@ -491,7 +500,15 @@ const suitesRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "Invalid suite id in array" })
       }
 
-      await withWorkspace(workspaceId, (tx) => purgeSuiteSubtree(tx, projectId, ids))
+      await withWorkspace(workspaceId, async (tx) => {
+        await purgeSuiteSubtree(tx, projectId, ids)
+        await recordAudit(tx, {
+          action: "recycle.purged",
+          actorUserId: request.userId ?? null,
+          targetType: "suite",
+          metadata: { count: ids.length, project_id: projectId, suite_ids: ids },
+        })
+      })
 
       return reply.status(204).send()
     }

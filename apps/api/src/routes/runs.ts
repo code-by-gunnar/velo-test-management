@@ -4,6 +4,7 @@ import { uuidv7 } from "uuidv7"
 import { Redis as Valkey } from "iovalkey"
 import { valkey } from "../lib/valkey.js"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { writeSSEEvent, startHeartbeat } from "../lib/sse.js"
 import { computeRunStats, estimateTimeRemaining } from "../lib/run-stats.js"
 import { fireWebhookEvent } from "../queues/webhook.queue.js"
@@ -809,6 +810,12 @@ const runsRoutes: FastifyPluginAsync = async (fastify) => {
         await tx`DELETE FROM run_items WHERE run_id = ANY(${runIds}::uuid[])`
         await tx`DELETE FROM test_runs WHERE id = ANY(${runIds}::uuid[])
           AND workspace_id = current_setting('app.workspace_id', true)::uuid`
+        await recordAudit(tx, {
+          action: "recycle.purged",
+          actorUserId: request.userId ?? null,
+          targetType: "run",
+          metadata: { count: runIds.length, run_ids: runIds },
+        })
         return keyRows.map((r) => r.r2_key)
       })
 

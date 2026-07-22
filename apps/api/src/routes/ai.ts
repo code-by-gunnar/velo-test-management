@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
+import { recordAudit } from "../lib/audit-log.js"
 import { encrypt } from "../lib/encryption.js"
 import {
   getAiStatus,
@@ -94,6 +95,13 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
           ON CONFLICT (workspace_id, provider)
           DO UPDATE SET secret_enc = ${enc}, base_url = ${baseUrl}, model = ${model}, updated_at = NOW()
         `
+        await recordAudit(tx, {
+          action: "integration.connected",
+          actorUserId: request.userId ?? null,
+          targetType: "integration",
+          targetId: `ai:${provider}`,
+          metadata: { provider, kind: "ai" },
+        })
       })
 
       // Configuring a key activates that provider — one active provider at a time,
@@ -120,11 +128,21 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await withWorkspace(workspaceId, async (tx) => {
-        await tx`
+        const rows = await tx`
           DELETE FROM workspace_integration_secrets
           WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
             AND provider = ${provider}
+          RETURNING provider
         `
+        if (rows.length > 0) {
+          await recordAudit(tx, {
+            action: "integration.disconnected",
+            actorUserId: request.userId ?? null,
+            targetType: "integration",
+            targetId: `ai:${provider}`,
+            metadata: { provider, kind: "ai" },
+          })
+        }
       })
 
       invalidateAiClient(workspaceId)

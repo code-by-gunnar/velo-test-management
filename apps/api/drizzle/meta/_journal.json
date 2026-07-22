@@ -176,6 +176,13 @@
       "when": 1784452436769,
       "tag": "0024_deleted_by",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784452436770,
+      "tag": "0025_audit_log",
+      "breakpoints": true
     }
   ]
 }
