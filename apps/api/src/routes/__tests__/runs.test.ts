@@ -687,9 +687,8 @@ describe("Runs routes integration (TR-01, DA-03, TR-06, TR-07)", () => {
     expect((await sql`SELECT id FROM test_runs WHERE id = ${runId}::uuid`).length).toBe(1)
   })
 
-  // ── DA-01: SSE (deferred to plan 03-04) ────────────────────────────────────
-
-  it.todo("DA-01: GET /runs/:runId/stream returns Content-Type: text/event-stream (03-04)")
-  it.todo("DA-01: GET /runs/:runId/stream sends initial stats event on connection (03-04)")
-  it.todo("DA-01: GET /runs/:runId/stream receives update event via Valkey pub/sub (03-04)")
+  // DA-01: the run SSE stream is covered in runs-sse.test.ts — it needs a real
+  // listening server (the endpoint reply.hijack()s, which app.inject can't
+  // capture): content-type, initial run_update, live Valkey pub/sub update, plus
+  // ticket auth (bogus rejected, single-use enforced). VEL-73.
 })

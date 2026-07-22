@@ -121,12 +121,7 @@ describe("Webhook CRUD RBAC (VEL-67)", () => {
   })
 })
 
-// ── Webhook Delivery (tracked under VEL-73) ──────────────────────────────────
-
-describe("Webhook Delivery", () => {
-  it.todo("fires run.completed webhook when run status changes to completed") // INT-04
-  it.todo("fires run_item.failed webhook when verdict is fail") // INT-04
-  it.todo("signs payload with HMAC-SHA256 using webhook secret") // INT-04
-  it.todo("retries with exponential backoff on delivery failure") // INT-04
-  it.todo("does not fire for unsubscribed event types") // INT-04
-})
+// Webhook DELIVERY (INT-04) is covered in webhook-delivery.test.ts — dispatch
+// (subscription filtering), HMAC-SHA256 signing, and retry semantics. Kept in a
+// separate file because it mocks the SSRF layer, which the CRUD tests above must
+// not (webhook creation validates the endpoint URL through it). VEL-73.
