@@ -232,6 +232,66 @@ describe("AI provider keys (per-workspace, multi-provider)", () => {
     expect(rows[0]).toMatchObject({ base_url: "http://host.docker.internal:11434/v1", model: "qwen2.5-coder" })
   })
 
+  // Regression: on a deployment without ENCRYPTION_KEY (docker-compose.nas.yml
+  // omitted it), encrypt() threw AFTER the provider round-trip, surfacing as an
+  // opaque 500. The guard must fail fast — before the paid/network validation —
+  // with an actionable code the UI can turn into a real message.
+  // Every provider funnels into the same encrypt() call, so the guard must be
+  // provider-agnostic — not an Anthropic-only patch.
+  const encryptionCases = [
+    { provider: "anthropic", payload: { api_key: "sk-ant-valid" } },
+    { provider: "openai", payload: { api_key: "sk-openai-valid" } },
+    {
+      provider: "custom",
+      payload: { api_key: "any-key", base_url: "http://host.docker.internal:11434/v1", model: "qwen2.5-coder" },
+    },
+  ]
+
+  it.each(encryptionCases)(
+    "returns 503 with an actionable code when ENCRYPTION_KEY is unset ($provider)",
+    async ({ provider, payload }) => {
+      anthropicList.mockResolvedValue({ data: [] })
+      openaiList.mockResolvedValue({ data: [] })
+      openaiChat.mockResolvedValue({ choices: [{ message: { content: "ok" } }] })
+      const saved = process.env.ENCRYPTION_KEY
+      delete process.env.ENCRYPTION_KEY
+      try {
+        const res = await app.inject({
+          method: "PUT",
+          url: `/api/workspaces/${workspaceId}/ai/keys/${provider}`,
+          payload,
+        })
+        expect(res.statusCode).toBe(503)
+        expect((res.json() as { code: string }).code).toBe("ENCRYPTION_KEY_MISSING")
+        // Fails before the provider call — never spend a round-trip we can't persist.
+        expect(anthropicList).not.toHaveBeenCalled()
+        expect(openaiList).not.toHaveBeenCalled()
+        expect(openaiChat).not.toHaveBeenCalled()
+        const rows = await sql`SELECT provider FROM workspace_integration_secrets WHERE workspace_id = ${workspaceId}::uuid`
+        expect(rows).toHaveLength(0)
+      } finally {
+        process.env.ENCRYPTION_KEY = saved
+      }
+    }
+  )
+
+  // Request-shape errors stay 400 even on a server that cannot encrypt — a
+  // malformed body is the caller's fault, not the deployment's.
+  it("still returns 400 for a malformed custom payload when ENCRYPTION_KEY is unset", async () => {
+    const saved = process.env.ENCRYPTION_KEY
+    delete process.env.ENCRYPTION_KEY
+    try {
+      const res = await app.inject({
+        method: "PUT",
+        url: `/api/workspaces/${workspaceId}/ai/keys/custom`,
+        payload: { api_key: "any-key" },
+      })
+      expect(res.statusCode).toBe(400)
+    } finally {
+      process.env.ENCRYPTION_KEY = saved
+    }
+  })
+
   it("rejects a custom provider missing base_url or model with 400", async () => {
     const res = await app.inject({
       method: "PUT",

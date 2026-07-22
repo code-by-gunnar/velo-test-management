@@ -8,20 +8,52 @@ const ALGORITHM = "aes-256-gcm"
 const IV_LENGTH = 16 // 128-bit IV for GCM
 const AUTH_TAG_LENGTH = 16 // 128-bit auth tag
 
-function getKey(): Buffer {
-  const keyHex = process.env.ENCRYPTION_KEY
+/**
+ * Why the configured ENCRYPTION_KEY is unusable, or null if it is fine.
+ *
+ * Single source of truth for key validity: getKey() throws this message, and
+ * isEncryptionConfigured() reports the same verdict to routes that want to fail
+ * fast with an actionable 503 instead of an opaque 500. Never let the two drift.
+ *
+ * Reads are lazy (the caller passes process.env.ENCRYPTION_KEY in) — a
+ * module-top-level capture would freeze the value before test setup runs.
+ *
+ * Strict about hex on purpose: Buffer.from(str, "hex") does NOT throw on invalid
+ * input — it decodes until the first bad pair and returns a SHORT buffer, so a
+ * 64-char base64 secret would sail past a length-only check and blow up later in
+ * createCipheriv with an unhelpful "Invalid key length". Operators reusing the
+ * `openssl rand -base64 32` recipe from the deploy docs land exactly there.
+ */
+function encryptionKeyError(keyHex: string | undefined): string | null {
   if (!keyHex) {
-    throw new Error(
+    return (
       "ENCRYPTION_KEY environment variable is required for token encryption. " +
       "Set a 32-byte hex string (64 characters)."
     )
   }
   if (keyHex.length !== 64) {
-    throw new Error(
-      `ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes). Got ${keyHex.length} characters.`
-    )
+    return `ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes). Got ${keyHex.length} characters.`
   }
-  return Buffer.from(keyHex, "hex")
+  if (!/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+    return "ENCRYPTION_KEY must be hex characters only (0-9, a-f). Generate one with: openssl rand -hex 32"
+  }
+  return null
+}
+
+function getKey(): Buffer {
+  const keyHex = process.env.ENCRYPTION_KEY
+  const problem = encryptionKeyError(keyHex)
+  if (problem) throw new Error(problem)
+  return Buffer.from(keyHex!, "hex")
+}
+
+/**
+ * True when credentials can actually be encrypted at rest. Routes that store a
+ * secret (AI provider keys, Linear API key) check this BEFORE doing any provider
+ * round-trip, so a misconfigured deployment gets a named error rather than a 500.
+ */
+export function isEncryptionConfigured(): boolean {
+  return encryptionKeyError(process.env.ENCRYPTION_KEY) === null
 }
 
 /**

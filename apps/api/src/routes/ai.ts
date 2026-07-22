@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { recordAudit } from "../lib/audit-log.js"
-import { encrypt } from "../lib/encryption.js"
+import { encrypt, isEncryptionConfigured } from "../lib/encryption.js"
 import {
   getAiStatus,
   validateProviderKey,
@@ -72,6 +72,18 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
       const model = provider === "custom" ? (request.body.model ?? null) : null
       if (provider === "custom" && (!baseUrl || !model)) {
         return reply.status(400).send({ error: "base_url and model are required for a custom provider" })
+      }
+
+      // Provider-agnostic, and checked BEFORE validateProviderKey: every provider
+      // (anthropic / openai / custom) ends at the same encrypt() call, so without a
+      // key the round-trip is wasted and encrypt() would throw an opaque 500.
+      // Ordered after the request-shape checks above — a malformed body is the
+      // caller's fault and stays a 400 regardless of server configuration.
+      if (!isEncryptionConfigured()) {
+        return reply.status(503).send({
+          error: "Credential storage is not configured on this server — set ENCRYPTION_KEY (openssl rand -hex 32) and restart the API",
+          code: "ENCRYPTION_KEY_MISSING",
+        })
       }
 
       const ok = await validateProviderKey(provider, { key: api_key, baseUrl, model })

@@ -121,6 +121,26 @@ describe("Linear API-key-only connect (PUT /linear/api-key upsert)", () => {
     expect(rows).toHaveLength(0)
   })
 
+  // Same regression as the AI provider keys: encrypt() throws on a deployment
+  // missing ENCRYPTION_KEY, so connecting Linear 500'd after a successful
+  // round-trip to Linear. Fail fast with an actionable code instead.
+  it("returns 503 with an actionable code when ENCRYPTION_KEY is unset", async () => {
+    mockGetOrg.mockResolvedValue({ id: "org-1", name: "Acme" })
+    mockGetTeams.mockResolvedValue([{ id: "team-a", name: "Team A" }])
+    const saved = process.env.ENCRYPTION_KEY
+    delete process.env.ENCRYPTION_KEY
+    try {
+      const res = await putKey("lin_api_valid_key")
+      expect(res.statusCode).toBe(503)
+      expect((res.json() as { code: string }).code).toBe("ENCRYPTION_KEY_MISSING")
+      expect(mockGetOrg).not.toHaveBeenCalled()
+      const rows = await sql`SELECT id FROM linear_connections WHERE workspace_id = ${workspaceId}::uuid`
+      expect(rows).toHaveLength(0)
+    } finally {
+      process.env.ENCRYPTION_KEY = saved
+    }
+  })
+
   it("rotates the key on an existing connection instead of creating a duplicate", async () => {
     mockGetOrg.mockResolvedValue({ id: "org-1", name: "Acme" })
     mockGetTeams.mockResolvedValue([{ id: "team-a", name: "Team A" }])

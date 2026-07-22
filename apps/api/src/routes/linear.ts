@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { recordAudit } from "../lib/audit-log.js"
-import { encrypt } from "../lib/encryption.js"
+import { encrypt, isEncryptionConfigured } from "../lib/encryption.js"
 import {
   getLinearOrganization,
   getLinearTeams,
@@ -174,6 +174,15 @@ const linearRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (request.workspaceId !== workspaceId) {
         return reply.status(403).send({ error: "Forbidden" })
+      }
+
+      // Checked BEFORE authenticating with Linear: without a key we cannot persist
+      // the secret, so the round-trip would be wasted and encrypt() would throw a 500.
+      if (!isEncryptionConfigured()) {
+        return reply.status(503).send({
+          error: "Credential storage is not configured on this server — set ENCRYPTION_KEY (openssl rand -hex 32) and restart the API",
+          code: "ENCRYPTION_KEY_MISSING",
+        })
       }
 
       // Validate the key AND fetch org + teams in one go — a valid key authenticates

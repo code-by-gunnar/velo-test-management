@@ -1,6 +1,6 @@
 # Velo — single-file NAS stack, NO ${} interpolation (edit values directly).
 # For stack managers (Dockhand/Portainer/Synology) whose env fields don't feed
-# compose interpolation. Just fill in the 4 CAPS placeholders below and deploy.
+# compose interpolation. Just fill in the 6 CAPS placeholders below and deploy.
 #
 # NOTE: this is a convenience mirror of docker-compose.yml + docker-compose.app.yml
 # for single-file stack managers. If you change service config in those files,
@@ -13,6 +13,8 @@
 # │ 3. REPLACE_AUTH_SECRET   → openssl rand -base64 32                          │
 # │ 4. REPLACE_INTERNAL_SEC  → openssl rand -hex 32                             │
 # │ 5. REPLACE_MINIO_PASS    → openssl rand -hex 16  (object-storage password)  │
+# │ 6. REPLACE_ENCRYPTION_KEY → openssl rand -hex 32 (exactly 64 hex chars)     │
+# │                            encrypts Linear + AI provider keys at rest       │
 # │                                                                            │
 # │ ⚠️  These secrets appear MORE THAN ONCE and every copy must match:         │
 # │       REPLACE_AUTH_SECRET / REPLACE_INTERNAL_SEC → api + web       (2x)     │
@@ -77,6 +79,10 @@ services:
       VALKEY_URL: redis://valkey:6379
       AUTH_SECRET: REPLACE_AUTH_SECRET               # must match web
       INTERNAL_API_SECRET: REPLACE_INTERNAL_SEC      # must match web
+      # Encrypts integration credentials at rest (Linear API key, AI provider keys).
+      # openssl rand -hex 32 — must be exactly 64 hex chars. Without it, saving a
+      # Linear or AI key fails with a 503 telling you to set this.
+      ENCRYPTION_KEY: REPLACE_ENCRYPTION_KEY
       WEB_URL: http://NAS_IP:3000
       # Bundled object storage (evidence/avatars/CI payloads) — see minio below.
       S3_ENDPOINT: http://minio:9000                 # api -> minio (internal)
