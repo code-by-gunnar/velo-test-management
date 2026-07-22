@@ -31,6 +31,7 @@ import erasureRoutes from "./routes/erasure.js"
 import exportRoutes from "./routes/export.js"
 import attachmentRoutes from "./routes/run-item-attachments.js"
 import reportsRoutes from "./routes/reports.js"
+import auditLogRoutes from "./routes/audit-log.js"
 import * as Sentry from "@sentry/node"
 import { registerSweepJob } from "./queues/lifecycle.queue.js"
 import { shutdownPostHog } from "./lib/posthog.js"
@@ -91,6 +92,7 @@ await fastify.register(erasureRoutes)
 await fastify.register(exportRoutes)
 await fastify.register(attachmentRoutes)
 await fastify.register(reportsRoutes)
+await fastify.register(auditLogRoutes)
 
 fastify.get("/robots.txt", async (_request, reply) => {
   return reply.type("text/plain").send("User-agent: *\nDisallow: /\n")

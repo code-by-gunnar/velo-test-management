@@ -9,6 +9,7 @@ import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel"
 import { DeletionPanel } from "@/components/settings/DeletionPanel"
 import { TeamPanel } from "@/components/settings/TeamPanel"
 import { ExportPanel } from "@/components/settings/ExportPanel"
+import { AuditLogPanel } from "@/components/settings/AuditLogPanel"
 import { clsx } from "clsx"
 
 interface SettingsProps {
@@ -25,6 +26,7 @@ const TABS = [
   { key: "api-keys", label: "API Keys" },
   { key: "api-reference", label: "API Reference" },
   { key: "integrations", label: "Integrations" },
+  { key: "audit-log", label: "Audit Log", adminOnly: true },
   { key: "danger-zone", label: "Danger Zone" },
 ] as const
 
@@ -32,6 +34,10 @@ type TabKey = (typeof TABS)[number]["key"]
 
 export default function SettingsPage({ slug, workspaceId, userRole, userId, apiBaseUrl }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("general")
+
+  // The audit log is admin-only (its endpoint is requireAdmin) — hide the tab for
+  // everyone else rather than show a tab that only 403s.
+  const visibleTabs = TABS.filter((t) => !("adminOnly" in t && t.adminOnly) || userRole === "admin")
 
   return (
     <AppLayout slug={slug}>
@@ -44,7 +50,7 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId, apiB
         {/* Tab navigation */}
         <div className="border-b border-gray-200 bg-white px-6">
           <nav className="flex gap-6" aria-label="Settings tabs">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -113,6 +119,10 @@ export default function SettingsPage({ slug, workspaceId, userRole, userId, apiB
 
             {activeTab === "integrations" && (
               <IntegrationsPanel workspaceId={workspaceId} />
+            )}
+
+            {activeTab === "audit-log" && userRole === "admin" && (
+              <AuditLogPanel workspaceId={workspaceId} />
             )}
 
             {activeTab === "danger-zone" && (
