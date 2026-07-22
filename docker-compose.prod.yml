@@ -1,17 +1,27 @@
-# Production overlay — Caddy reverse proxy with automatic TLS. UNTESTED STUB:
-# review before first server deploy.
+# Production overlay — Caddy reverse proxy with automatic TLS (single origin).
 #
-#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.prod.yml up -d
+#   (add -f docker-compose.storage.yml for bundled MinIO; add -f docker-compose.build.yml --build to build from source)
 #
-# Deploy checklist (any host — EC2, Hetzner, etc.):
-#   1. DNS: A records for app.DOMAIN and api.DOMAIN → server IP
-#   2. .env: DOMAIN=yourdomain, WEB_URL=https://app.DOMAIN, PUBLIC_API_URL=https://api.DOMAIN
-#      (PUBLIC_API_URL is resolved at RUNTIME — no web image rebuild needed)
-#   3. Re-register OAuth callbacks at https://app.DOMAIN/api/auth/callback/{google,github}
-#   5. Strong POSTGRES_PASSWORD
-#   6. Verify merged config first: docker compose -f docker-compose.yml \
-#        -f docker-compose.app.yml -f docker-compose.prod.yml config
-#      (confirm postgres/valkey/api/web publish no host ports — !override below)
+# Status (VEL-71): the compose MERGE and the Caddyfile are validated (ports
+# unpublished, single web origin, DOMAIN guard). The one thing that can only be
+# confirmed on your own DNS + host is live Let's Encrypt issuance — run the
+# checklist and watch `docker compose logs caddy` for the cert on first deploy.
+#
+# Deploy checklist (any host — EC2, Hetzner, a VPS…):
+#   1. DNS: an A/AAAA record for $DOMAIN → this server's public IP.
+#   2. .env: DOMAIN=velo.example.com  (the full public host — Caddy issues a cert
+#      for it), WEB_URL=https://velo.example.com, AUTH_URL=https://velo.example.com.
+#      SAME origin for all three (VEL-77) — you do NOT need PUBLIC_API_URL: the
+#      browser reaches the API, SSE, and evidence through the same-origin gateway.
+#   3. OAuth (only if used): re-register callbacks at
+#      https://$DOMAIN/api/auth/callback/{google,github}.
+#   4. Strong POSTGRES_PASSWORD (+ MINIO_ROOT_PASSWORD if using the storage overlay).
+#   5. Verify the merged config publishes NO host ports before `up`:
+#        docker compose -f docker-compose.yml -f docker-compose.app.yml \
+#          -f docker-compose.prod.yml config
+#      (postgres/valkey/api/web should show no `ports:` — see !override below.)
+#   6. Ingesting CI results over the internet? See the optional api. block in ./Caddyfile.
 
 services:
   postgres:

@@ -1,11 +1,24 @@
 # Caddy config for the prod overlay (docker-compose.prod.yml).
-# Automatic HTTPS via Let's Encrypt — requires DNS A records pointing here.
-
-app.{$DOMAIN} {
+# Automatic HTTPS via Let's Encrypt — needs a DNS A/AAAA record for {$DOMAIN}
+# pointing at this server.
+#
+# Single origin (VEL-77): the browser talks to this ONE host for everything —
+# pages, the API (via the same-origin /api/backend gateway), live SSE updates,
+# and evidence images. No api./minio. subdomains, no PUBLIC_API_URL, and no
+# S3_PUBLIC_ENDPOINT are needed. SSE streams natively through Caddy's
+# reverse_proxy (no buffering config required).
+{$DOMAIN} {
 	reverse_proxy web:3000
 }
 
-# SSE streams natively through Caddy's reverse_proxy (no buffering config needed).
-api.{$DOMAIN} {
-	reverse_proxy api:3001
-}
+# ── CI ingestion (optional) ──────────────────────────────────────────────────
+# External CI runners POST JUnit/Allure results with an API key. The same-origin
+# gateway forwards the session cookie (not an API key), so CI must reach the API
+# DIRECTLY — it can't go through the web host. ONLY if you ingest CI over the
+# internet: add a DNS record for api.{$DOMAIN}, uncomment the block below, and
+# set PUBLIC_API_URL=https://api.{$DOMAIN} in .env so the command shown in
+# Settings → API points at the right URL. Everyone else can ignore this.
+#
+# api.{$DOMAIN} {
+# 	reverse_proxy api:3001
+# }

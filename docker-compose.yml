@@ -6,6 +6,15 @@
 #
 # The app overlay requires secrets — copy .env.example → .env first.
 # Prod (Caddy + TLS) additionally layers docker-compose.prod.yml.
+#
+# SECURITY (VEL-71): postgres ships a weak default password (`velo`) and valkey
+# runs with NO auth — fine ONLY because their published ports are bound to
+# 127.0.0.1 below, so they're reachable from THIS machine (host `psql`, `pnpm
+# dev`) but NOT from the LAN. The app containers reach them over the Docker
+# network by service name, independent of these host bindings. The prod overlay
+# unpublishes both ports entirely (`ports: !override []`). Never rebind these to
+# 0.0.0.0 (`"5432:5432"`) on a shared/exposed network without a strong password
+# on postgres and `--requirepass` on valkey.
 
 services:
   postgres:
@@ -16,7 +25,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-velo}
       POSTGRES_DB: ${POSTGRES_DB:-velo_dev}
     ports:
-      - "5432:5432"
+      # Loopback-only: reachable from this host (psql, `pnpm dev`), not the LAN.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,7 +39,8 @@ services:
     image: valkey/valkey:7
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Loopback-only: unauthenticated valkey must never be LAN-reachable.
+      - "127.0.0.1:6379:6379"
     volumes:
       - valkey_data:/data
     healthcheck:
