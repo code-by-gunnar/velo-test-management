@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { useRouter } from "next/router"
 import { useUserRole } from "@/hooks/useUserRole"
 import { useKeyboardExecution } from "@/hooks/useKeyboardExecution"
@@ -116,6 +117,24 @@ export function ExecutionScreen({
   const commentSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [commentFocused, setCommentFocused] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Virtualize the case-nav sidebar so render cost is bounded by the viewport, not
+  // the run size — a run can now hold thousands of items (VEL-62; the 500-case cap
+  // was removed in VEL-59). Flat list, no dnd, so this is the safe half; the
+  // CaseList <table>+dnd virtualization is split to VEL-62b.
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => sidebarScrollRef.current,
+    estimateSize: () => 36, // px-3 py-2 text-sm row; measureElement self-corrects
+    overscan: 8,
+  })
+
+  // Keep the highlighted current item visible as the user navigates (P/F/B/S,
+  // arrows) — in a virtualized list an off-screen row isn't rendered otherwise.
+  useEffect(() => {
+    if (sidebarOpen) rowVirtualizer.scrollToIndex(currentIndex, { align: "auto" })
+  }, [currentIndex, sidebarOpen, rowVirtualizer])
 
   const currentItem = items[currentIndex]
   // Prefer the immutable snapshot captured at run creation — it reflects exactly
@@ -431,42 +450,52 @@ export function ExecutionScreen({
       <div className="flex flex-1 overflow-hidden">
         {/* Case list sidebar */}
         {sidebarOpen && (
-          <div className="w-64 shrink-0 border-r border-gray-200 bg-white overflow-y-auto">
-            <div className="px-3 py-2 border-b border-gray-100">
+          <div className="w-64 shrink-0 border-r border-gray-200 bg-white flex flex-col">
+            <div className="px-3 py-2 border-b border-gray-100 shrink-0">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                 Cases ({items.length})
               </span>
             </div>
-            <ul>
-              {items.map((item, idx) => {
-                const isCurrent = idx === currentIndex
-                const verdict = VERDICT_MINI[item.status]
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigateTo(idx)}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
-                        isCurrent
-                          ? "bg-primary/5 text-primary font-medium"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
+            {/* Virtualized nav list — only viewport rows render (VEL-62). */}
+            <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto">
+              <ul style={{ height: rowVirtualizer.getTotalSize(), position: "relative", width: "100%" }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const idx = virtualRow.index
+                  const item = items[idx]!
+                  const isCurrent = idx === currentIndex
+                  const verdict = VERDICT_MINI[item.status]
+                  return (
+                    <li
+                      key={item.id}
+                      data-index={idx}
+                      ref={rowVirtualizer.measureElement}
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      {verdict ? (
-                        <span className={`flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold border ${verdict.className}`}>
-                          {verdict.label}
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center w-5 h-5 rounded border border-gray-200 text-[10px] text-gray-300">
-                          —
-                        </span>
-                      )}
-                      <span className="flex-1 truncate">{item.case_title}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+                      <button
+                        type="button"
+                        onClick={() => navigateTo(idx)}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                          isCurrent
+                            ? "bg-primary/5 text-primary font-medium"
+                            : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {verdict ? (
+                          <span className={`flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold border ${verdict.className}`}>
+                            {verdict.label}
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center w-5 h-5 rounded border border-gray-200 text-[10px] text-gray-300">
+                            —
+                          </span>
+                        )}
+                        <span className="flex-1 truncate">{item.case_title}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           </div>
         )}
 
