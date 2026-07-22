@@ -339,10 +339,10 @@ export const workspaceIntegrationSecrets = pgTable("workspace_integration_secret
 export const linearConnections = pgTable("linear_connections", {
   id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
   workspace_id: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  // OAuth token encrypted via AES-256-GCM before storage. Nullable since 0017 —
-  // API-key-only connections have no OAuth token (api_key_enc carries the credential).
+  // Legacy OAuth token (AES-256-GCM). Nullable since 0017, write path removed
+  // with the OAuth flow — retained as a read-only fallback for legacy rows
+  // (api_key_enc is preferred; access_token_enc is decrypted only when it's NULL).
   access_token_enc: text("access_token_enc"),
-  refresh_token_enc: text("refresh_token_enc"),
   linear_org_id: varchar("linear_org_id", { length: 255 }).notNull(),
   linear_org_name: varchar("linear_org_name", { length: 255 }),
   team_id: varchar("team_id", { length: 255 }).notNull(),

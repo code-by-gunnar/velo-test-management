@@ -5,9 +5,8 @@ import { uuidv7 } from "uuidv7"
 // INT-01: Linear connection status/disconnect + defect → Linear auto-filing.
 //
 // Scope notes (VEL-73):
-// - The OAuth /linear/auth + /linear/callback routes are deprecated self-hosted
-//   (connect is API-key-only now — see CLAUDE.md), so they're intentionally not
-//   covered here rather than testing dead paths.
+// - The OAuth /linear/auth + /linear/callback routes were removed as dead code
+//   (connect is API-key-only — see CLAUDE.md), so there's nothing to cover there.
 // - Inbound webhook status-sync (INT-02: signature verification + idempotency)
 //   is already covered in linear-webhook.test.ts + linear-webhook-idempotency.test.ts.
 // This file covers what's current and untested: status, disconnect, and the

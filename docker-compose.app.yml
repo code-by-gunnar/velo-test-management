@@ -60,8 +60,6 @@ services:
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      LINEAR_CLIENT_ID: ${LINEAR_CLIENT_ID:-}
-      LINEAR_CLIENT_SECRET: ${LINEAR_CLIENT_SECRET:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]

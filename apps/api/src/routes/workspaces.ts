@@ -6,6 +6,15 @@ import { captureEvent } from "../lib/posthog.js"
 import { requireEditor } from "../plugins/require-editor.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 
+// Extend Fastify route config to support the skipAuth flag (public endpoints
+// like the slug lookup below opt out of the session guard). Global augmentation
+// — this is the sole declaration app-wide.
+declare module "fastify" {
+  interface FastifyContextConfig {
+    skipAuth?: boolean
+  }
+}
+
 // Generate a URL-safe slug from a workspace name
 function slugify(name: string): string {
   return name

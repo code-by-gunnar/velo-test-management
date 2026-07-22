@@ -12,9 +12,6 @@ process.env.VALKEY_URL = process.env.VALKEY_URL ?? "redis://localhost:6379"
 vi.mock("../../lib/linear-client.js", () => ({
   getLinearOrganization: vi.fn(),
   getLinearTeams: vi.fn(),
-  // Present so linear.ts's other imports resolve under the mock.
-  exchangeCodeForTokens: vi.fn(),
-  createLinearWebhook: vi.fn(),
 }))
 
 const sql = (await import("../../db/client.js")).sql

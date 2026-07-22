@@ -1,212 +1,26 @@
-import crypto from "node:crypto"
 import type { FastifyPluginAsync } from "fastify"
 import { withWorkspace } from "../db/tenant.js"
 import { recordAudit } from "../lib/audit-log.js"
-import { sql } from "../db/client.js"
 import { encrypt } from "../lib/encryption.js"
 import {
-  exchangeCodeForTokens,
   getLinearOrganization,
   getLinearTeams,
-  createLinearWebhook,
 } from "../lib/linear-client.js"
 import { captureEvent } from "../lib/posthog.js"
 import { requireAdmin } from "../plugins/require-admin.js"
 
-// Extend Fastify route config to support skipAuth flag
-declare module "fastify" {
-  interface FastifyContextConfig {
-    skipAuth?: boolean
-  }
-}
-
-// Helper: look up workspace slug by ID (non-tenant, bare sql)
-async function getWorkspaceSlug(workspaceId: string): Promise<string> {
-  const rows = await sql`SELECT slug FROM workspaces WHERE id = ${workspaceId}::uuid`
-  return (rows[0]?.slug as string) ?? "unknown"
-}
-
-// ── Linear OAuth + management routes ────────────────────────────────────────
+// ── Linear connection management (API-key connect flow) ─────────────────────
+// Self-hosted connects via a personal Linear API key entered in the UI — there
+// is no OAuth app / browser callback. See CLAUDE.md "Linear API key > OAuth".
 
 const linearRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // ── Auth guard (skips routes with skipAuth config) ──────────────────────
+  // ── Auth guard: every Linear route requires a valid session ───────────────
   fastify.addHook("preHandler", async (request, reply) => {
-    if (request.routeOptions?.config?.skipAuth) return
     if (!request.userId) {
       return reply.status(401).send({ error: "Unauthorized" })
     }
   })
-
-  // ── GET /linear/auth — Generate Linear OAuth authorization URL ────────────
-  // The redirect_uri is a FIXED path (not per-workspace) because Linear OAuth
-  // apps only allow specific registered callback URLs. The workspaceId is
-  // carried in the `state` parameter and validated on callback.
-  fastify.get<{
-    Params: { workspaceId: string }
-  }>(
-    "/api/workspaces/:workspaceId/linear/auth",
-    { preHandler: [requireAdmin] },
-    async (request, reply) => {
-      const { workspaceId } = request.params
-
-      if (request.workspaceId !== workspaceId) {
-        return reply.status(403).send({ error: "Forbidden" })
-      }
-
-      const clientId = process.env.LINEAR_CLIENT_ID
-      if (!clientId) {
-        return reply.status(503).send({ error: "Linear integration is not available yet" })
-      }
-
-      // Fixed callback URL — workspaceId passed via state, not the URL path
-      const apiBase = (process.env.API_URL ?? process.env.WEB_URL ?? "").replace(/\/$/, "")
-      const redirectUri = `${apiBase}/api/linear/callback`
-
-      // Generate CSRF state token, store in Valkey with 10-min TTL
-      const state = crypto.randomBytes(32).toString("hex")
-      const stateKey = `linear:oauth:state:${state}`
-      await fastify.valkey.set(stateKey, JSON.stringify({
-        workspaceId,
-        userId: request.userId,
-      }), "EX", 600) // 10 minutes
-
-      const params = new URLSearchParams({
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        response_type: "code",
-        scope: "read,write,issues:create",
-        state,
-      })
-
-      const url = `https://linear.app/oauth/authorize?${params.toString()}`
-
-      return reply.send({ url })
-    }
-  )
-
-  // ── GET /linear/callback — OAuth callback handler (FIXED path) ──────────
-  // Linear redirects here after user authorizes. workspaceId comes from
-  // the state parameter (stored in Valkey during /auth). This endpoint
-  // does NOT require session auth — the user may have a different cookie
-  // state after the redirect. We validate via the CSRF state token instead.
-  // After processing, redirects the browser to the frontend settings page.
-  fastify.get<{
-    Querystring: { code?: string; state?: string; error?: string }
-  }>(
-    "/api/linear/callback",
-    { config: { skipAuth: true } },
-    async (request, reply) => {
-      const { code, state, error: oauthError } = request.query
-      const webUrl = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "")
-
-      // Handle OAuth error (user denied, etc.)
-      if (oauthError || !code || !state) {
-        return reply.redirect(`${webUrl}/app?linear_error=${oauthError ?? "missing_params"}`)
-      }
-
-      // Validate CSRF state against Valkey
-      const stateKey = `linear:oauth:state:${state}`
-      const stateData = await fastify.valkey.get(stateKey)
-
-      if (!stateData) {
-        return reply.redirect(`${webUrl}/app?linear_error=invalid_state`)
-      }
-
-      // Delete state immediately (one-time use)
-      await fastify.valkey.del(stateKey)
-
-      const parsed = JSON.parse(stateData) as { workspaceId: string; userId: string }
-      const workspaceId = parsed.workspaceId
-
-      // Build the redirect URI (must match what was sent to Linear in /auth)
-      const apiBase = (process.env.API_URL ?? process.env.WEB_URL ?? "").replace(/\/$/, "")
-      const redirectUri = `${apiBase}/api/linear/callback`
-
-      try {
-        const tokens = await exchangeCodeForTokens(code, redirectUri)
-
-        // Fetch org info + teams in parallel (independent API calls)
-        const [org, teams] = await Promise.all([
-          getLinearOrganization(tokens.access_token),
-          getLinearTeams(tokens.access_token),
-        ])
-
-        // Store encrypted tokens in linear_connections
-        const encAccessToken = encrypt(tokens.access_token)
-
-        const result = await withWorkspace(workspaceId, async (tx) => {
-          const existing = await tx`
-            SELECT id FROM linear_connections
-            WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-          `
-
-          if (existing.length > 0) {
-            return "exists" as const
-          }
-
-          await tx`
-            INSERT INTO linear_connections (
-              id, workspace_id, access_token_enc, linear_org_id, linear_org_name,
-              team_id, team_name, connected_by
-            ) VALUES (
-              gen_random_uuid(),
-              current_setting('app.workspace_id', true)::uuid,
-              ${encAccessToken},
-              ${org.id},
-              ${org.name},
-              'pending',
-              ${null},
-              ${parsed.userId}::uuid
-            )
-          `
-
-          return "created" as const
-        })
-
-        if (result === "exists") {
-          return reply.redirect(`${webUrl}/app?linear_error=already_connected`)
-        }
-
-        // Register webhook with Linear for inbound status sync
-        try {
-          const webhookUrl = `${apiBase}/api/webhooks/linear`
-          const webhook = await createLinearWebhook(
-            tokens.access_token,
-            webhookUrl,
-            ["Issue"]
-          )
-
-          await withWorkspace(workspaceId, async (tx) => {
-            await tx`
-              UPDATE linear_connections
-              SET webhook_signing_secret = ${webhook.secret}
-              WHERE workspace_id = current_setting('app.workspace_id', true)::uuid
-            `
-          })
-        } catch (err) {
-          fastify.log.warn({ err, workspaceId }, "Linear webhook registration failed")
-        }
-
-        // Cache teams in Valkey for the frontend team-selection step (5 min TTL)
-        await fastify.valkey.set(
-          `linear:teams:${workspaceId}`,
-          JSON.stringify(teams),
-          "EX", 300
-        )
-
-        captureEvent(parsed.userId, "linear_connected", { workspace_id: workspaceId })
-
-        // Redirect back to frontend settings with success flag
-        // Frontend will detect this and show team selection
-        const slug = await getWorkspaceSlug(workspaceId)
-        return reply.redirect(`${webUrl}/app/${slug}/settings?tab=integrations&linear_callback=success`)
-      } catch (err) {
-        fastify.log.error({ err, workspaceId }, "Linear OAuth callback failed")
-        return reply.redirect(`${webUrl}/app?linear_error=exchange_failed`)
-      }
-    }
-  )
 
   // ── GET /linear/teams — Retrieve cached teams for selection step ─────────
   fastify.get<{

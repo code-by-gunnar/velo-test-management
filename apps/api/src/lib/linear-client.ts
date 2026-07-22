@@ -2,7 +2,6 @@
 // All functions throw descriptive errors on API failures.
 
 const LINEAR_GRAPHQL_URL = "https://api.linear.app/graphql"
-const LINEAR_TOKEN_URL = "https://api.linear.app/oauth/token"
 
 // ── GraphQL helper ──────────────────────────────────────────────────────────
 
@@ -36,48 +35,6 @@ async function linearGraphQL<T = unknown>(
   }
 
   return json.data
-}
-
-// ── Token exchange ──────────────────────────────────────────────────────────
-
-export interface LinearTokenResponse {
-  access_token: string
-  token_type?: string
-  expires_in?: number
-  scope?: string
-}
-
-export async function exchangeCodeForTokens(
-  code: string,
-  redirectUri: string
-): Promise<LinearTokenResponse> {
-  const clientId = process.env.LINEAR_CLIENT_ID
-  const clientSecret = process.env.LINEAR_CLIENT_SECRET
-
-  if (!clientId || !clientSecret) {
-    throw new Error("LINEAR_CLIENT_ID and LINEAR_CLIENT_SECRET must be set")
-  }
-
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    client_id: clientId,
-    client_secret: clientSecret,
-    code,
-    redirect_uri: redirectUri,
-  })
-
-  const res = await fetch(LINEAR_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "")
-    throw new Error(`Linear token exchange failed: ${res.status} ${text}`)
-  }
-
-  return res.json() as Promise<LinearTokenResponse>
 }
 
 // ── Organization ────────────────────────────────────────────────────────────
@@ -164,43 +121,6 @@ export async function createLinearIssue(
   }
 
   return data.issueCreate.issue
-}
-
-// ── Create webhook subscription ──────────────────────────────────────────────
-
-export interface LinearWebhookResponse {
-  id: string
-  enabled: boolean
-  secret: string
-}
-
-export async function createLinearWebhook(
-  accessToken: string,
-  url: string,
-  resourceTypes: string[]
-): Promise<LinearWebhookResponse> {
-  const data = await linearGraphQL<{
-    webhookCreate: { success: boolean; webhook: LinearWebhookResponse }
-  }>(
-    accessToken,
-    `mutation CreateWebhook($url: String!, $resourceTypes: [String!]!) {
-      webhookCreate(input: { url: $url, resourceTypes: $resourceTypes, allPublicTeams: true }) {
-        success
-        webhook {
-          id
-          enabled
-          secret
-        }
-      }
-    }`,
-    { url, resourceTypes }
-  )
-
-  if (!data.webhookCreate.success) {
-    throw new Error("Linear webhook creation failed")
-  }
-
-  return data.webhookCreate.webhook
 }
 
 // ── Create attachment link on issue ──────────────────────────────────────────
